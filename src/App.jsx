@@ -1,4 +1,4 @@
-import { Suspense, lazy, useCallback, useEffect, useState } from 'react'
+import { Suspense, lazy, useCallback, useEffect, useRef, useState } from 'react'
 import { ShieldCheck } from 'lucide-react'
 import { getCurrentUser, logoutUser } from './services/authApi.js'
 import { listFiles } from './services/archiveApi.js'
@@ -18,7 +18,8 @@ import {
   isRecoverableMobileApiError,
   registerPushToken,
 } from './services/mobileApi.js'
-import { nativePlatform, readAppVersion, requestPushRegistration, setupDeepLinkListener } from './services/nativeBridge.js'
+import { nativePlatform, readAppVersion, requestPushRegistration, setupAppStateListener, setupDeepLinkListener } from './services/nativeBridge.js'
+import { isBiometricAvailable } from './services/biometric.js'
 import { getNotice, listNotices } from './services/noticeApi.js'
 import { getNotificationSummary, listNotifications, markAllNotificationsRead, markNotificationRead } from './services/notificationApi.js'
 import { asArray } from './utils/format.js'
@@ -30,6 +31,9 @@ import { Shell } from './components/Shell.jsx'
 import LoginScreen from './screens/LoginScreen.jsx'
 import HomeTab from './screens/HomeTab.jsx'
 import ForcedUpdateScreen from './screens/ForcedUpdateScreen.jsx'
+import BiometricLockScreen from './screens/BiometricLockScreen.jsx'
+
+const IDLE_LOCK_THRESHOLD_MS = 5 * 60 * 1000
 
 const NoticesTab = lazy(() => import('./screens/NoticesTab.jsx'))
 const CommunityTab = lazy(() => import('./screens/CommunityTab.jsx'))
@@ -42,6 +46,8 @@ export default function App() {
   const [user, setUser] = useState(null)
   const [authLoading, setAuthLoading] = useState(true)
   const [appVersion, setAppVersion] = useState(null)
+  const [locked, setLocked] = useState(false)
+  const lastBackgroundedRef = useRef(null)
   const [activeTab, setActiveTab] = useState('home')
   const [notices, setNotices] = useState([])
   const [posts, setPosts] = useState([])
@@ -129,6 +135,31 @@ export default function App() {
 
   useEffect(() => {
     void setUserContext(user)
+  }, [user])
+
+  useEffect(() => {
+    if (!user) return undefined
+    let cleanup = () => {}
+    let mounted = true
+    setupAppStateListener((active) => {
+      if (!active) {
+        lastBackgroundedRef.current = Date.now()
+        return
+      }
+      const last = lastBackgroundedRef.current
+      lastBackgroundedRef.current = null
+      if (!last || Date.now() - last < IDLE_LOCK_THRESHOLD_MS) return
+      void isBiometricAvailable().then((available) => {
+        if (available) setLocked(true)
+      })
+    }).then((remove) => {
+      if (mounted) cleanup = remove
+      else remove()
+    }).catch(() => {})
+    return () => {
+      mounted = false
+      cleanup()
+    }
   }, [user])
 
   useEffect(() => {
@@ -296,6 +327,17 @@ export default function App() {
   }
   if (authLoading) return <LoadingScreen label="세션을 확인하는 중입니다." />
   if (!user) return <LoginScreen onLogin={restoreSession} />
+  if (locked) {
+    return (
+      <BiometricLockScreen
+        onUnlock={() => setLocked(false)}
+        onLogout={async () => {
+          setLocked(false)
+          await handleLogout()
+        }}
+      />
+    )
+  }
 
   let content
   if (loading) content = <LoadingScreen label="회원 앱 데이터를 불러오는 중입니다." />
