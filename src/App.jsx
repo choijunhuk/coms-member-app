@@ -24,6 +24,7 @@ import { getNotificationSummary, listNotifications, markAllNotificationsRead, ma
 import { asArray } from './utils/format.js'
 import { isAdminUser, normalizeAppConfig, normalizeHomeData } from './utils/helpers.js'
 import { isVersionBelow } from './utils/version.js'
+import { setUserContext } from './services/observability.js'
 import { AppConfigBanner, LoadingScreen } from './components/ui.jsx'
 import { Shell } from './components/Shell.jsx'
 import LoginScreen from './screens/LoginScreen.jsx'
@@ -125,6 +126,10 @@ export default function App() {
       cancelled = true
     }
   }, [restoreSession])
+
+  useEffect(() => {
+    void setUserContext(user)
+  }, [user])
 
   useEffect(() => {
     let cancelled = false
