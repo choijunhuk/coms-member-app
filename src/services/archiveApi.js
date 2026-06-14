@@ -1,0 +1,9 @@
+import { apiUrl, request } from './apiClient.js'
+
+export function listFiles() {
+  return request('/api/files')
+}
+
+export function downloadUrl(id) {
+  return apiUrl(`/api/files/${id}/download`)
+}
