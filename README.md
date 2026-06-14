@@ -102,6 +102,149 @@ npm run cap:ios
 
 ```bash
 VITE_API_BASE_URL=https://coms.kw.ac.kr/api
+VITE_SENTRY_DSN=                       # 비워두면 Sentry 비활성
+VITE_SENTRY_ENV=production
 ```
 
 다른 서버를 쓰려면 `.env`에 값을 지정하세요. Android/iOS용 `npm run build:mobile`과 `npm run cap:sync`는 별도 지정이 없으면 `https://coms.kw.ac.kr/api`를 기본 API로 빌드합니다.
+
+## Android APK 빌드 및 배포
+
+### 사전 준비
+
+- macOS/Windows/Linux 어디서나 가능
+- [Android Studio](https://developer.android.com/studio) 설치 (Android SDK + 빌드 도구 포함)
+- Java 17 이상 (Android Studio에 번들된 JDK 사용 가능)
+- `npm install`로 의존성 설치 완료 상태
+
+### 1) Debug APK (테스트용, 빠름)
+
+```bash
+npm run cap:sync                          # dist → android 동기화
+cd android
+./gradlew assembleDebug
+```
+
+결과물:
+
+```
+android/app/build/outputs/apk/debug/app-debug.apk
+```
+
+이 APK는 디버그 키스토어로 자동 서명됩니다. 본인 + 소수 테스터 설치 용도. 자동 업데이트는 안 되고, 새 버전마다 수동 재설치가 필요합니다.
+
+### 2) Release APK (배포용, 영구 서명)
+
+#### (a) 키스토어 생성 (한 번만)
+
+```bash
+keytool -genkeypair -v \
+  -keystore ~/.coms-release.keystore \
+  -alias coms-member \
+  -keyalg RSA -keysize 2048 -validity 10000
+```
+
+비밀번호와 별칭(`coms-member`)을 안전한 곳에 보관하세요. **키스토어 파일을 잃으면 같은 앱으로 업데이트 불가**.
+
+#### (b) Gradle에 서명 정보 연결
+
+`~/.gradle/gradle.properties`에 다음 추가 (로컬 머신에만, 절대 깃에 커밋 금지):
+
+```
+COMS_RELEASE_STORE_FILE=/Users/choi/.coms-release.keystore
+COMS_RELEASE_STORE_PASSWORD=...
+COMS_RELEASE_KEY_ALIAS=coms-member
+COMS_RELEASE_KEY_PASSWORD=...
+```
+
+`android/app/build.gradle`의 `android { ... }` 블록 안에 추가:
+
+```gradle
+signingConfigs {
+    release {
+        if (project.hasProperty('COMS_RELEASE_STORE_FILE')) {
+            storeFile file(COMS_RELEASE_STORE_FILE)
+            storePassword COMS_RELEASE_STORE_PASSWORD
+            keyAlias COMS_RELEASE_KEY_ALIAS
+            keyPassword COMS_RELEASE_KEY_PASSWORD
+        }
+    }
+}
+buildTypes {
+    release {
+        signingConfig signingConfigs.release
+        minifyEnabled false
+    }
+}
+```
+
+#### (c) 빌드
+
+```bash
+npm run cap:sync
+cd android
+./gradlew assembleRelease
+```
+
+결과물:
+
+```
+android/app/build/outputs/apk/release/app-release.apk
+```
+
+이 APK는 동아리 사이트에 직접 올려도 되고, Play Store에 업로드해도 됩니다.
+
+### 3) 회원용 설치 가이드 (앱 다운로드 후)
+
+웹사이트 또는 카톡으로 APK 링크를 전달받은 회원이 따라할 순서:
+
+1. 안드로이드 폰에서 APK 링크 탭 → 다운로드
+2. 첫 설치 시 "출처를 알 수 없는 앱" 경고가 뜨면:
+   - 설정 → 보안 → 출처를 알 수 없는 앱 → 사용 중인 브라우저(Chrome/Samsung Internet) → "이 출처 허용"
+3. 다시 APK 탭 → 설치
+4. 설치 완료 후 홈에서 **COMS Member** 아이콘 실행
+5. 학번/이메일 + 비밀번호로 로그인
+
+### 4) 업데이트 배포
+
+- 새 버전 빌드 전 `package.json`의 `version` 값을 올려주세요. (예: `0.1.0` → `0.2.0`)
+- 같은 키스토어로 서명된 새 APK를 사이트에 올리면 기존 사용자도 덮어쓰기 설치 가능
+- `minimumSupportedVersion`을 서버 `/api/mobile/v1/app-config`에서 강제 업데이트하려는 버전 이하로 올리면 옛날 앱은 강제 업데이트 화면이 뜸
+
+## 백엔드 호환 체크리스트
+
+APK에서 API가 동작하려면 운영 서버가 다음을 만족해야 합니다.
+
+- **CORS 허용 도메인에 Capacitor origin 포함**
+  운영 `.env` 또는 docker-compose env에:
+
+  ```
+  cors.allowed-origins=https://coms.kw.ac.kr,http://localhost:5173,https://localhost,capacitor://localhost
+  ```
+
+  `https://localhost`, `capacitor://localhost`가 없으면 앱 첫 호출이 CORS로 막힙니다.
+
+- **세션 쿠키 SameSite 정책**
+  앱 origin(`https://localhost`)과 API origin(`coms.kw.ac.kr`)이 다르므로 쿠키는 `SameSite=None; Secure`로 발급돼야 앱 요청에 실립니다. Spring `application-prod.yml`:
+
+  ```yaml
+  server:
+    servlet:
+      session:
+        cookie:
+          same-site: none
+          secure: true
+  ```
+
+- **푸시 토큰 등록 API 동작**
+  `POST /api/mobile/v1/push-tokens`가 200을 반환해야 회원 기기가 푸시 받을 준비 완료.
+
+## iOS
+
+iOS 빌드는 Mac + Xcode + Apple Developer 계정($99/년)이 필요합니다.
+
+```bash
+npm run cap:ios
+```
+
+Xcode에서 서명/프로비저닝 후 TestFlight 또는 App Store Connect로 배포합니다.
