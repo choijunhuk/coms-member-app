@@ -28,9 +28,11 @@ import { isAdminUser, normalizeAppConfig, normalizeHomeData } from './utils/help
 import { isVersionBelow } from './utils/version.js'
 import { setUserContext } from './services/observability.js'
 import { purgePersistedCache } from './services/queryClient.js'
+import { hapticLight, hapticSuccess } from './services/haptics.js'
 import { AppConfigBanner, LoadingScreen } from './components/ui.jsx'
 import { Shell } from './components/Shell.jsx'
 import OfflineBanner from './components/OfflineBanner.jsx'
+import ErrorBoundary from './components/ErrorBoundary.jsx'
 import LoginScreen from './screens/LoginScreen.jsx'
 import HomeTab from './screens/HomeTab.jsx'
 import ForcedUpdateScreen from './screens/ForcedUpdateScreen.jsx'
@@ -264,20 +266,26 @@ export default function App() {
 
   const createPostMutation = useMutation({
     mutationFn: createCommunityPost,
-    onSuccess: refreshDashboard,
+    onSuccess: () => {
+      void hapticSuccess()
+      refreshDashboard()
+    },
   })
 
   const voteMutation = useMutation({
     mutationFn: ({ postId, value }) => voteCommunityPost(postId, value),
+    onSuccess: () => { void hapticLight() },
   })
 
   const pollVoteMutation = useMutation({
     mutationFn: ({ postId, pollId, optionIndex }) => voteCommunityPoll(postId, pollId, optionIndex),
+    onSuccess: () => { void hapticLight() },
   })
 
   async function createCommentForPost(content) {
     if (!selectedPost?.id) return
     await createComment(selectedPost.id, content)
+    void hapticSuccess()
     await openPost(selectedPost.id)
   }
 
@@ -401,7 +409,9 @@ export default function App() {
 
   return (
     <Shell user={user} activeTab={activeTab} setActiveTab={changeTab} unreadCount={unreadCount} refreshing={refreshing} onRefresh={refreshDashboard}>
-      <Suspense fallback={<LoadingScreen label="화면을 준비 중입니다." />}>{body}</Suspense>
+      <ErrorBoundary label={activeTab}>
+        <Suspense fallback={<LoadingScreen label="화면을 준비 중입니다." />}>{body}</Suspense>
+      </ErrorBoundary>
     </Shell>
   )
 }

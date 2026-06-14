@@ -1,11 +1,15 @@
 import { useState } from 'react'
-import { Eye, Plus, Send, ThumbsDown, ThumbsUp } from 'lucide-react'
+import { Eye, Plus, Send, Share2, ThumbsDown, ThumbsUp } from 'lucide-react'
 import { formatDate } from '../utils/format.js'
 import { categoryLabels, latest, postImage } from '../utils/helpers.js'
 import { postPreviewText } from '../utils/postBlocks.js'
+import { sharePost } from '../services/nativeShare.js'
+import { hapticLight } from '../services/haptics.js'
 import { Detail, Empty, ListItem, LoadingScreen, Section } from '../components/ui.jsx'
 import Composer from './community/Composer.jsx'
 import PostContent from './community/PostContent.jsx'
+
+const ORIGIN = (typeof window !== 'undefined' && window.location?.origin) || 'https://coms.kw.ac.kr'
 
 export default function CommunityTab({ posts, selected, comments, loading, openPost, closePost, createPost, createCommentForPost, vote, pollVote }) {
   const [writing, setWriting] = useState(false)
@@ -18,6 +22,12 @@ export default function CommunityTab({ posts, selected, comments, loading, openP
     setComment('')
   }
 
+  async function shareSelected() {
+    void hapticLight()
+    const shareUrl = `${ORIGIN.replace(/\/$/, '')}/community/${selected.id}`
+    await sharePost({ title: selected.title || 'COM\'s 커뮤니티', text: '여기를 눌러 내용을 확인하세요.', url: shareUrl })
+  }
+
   if (selected) {
     const image = postImage(selected)
     return (
@@ -27,7 +37,11 @@ export default function CommunityTab({ posts, selected, comments, loading, openP
             <div className="stats"><span><Eye size={14} />{selected.viewCount || 0}</span><span><ThumbsUp size={14} />{selected.upvotes || 0}</span><span><ThumbsDown size={14} />{selected.downvotes || 0}</span></div>
             {image && <img className="post-image" src={image} alt="" />}
             <PostContent post={selected} pollVote={pollVote} />
-            <div className="button-row"><button className="button secondary" onClick={() => vote(1)}><ThumbsUp size={16} />추천</button><button className="button secondary" onClick={() => vote(-1)}><ThumbsDown size={16} />비추천</button></div>
+            <div className="button-row">
+              <button className="button secondary" onClick={() => vote(1)}><ThumbsUp size={16} />추천</button>
+              <button className="button secondary" onClick={() => vote(-1)}><ThumbsDown size={16} />비추천</button>
+              <button className="button secondary" onClick={shareSelected}><Share2 size={16} />공유</button>
+            </div>
             <Section title={`댓글 ${comments.length}`}>
               {comments.map((item) => <div className="comment" key={item.id}><strong>{item.authorDisplayName || item.authorName || '회원'}</strong><span>{formatDate(item.createdAt)}</span><p>{item.content}</p></div>)}
               {comments.length === 0 && <Empty text="댓글이 없습니다." />}
