@@ -18,15 +18,17 @@ import {
   isRecoverableMobileApiError,
   registerPushToken,
 } from './services/mobileApi.js'
-import { nativePlatform, requestPushRegistration, setupDeepLinkListener } from './services/nativeBridge.js'
+import { nativePlatform, readAppVersion, requestPushRegistration, setupDeepLinkListener } from './services/nativeBridge.js'
 import { getNotice, listNotices } from './services/noticeApi.js'
 import { getNotificationSummary, listNotifications, markAllNotificationsRead, markNotificationRead } from './services/notificationApi.js'
 import { asArray } from './utils/format.js'
 import { isAdminUser, normalizeAppConfig, normalizeHomeData } from './utils/helpers.js'
+import { isVersionBelow } from './utils/version.js'
 import { AppConfigBanner, LoadingScreen } from './components/ui.jsx'
 import { Shell } from './components/Shell.jsx'
 import LoginScreen from './screens/LoginScreen.jsx'
 import HomeTab from './screens/HomeTab.jsx'
+import ForcedUpdateScreen from './screens/ForcedUpdateScreen.jsx'
 
 const NoticesTab = lazy(() => import('./screens/NoticesTab.jsx'))
 const CommunityTab = lazy(() => import('./screens/CommunityTab.jsx'))
@@ -38,6 +40,7 @@ const ProfileTab = lazy(() => import('./screens/ProfileTab.jsx'))
 export default function App() {
   const [user, setUser] = useState(null)
   const [authLoading, setAuthLoading] = useState(true)
+  const [appVersion, setAppVersion] = useState(null)
   const [activeTab, setActiveTab] = useState('home')
   const [notices, setNotices] = useState([])
   const [posts, setPosts] = useState([])
@@ -122,6 +125,18 @@ export default function App() {
       cancelled = true
     }
   }, [restoreSession])
+
+  useEffect(() => {
+    let cancelled = false
+    readAppVersion().then((version) => {
+      if (!cancelled) setAppVersion(version)
+    }).catch(() => {
+      if (!cancelled) setAppVersion('0.0.0')
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [])
 
   useEffect(() => {
     if (!user) return undefined
@@ -265,6 +280,15 @@ export default function App() {
     }
   }
 
+  if (appVersion && isVersionBelow(appVersion, appConfig.minimumSupportedVersion)) {
+    return (
+      <ForcedUpdateScreen
+        currentVersion={appVersion}
+        minimumVersion={appConfig.minimumSupportedVersion}
+        updateUrl={appConfig.updateUrl}
+      />
+    )
+  }
   if (authLoading) return <LoadingScreen label="세션을 확인하는 중입니다." />
   if (!user) return <LoginScreen onLogin={restoreSession} />
 

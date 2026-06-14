@@ -1,5 +1,6 @@
 import { Capacitor } from '@capacitor/core'
 import { routeFromNotification, routeFromUrl } from '../utils/mobileRoutes.js'
+import { bundleVersion } from '../utils/version.js'
 
 export function isNativeRuntime() {
   return Capacitor.isNativePlatform()
@@ -7,6 +8,17 @@ export function isNativeRuntime() {
 
 export function nativePlatform() {
   return Capacitor.getPlatform()
+}
+
+export async function readAppVersion() {
+  if (!isNativeRuntime()) return bundleVersion()
+  try {
+    const { App } = await import('@capacitor/app')
+    const info = await App.getInfo()
+    return info?.version || bundleVersion()
+  } catch {
+    return bundleVersion()
+  }
 }
 
 export async function setupDeepLinkListener(onRoute) {
