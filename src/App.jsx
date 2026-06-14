@@ -1,5 +1,6 @@
-import { Suspense, lazy, useCallback, useEffect, useRef, useState } from 'react'
+import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { ShieldCheck } from 'lucide-react'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { getCurrentUser, logoutUser } from './services/authApi.js'
 import { listFiles } from './services/archiveApi.js'
 import {
@@ -28,12 +29,14 @@ import { isVersionBelow } from './utils/version.js'
 import { setUserContext } from './services/observability.js'
 import { AppConfigBanner, LoadingScreen } from './components/ui.jsx'
 import { Shell } from './components/Shell.jsx'
+import OfflineBanner from './components/OfflineBanner.jsx'
 import LoginScreen from './screens/LoginScreen.jsx'
 import HomeTab from './screens/HomeTab.jsx'
 import ForcedUpdateScreen from './screens/ForcedUpdateScreen.jsx'
 import BiometricLockScreen from './screens/BiometricLockScreen.jsx'
 
 const IDLE_LOCK_THRESHOLD_MS = 5 * 60 * 1000
+const DASHBOARD_QUERY_KEY = ['member-app', 'dashboard']
 
 const NoticesTab = lazy(() => import('./screens/NoticesTab.jsx'))
 const CommunityTab = lazy(() => import('./screens/CommunityTab.jsx'))
@@ -42,23 +45,66 @@ const NotificationsTab = lazy(() => import('./screens/NotificationsTab.jsx'))
 const OperationsTab = lazy(() => import('./screens/OperationsTab.jsx'))
 const ProfileTab = lazy(() => import('./screens/ProfileTab.jsx'))
 
+const EMPTY_DASHBOARD = {
+  appConfig: DEFAULT_APP_CONFIG,
+  notices: [],
+  posts: [],
+  files: [],
+  notifications: [],
+  unreadCount: 0,
+}
+
+async function fetchDashboard() {
+  const configData = await getAppConfig().catch(() => DEFAULT_APP_CONFIG)
+  const appConfig = normalizeAppConfig(configData)
+
+  const mobileHome = await getMobileHome().catch((err) => {
+    if (isRecoverableMobileApiError(err)) return null
+    throw err
+  })
+
+  if (mobileHome) {
+    const home = normalizeHomeData(mobileHome)
+    const notifications = Object.hasOwn(mobileHome, 'notifications')
+      ? home.notifications
+      : asArray(await listNotifications().catch(() => []))
+    return {
+      appConfig,
+      notices: home.notices,
+      posts: home.posts,
+      files: home.files,
+      notifications,
+      unreadCount: home.unreadCount,
+    }
+  }
+
+  const [noticeData, postData, fileData, notificationData, notificationList] = await Promise.all([
+    listNotices(),
+    listCommunityPosts(),
+    listFiles(),
+    getNotificationSummary().catch(() => ({ unreadCount: 0 })),
+    listNotifications().catch(() => []),
+  ])
+
+  return {
+    appConfig,
+    notices: asArray(noticeData),
+    posts: asArray(postData),
+    files: asArray(fileData),
+    notifications: asArray(notificationList),
+    unreadCount: Number(notificationData?.unreadCount || 0),
+  }
+}
+
 export default function App() {
+  const queryClient = useQueryClient()
   const [user, setUser] = useState(null)
   const [authLoading, setAuthLoading] = useState(true)
   const [appVersion, setAppVersion] = useState(null)
   const [locked, setLocked] = useState(false)
   const lastBackgroundedRef = useRef(null)
   const [activeTab, setActiveTab] = useState('home')
-  const [notices, setNotices] = useState([])
-  const [posts, setPosts] = useState([])
-  const [files, setFiles] = useState([])
-  const [notifications, setNotifications] = useState([])
-  const [unreadCount, setUnreadCount] = useState(0)
-  const [appConfig, setAppConfig] = useState(DEFAULT_APP_CONFIG)
   const [pushStatus, setPushStatus] = useState('idle')
-  const [loading, setLoading] = useState(false)
-  const [refreshing, setRefreshing] = useState(false)
-  const [error, setError] = useState('')
   const [selectedNotice, setSelectedNotice] = useState(null)
   const [noticeLoading, setNoticeLoading] = useState(false)
   const [selectedPost, setSelectedPost] = useState(null)
@@ -75,53 +121,29 @@ export default function App() {
     }
   }, [])
 
-  const loadDashboard = useCallback(async ({ quiet = false } = {}) => {
-    await Promise.resolve()
-    if (!quiet) setLoading(true)
-    setRefreshing(quiet)
-    setError('')
-    try {
-      const configData = await getAppConfig().catch(() => DEFAULT_APP_CONFIG)
-      setAppConfig(normalizeAppConfig(configData))
+  const dashboardQuery = useQuery({
+    queryKey: DASHBOARD_QUERY_KEY,
+    queryFn: fetchDashboard,
+    enabled: Boolean(user),
+    placeholderData: (previous) => previous,
+  })
 
-      const mobileHome = await getMobileHome().catch((err) => {
-        if (isRecoverableMobileApiError(err)) return null
-        throw err
-      })
+  const dashboard = dashboardQuery.data ?? EMPTY_DASHBOARD
+  const { appConfig, notices, posts, files, notifications, unreadCount } = dashboard
+  const dashboardLoading = dashboardQuery.isLoading && !dashboardQuery.data
+  const dashboardError = dashboardQuery.error?.message || ''
+  const refreshing = dashboardQuery.isFetching && !dashboardLoading
 
-      if (mobileHome) {
-        const home = normalizeHomeData(mobileHome)
-        setNotices(home.notices)
-        setPosts(home.posts)
-        setFiles(home.files)
-        setUnreadCount(home.unreadCount)
-        if (Object.hasOwn(mobileHome, 'notifications')) {
-          setNotifications(home.notifications)
-        } else {
-          setNotifications(asArray(await listNotifications().catch(() => [])))
-        }
-        return
-      }
+  const refreshDashboard = useCallback(() => {
+    void queryClient.invalidateQueries({ queryKey: DASHBOARD_QUERY_KEY })
+  }, [queryClient])
 
-      const [noticeData, postData, fileData, notificationData, notificationList] = await Promise.all([
-        listNotices(),
-        listCommunityPosts(),
-        listFiles(),
-        getNotificationSummary().catch(() => ({ unreadCount: 0 })),
-        listNotifications().catch(() => []),
-      ])
-      setNotices(asArray(noticeData))
-      setPosts(asArray(postData))
-      setFiles(asArray(fileData))
-      setNotifications(asArray(notificationList))
-      setUnreadCount(Number(notificationData?.unreadCount || 0))
-    } catch (err) {
-      setError(err.message || '앱 데이터를 불러오지 못했습니다.')
-    } finally {
-      setLoading(false)
-      setRefreshing(false)
-    }
-  }, [])
+  const patchDashboard = useCallback((updater) => {
+    queryClient.setQueryData(DASHBOARD_QUERY_KEY, (prev) => {
+      const base = prev ?? EMPTY_DASHBOARD
+      return updater(base)
+    })
+  }, [queryClient])
 
   useEffect(() => {
     let cancelled = false
@@ -173,17 +195,6 @@ export default function App() {
       cancelled = true
     }
   }, [])
-
-  useEffect(() => {
-    if (!user) return undefined
-    let cancelled = false
-    queueMicrotask(() => {
-      if (!cancelled) void loadDashboard()
-    })
-    return () => {
-      cancelled = true
-    }
-  }, [loadDashboard, user])
 
   const changeTab = useCallback((tabId) => {
     const nextTab = tabId === 'operations' && !isAdminUser(user) ? 'home' : tabId
@@ -246,10 +257,18 @@ export default function App() {
     }
   }, [openRoute, user])
 
-  async function createPost(payload) {
-    await createCommunityPost(payload)
-    await loadDashboard({ quiet: true })
-  }
+  const createPostMutation = useMutation({
+    mutationFn: createCommunityPost,
+    onSuccess: refreshDashboard,
+  })
+
+  const voteMutation = useMutation({
+    mutationFn: ({ postId, value }) => voteCommunityPost(postId, value),
+  })
+
+  const pollVoteMutation = useMutation({
+    mutationFn: ({ postId, pollId, optionIndex }) => voteCommunityPoll(postId, pollId, optionIndex),
+  })
 
   async function createCommentForPost(content) {
     if (!selectedPost?.id) return
@@ -259,28 +278,36 @@ export default function App() {
 
   async function vote(value) {
     if (!selectedPost?.id) return
-    await voteCommunityPost(selectedPost.id, value)
+    await voteMutation.mutateAsync({ postId: selectedPost.id, value })
     await openPost(selectedPost.id)
   }
 
   async function pollVote(pollId, optionIndex) {
     if (!selectedPost?.id) return
-    await voteCommunityPoll(selectedPost.id, pollId, optionIndex)
+    await pollVoteMutation.mutateAsync({ postId: selectedPost.id, pollId, optionIndex })
     await openPost(selectedPost.id)
   }
 
   const markRead = useCallback(async (id) => {
     await markNotificationRead(id)
-    const wasUnread = notifications.some((item) => item.id === id && !item.read)
-    setNotifications((prev) => prev.map((item) => item.id === id ? { ...item, read: true } : item))
-    if (wasUnread) setUnreadCount((count) => Math.max(0, count - 1))
-  }, [notifications])
+    patchDashboard((prev) => {
+      const wasUnread = prev.notifications.some((item) => item.id === id && !item.read)
+      return {
+        ...prev,
+        notifications: prev.notifications.map((item) => item.id === id ? { ...item, read: true } : item),
+        unreadCount: wasUnread ? Math.max(0, prev.unreadCount - 1) : prev.unreadCount,
+      }
+    })
+  }, [patchDashboard])
 
   const markAllRead = useCallback(async () => {
     await markAllNotificationsRead()
-    setNotifications((prev) => prev.map((item) => ({ ...item, read: true })))
-    setUnreadCount(0)
-  }, [])
+    patchDashboard((prev) => ({
+      ...prev,
+      notifications: prev.notifications.map((item) => ({ ...item, read: true })),
+      unreadCount: 0,
+    }))
+  }, [patchDashboard])
 
   const enablePush = useCallback(async () => {
     setPushStatus('requesting')
@@ -313,8 +340,15 @@ export default function App() {
       await logoutUser()
     } finally {
       setUser(null)
+      queryClient.removeQueries({ queryKey: DASHBOARD_QUERY_KEY })
     }
   }
+
+  const createPost = useCallback(async (payload) => {
+    await createPostMutation.mutateAsync(payload)
+  }, [createPostMutation])
+
+  const loadDashboardForOps = useMemo(() => async () => refreshDashboard(), [refreshDashboard])
 
   if (appVersion && isVersionBelow(appVersion, appConfig.minimumSupportedVersion)) {
     return (
@@ -340,20 +374,26 @@ export default function App() {
   }
 
   let content
-  if (loading) content = <LoadingScreen label="회원 앱 데이터를 불러오는 중입니다." />
-  else if (error) content = <section className="empty-panel"><ShieldCheck size={24} /><p>{error}</p><button className="button secondary" onClick={() => loadDashboard()}>다시 시도</button></section>
+  if (dashboardLoading) content = <LoadingScreen label="회원 앱 데이터를 불러오는 중입니다." />
+  else if (dashboardError && !dashboardQuery.data) content = <section className="empty-panel"><ShieldCheck size={24} /><p>{dashboardError}</p><button className="button secondary" onClick={refreshDashboard}>다시 시도</button></section>
   else if (activeTab === 'home') content = <HomeTab notices={notices} posts={posts} files={files} unreadCount={unreadCount} openNotice={openNotice} openPost={openPost} setActiveTab={changeTab} />
   else if (activeTab === 'notices') content = <NoticesTab notices={notices} selected={selectedNotice} loading={noticeLoading} openNotice={openNotice} closeNotice={() => setSelectedNotice(null)} />
   else if (activeTab === 'community') content = <CommunityTab posts={posts} selected={selectedPost} comments={comments} loading={postLoading} openPost={openPost} closePost={() => { setSelectedPost(null); setComments([]) }} createPost={createPost} createCommentForPost={createCommentForPost} vote={vote} pollVote={pollVote} />
   else if (activeTab === 'resources') content = <ResourcesTab files={files} />
   else if (activeTab === 'notifications') content = <NotificationsTab notifications={notifications} unreadCount={unreadCount} pushStatus={pushStatus} appConfig={appConfig} enablePush={enablePush} markRead={markRead} markAllRead={markAllRead} openRoute={openRoute} />
-  else if (activeTab === 'operations') content = <OperationsTab user={user} notices={notices} posts={posts} loadDashboard={loadDashboard} />
+  else if (activeTab === 'operations') content = <OperationsTab user={user} notices={notices} posts={posts} loadDashboard={loadDashboardForOps} />
   else content = <ProfileTab user={user} onLogout={handleLogout} />
 
-  const body = appConfig.maintenanceMessage ? <div className="stack"><AppConfigBanner appConfig={appConfig} />{content}</div> : content
+  const body = (
+    <div className="stack">
+      <OfflineBanner />
+      {appConfig.maintenanceMessage && <AppConfigBanner appConfig={appConfig} />}
+      {content}
+    </div>
+  )
 
   return (
-    <Shell user={user} activeTab={activeTab} setActiveTab={changeTab} unreadCount={unreadCount} refreshing={refreshing} onRefresh={() => loadDashboard({ quiet: true })}>
+    <Shell user={user} activeTab={activeTab} setActiveTab={changeTab} unreadCount={unreadCount} refreshing={refreshing} onRefresh={refreshDashboard}>
       <Suspense fallback={<LoadingScreen label="화면을 준비 중입니다." />}>{body}</Suspense>
     </Shell>
   )
