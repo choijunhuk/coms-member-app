@@ -11,3 +11,5 @@ ios/App/build/
 *.xcworkspace/xcuserdata/
 .env
 !.env.example
+.omc/
+.codex/

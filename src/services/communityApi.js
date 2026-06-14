@@ -15,6 +15,12 @@ export function createCommunityPost(payload) {
   })
 }
 
+export function deleteCommunityPost(id) {
+  return request(`/api/community/posts/${id}`, {
+    method: 'DELETE',
+  })
+}
+
 export function voteCommunityPost(id, value) {
   return request(`/api/community/posts/${id}/vote`, {
     method: 'POST',

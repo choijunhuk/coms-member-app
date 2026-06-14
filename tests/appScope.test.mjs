@@ -8,8 +8,9 @@ import {
   isWebOnlyFeature,
 } from '../src/config/appScope.js'
 
-assert.deepEqual(getAppTabIds(), ['home', 'notices', 'community', 'resources', 'profile'])
-assert.equal(APP_SHELL_TABS.length, 5)
+assert.deepEqual(getAppTabIds(), ['home', 'notices', 'community', 'resources', 'notifications', 'operations', 'profile'])
+assert.equal(APP_SHELL_TABS.length, 7)
+assert.equal(APP_SHELL_TABS.find((tab) => tab.id === 'operations')?.adminOnly, true)
 assert.deepEqual(APP_INCLUDED_FEATURES, [
   'login',
   'logout',
@@ -18,6 +19,12 @@ assert.deepEqual(APP_INCLUDED_FEATURES, [
   'notices',
   'community',
   'resources',
+  'notification-center',
+  'push-notifications',
+  'deep-links',
+  'mobile-home-api',
+  'app-config',
+  'operator-light',
   'profile',
 ])
 assert.deepEqual(WEB_ONLY_FEATURES, [
@@ -31,10 +38,11 @@ assert.deepEqual(WEB_ONLY_FEATURES, [
 ])
 assert.equal(isWebOnlyFeature('recruit-apply'), true)
 assert.equal(isWebOnlyFeature('admin-console'), true)
+assert.equal(isWebOnlyFeature('operator-light'), false)
 assert.equal(isWebOnlyFeature('community'), false)
 
 const appSource = readFileSync('src/App.jsx', 'utf8')
-for (const forbidden of ['RecruitApply', 'RecruitNotice', 'Signup', 'Admin']) {
+for (const forbidden of ['RecruitApply', 'RecruitNotice', 'Signup', 'AdminConsole', 'FullAdminPanel']) {
   assert.equal(appSource.includes(forbidden), false, `app must not include ${forbidden}`)
 }
 

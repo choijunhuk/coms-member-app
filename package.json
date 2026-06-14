@@ -9,13 +9,15 @@
     "build:mobile": "node scripts/build-mobile.mjs",
     "preview": "vite preview",
     "lint": "eslint .",
-    "test": "node tests/appScope.test.mjs && node tests/apiClient.test.mjs",
+    "test": "node tests/appScope.test.mjs && node tests/apiClient.test.mjs && node tests/mobileRoutes.test.mjs && node tests/mobileApi.test.mjs && node tests/adminLight.test.mjs && node tests/postBlocks.test.mjs && node tests/passwordPolicy.test.mjs",
     "cap:sync": "npm run build:mobile && npx cap sync",
     "cap:android": "npm run build:mobile && npx cap sync android && npx cap open android",
     "cap:ios": "npm run build:mobile && npx cap sync ios && npx cap open ios"
   },
   "dependencies": {
+    "@capacitor/app": "^8.1.0",
     "@capacitor/core": "^8.4.0",
+    "@capacitor/push-notifications": "^8.1.1",
     "lucide-react": "^0.542.0",
     "react": "^19.2.6",
     "react-dom": "^19.2.6"
