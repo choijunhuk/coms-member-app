@@ -27,6 +27,7 @@ import { asArray } from './utils/format.js'
 import { isAdminUser, normalizeAppConfig, normalizeHomeData } from './utils/helpers.js'
 import { isVersionBelow } from './utils/version.js'
 import { setUserContext } from './services/observability.js'
+import { purgePersistedCache } from './services/queryClient.js'
 import { AppConfigBanner, LoadingScreen } from './components/ui.jsx'
 import { Shell } from './components/Shell.jsx'
 import OfflineBanner from './components/OfflineBanner.jsx'
@@ -113,13 +114,17 @@ export default function App() {
 
   const restoreSession = useCallback(async () => {
     try {
-      setUser(await getCurrentUser())
+      const current = await getCurrentUser()
+      setUser(current)
     } catch {
       setUser(null)
+      // No active session — any persisted cache belongs to a previous user or an expired login.
+      queryClient.clear()
+      await purgePersistedCache()
     } finally {
       setAuthLoading(false)
     }
-  }, [])
+  }, [queryClient])
 
   const dashboardQuery = useQuery({
     queryKey: DASHBOARD_QUERY_KEY,
@@ -340,7 +345,9 @@ export default function App() {
       await logoutUser()
     } finally {
       setUser(null)
-      queryClient.removeQueries({ queryKey: DASHBOARD_QUERY_KEY })
+      queryClient.cancelQueries()
+      queryClient.clear()
+      await purgePersistedCache()
     }
   }
 

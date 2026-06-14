@@ -1,7 +1,7 @@
 import { QueryClient } from '@tanstack/react-query'
 import { createSyncStoragePersister } from '@tanstack/query-sync-storage-persister'
 
-const STORAGE_KEY = 'coms-member-app-query-cache:v1'
+export const QUERY_CACHE_STORAGE_KEY = 'coms-member-app-query-cache:v1'
 
 export const queryClient = new QueryClient({
   defaultOptions: {
@@ -33,5 +33,22 @@ function safeStorage() {
 export const queryPersister = (() => {
   const storage = safeStorage()
   if (!storage) return null
-  return createSyncStoragePersister({ storage, key: STORAGE_KEY })
+  return createSyncStoragePersister({ storage, key: QUERY_CACHE_STORAGE_KEY })
 })()
+
+export async function purgePersistedCache() {
+  try {
+    if (queryPersister?.removeClient) {
+      await queryPersister.removeClient()
+    }
+  } catch {
+    // ignore — fallthrough to direct storage wipe
+  }
+  try {
+    if (typeof window !== 'undefined') {
+      window.localStorage.removeItem(QUERY_CACHE_STORAGE_KEY)
+    }
+  } catch {
+    // storage unavailable — nothing to wipe
+  }
+}
