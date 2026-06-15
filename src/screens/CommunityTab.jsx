@@ -72,13 +72,11 @@ export default function CommunityTab({ posts, selected, comments, loading, openP
   }, [posts, query])
 
   if (selected) {
-    const image = postImage(selected)
     return (
       <Detail title={selected.title} meta={`${categoryLabels[selected.category] || '자유'} · ${formatDate(selected.createdAt)}`} onBack={closePost}>
         {loading ? <LoadingScreen label="글을 불러오는 중입니다." /> : (
           <div className="stack">
             <div className="stats"><span><Eye size={14} />{selected.viewCount || 0}</span><span><ThumbsUp size={14} />{selected.upvotes || 0}</span><span><ThumbsDown size={14} />{selected.downvotes || 0}</span></div>
-            {image && <img className="post-image" src={image} alt="" />}
             <PostContent post={selected} pollVote={pollVote} />
             <div className="button-row">
               <button className="button secondary" onClick={() => vote(1)}><ThumbsUp size={16} />추천</button>

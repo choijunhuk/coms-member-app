@@ -20,8 +20,8 @@ export function Shell({ user, activeTab, setActiveTab, unreadCount, onRefresh, r
   return (
     <main className="app-shell">
       <header className="topbar">
-        <div>
-          <p className="eyebrow">COMS</p>
+        <div className="topbar-brand">
+          <img className="brand-logo-small" src="/coms-logo.png" alt="COM's" />
           <h1>{active?.label || '회원 앱'}</h1>
         </div>
         <div className="top-actions">
