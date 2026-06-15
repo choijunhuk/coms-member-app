@@ -6,6 +6,7 @@ import { postPreviewText } from '../utils/postBlocks.js'
 import { sharePost } from '../services/nativeShare.js'
 import { hapticLight } from '../services/haptics.js'
 import { Detail, Empty, ListItem, LoadingScreen, Section } from '../components/ui.jsx'
+import EmojiText from '../components/EmojiText.jsx'
 import Composer from './community/Composer.jsx'
 import PostContent from './community/PostContent.jsx'
 
@@ -113,7 +114,7 @@ export default function CommunityTab({ posts, selected, comments, loading, openP
                         <button type="button" aria-label="취소" onClick={cancelEditing}><X size={15} /></button>
                       </form>
                     ) : (
-                      <p>{item.content}</p>
+                      <EmojiText as="p" text={item.content} />
                     )}
                     {!editing && (
                       <div className="comment-actions">

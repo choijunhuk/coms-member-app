@@ -2,9 +2,11 @@
 // Supports **bold**, _italic_, and [label](https://url) only.
 // Escapes HTML first; the returned tokens are safe to render via dangerouslySetInnerHTML.
 
+import { emojifySync } from './emoji.js'
+
 const ESCAPE = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }
 
-function escapeHtml(text) {
+export function escapeHtml(text) {
   return String(text || '').replace(/[&<>"']/g, (ch) => ESCAPE[ch])
 }
 
@@ -19,5 +21,10 @@ export function renderMarkdownToHtml(input) {
   })
   const withBold = withLinks.replace(/\*\*([^*\n]+)\*\*/g, '<strong>$1</strong>')
   const withItalic = withBold.replace(/(^|[^_])_([^_\n]+)_(?!_)/g, '$1<em>$2</em>')
-  return withItalic.replace(/\n/g, '<br />')
+  const withBreaks = withItalic.replace(/\n/g, '<br />')
+  return emojifySync(withBreaks)
+}
+
+export function renderPlainTextWithEmoji(input) {
+  return emojifySync(escapeHtml(input))
 }
