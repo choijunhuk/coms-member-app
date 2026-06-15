@@ -66,36 +66,25 @@ const EMPTY_DASHBOARD = {
 }
 
 async function fetchDashboard() {
-  const configData = await getAppConfig().catch(() => DEFAULT_APP_CONFIG)
-  const appConfig = normalizeAppConfig(configData)
-
-  const mobileHome = await getMobileHome().catch((err) => {
-    if (isRecoverableMobileApiError(err)) return null
-    throw err
-  })
-
-  if (mobileHome) {
-    const home = normalizeHomeData(mobileHome)
-    const notifications = Object.hasOwn(mobileHome, 'notifications')
-      ? home.notifications
-      : asArray(await listNotifications().catch(() => []))
-    return {
-      appConfig,
-      notices: home.notices,
-      posts: home.posts,
-      files: home.files,
-      notifications,
-      unreadCount: home.unreadCount,
-    }
-  }
-
-  const [noticeData, postData, fileData, notificationData, notificationList] = await Promise.all([
-    listNotices(),
-    listCommunityPosts(),
-    listFiles(),
+  // Always fetch the full notice/post/file lists so the Community and Notices tabs
+  // can show every entry, not just the small "recent" slice the mobile home aggregate
+  // returns. Mobile home is still consulted in parallel for unreadCount and the
+  // pre-shaped notifications block, but we prefer the full lists when they arrive.
+  const [configData, mobileHome, noticeData, postData, fileData, notificationData, notificationList] = await Promise.all([
+    getAppConfig().catch(() => DEFAULT_APP_CONFIG),
+    getMobileHome().catch((err) => {
+      if (isRecoverableMobileApiError(err)) return null
+      return null
+    }),
+    listNotices().catch(() => []),
+    listCommunityPosts().catch(() => []),
+    listFiles().catch(() => []),
     getNotificationSummary().catch(() => ({ unreadCount: 0 })),
     listNotifications().catch(() => []),
   ])
+
+  const appConfig = normalizeAppConfig(configData)
+  const home = mobileHome ? normalizeHomeData(mobileHome) : null
 
   return {
     appConfig,
@@ -103,7 +92,7 @@ async function fetchDashboard() {
     posts: asArray(postData),
     files: asArray(fileData),
     notifications: asArray(notificationList),
-    unreadCount: Number(notificationData?.unreadCount || 0),
+    unreadCount: Number(home?.unreadCount ?? notificationData?.unreadCount ?? 0),
   }
 }
 
