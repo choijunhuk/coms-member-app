@@ -121,9 +121,28 @@ export function pollTotals(result) {
 function looksLikeBlockJson(value) {
   const trimmed = String(value || '').trim()
   if (!trimmed) return false
-  // The structured-block content starts with [ or { and includes a "type" tag — if a
-  // plain author types either character at the very start we still want to render it.
   return (trimmed.startsWith('[') || trimmed.startsWith('{')) && /"type"\s*:/.test(trimmed)
+}
+
+// When postBlocks falls back to a single text block whose content is the raw block
+// JSON string (the parse failed or returned a non-array), reach in and pull only the
+// text fragments out so the preview is the actual author text rather than the raw payload.
+function harvestTextFromBlockJson(raw) {
+  try {
+    const parsed = JSON.parse(raw)
+    const list = Array.isArray(parsed) ? parsed : [parsed]
+    return list
+      .map((block) => {
+        if (!block || typeof block !== 'object') return ''
+        if (block.type === 'text' || block.type === undefined) return plainText(block.content || '')
+        return ''
+      })
+      .map((text) => text.trim())
+      .filter(Boolean)
+      .join(' ')
+  } catch {
+    return ''
+  }
 }
 
 function hasImageEvidence(post, blocks) {
@@ -135,12 +154,24 @@ function hasImageEvidence(post, blocks) {
 
 export function postPreviewText(post) {
   const blocks = postBlocks(post)
-  const text = blocks.find((block) => {
+
+  // 1. Normal text block whose content is a plain string.
+  const normal = blocks.find((block) => {
     if (block.type !== 'text') return false
     const stripped = plainText(block.content).trim()
     return stripped.length > 0 && !looksLikeBlockJson(stripped)
   })
-  if (text) return preview(text.content)
+  if (normal) return preview(normal.content)
+
+  // 2. Fallback: any text block whose content still looks like the raw block JSON
+  //    payload — extract the inner author text and use that.
+  for (const block of blocks) {
+    if (block.type !== 'text') continue
+    const stripped = plainText(block.content).trim()
+    if (!stripped || !looksLikeBlockJson(stripped)) continue
+    const recovered = harvestTextFromBlockJson(stripped)
+    if (recovered) return preview(recovered)
+  }
 
   const poll = blocks.find((block) => block.type === 'poll' && block.question)
   if (poll) return preview(`투표: ${poll.question}`)
