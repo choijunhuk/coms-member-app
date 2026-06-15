@@ -95,8 +95,11 @@ export function postBlocks(post) {
     if (Array.isArray(parsed)) {
       return withLegacyImage(post, parsed.map((block) => normalizeBlock(post, block)))
     }
+    if (parsed && typeof parsed === 'object') {
+      return withLegacyImage(post, [normalizeBlock(post, parsed)])
+    }
   } catch {
-    return withLegacyImage(post, [{ type: 'text', content: post.content || '' }])
+    // not block-JSON — treat as plain text
   }
 
   return withLegacyImage(post, [{ type: 'text', content: post.content || '' }])
@@ -124,25 +127,31 @@ function looksLikeBlockJson(value) {
   return (trimmed.startsWith('[') || trimmed.startsWith('{')) && /"type"\s*:/.test(trimmed)
 }
 
-// When postBlocks falls back to a single text block whose content is the raw block
-// JSON string (the parse failed or returned a non-array), reach in and pull only the
-// text fragments out so the preview is the actual author text rather than the raw payload.
-function harvestTextFromBlockJson(raw) {
-  try {
-    const parsed = JSON.parse(raw)
-    const list = Array.isArray(parsed) ? parsed : [parsed]
-    return list
-      .map((block) => {
-        if (!block || typeof block !== 'object') return ''
-        if (block.type === 'text' || block.type === undefined) return plainText(block.content || '')
-        return ''
-      })
-      .map((text) => text.trim())
-      .filter(Boolean)
-      .join(' ')
-  } catch {
-    return ''
+// Walk every shape we have seen for posted content (JSON block arrays, single
+// objects, plain text mistakenly stored as JSON) and harvest the author text.
+function harvestText(value) {
+  if (value == null) return ''
+  if (typeof value === 'string') {
+    const stripped = plainText(value).trim()
+    if (!stripped) return ''
+    if (!looksLikeBlockJson(stripped)) return stripped
+    try {
+      return harvestText(JSON.parse(stripped))
+    } catch {
+      return stripped
+    }
   }
+  if (Array.isArray(value)) {
+    return value.map((entry) => harvestText(entry)).filter(Boolean).join(' ').trim()
+  }
+  if (typeof value === 'object') {
+    if (value.type && value.type !== 'text' && value.type !== 'externalEmbed') {
+      // image / video / file / poll — they carry no author body text.
+      return value.title ? plainText(value.title).trim() : ''
+    }
+    return harvestText(value.content ?? value.text ?? '')
+  }
+  return ''
 }
 
 function hasImageEvidence(post, blocks) {
@@ -155,23 +164,13 @@ function hasImageEvidence(post, blocks) {
 export function postPreviewText(post) {
   const blocks = postBlocks(post)
 
-  // 1. Normal text block whose content is a plain string.
-  const normal = blocks.find((block) => {
-    if (block.type !== 'text') return false
-    const stripped = plainText(block.content).trim()
-    return stripped.length > 0 && !looksLikeBlockJson(stripped)
-  })
-  if (normal) return preview(normal.content)
+  // 1. Walk the normalised blocks, then the raw post.content. Whichever yields
+  //    real author text first wins.
+  const fromBlocks = harvestText(blocks)
+  if (fromBlocks) return preview(fromBlocks)
 
-  // 2. Fallback: any text block whose content still looks like the raw block JSON
-  //    payload — extract the inner author text and use that.
-  for (const block of blocks) {
-    if (block.type !== 'text') continue
-    const stripped = plainText(block.content).trim()
-    if (!stripped || !looksLikeBlockJson(stripped)) continue
-    const recovered = harvestTextFromBlockJson(stripped)
-    if (recovered) return preview(recovered)
-  }
+  const fromRaw = harvestText(post?.content)
+  if (fromRaw) return preview(fromRaw)
 
   const poll = blocks.find((block) => block.type === 'poll' && block.question)
   if (poll) return preview(`투표: ${poll.question}`)

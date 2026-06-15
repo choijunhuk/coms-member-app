@@ -65,6 +65,20 @@ let pushListenersBound = false
 let pushRegistrationErrorReason = null
 const pushHandlers = { onToken: null, onRoute: null }
 
+export async function readPushPermissionState() {
+  if (!isNativeRuntime()) return 'unavailable'
+  try {
+    const { PushNotifications } = await import('@capacitor/push-notifications')
+    const result = await PushNotifications.checkPermissions()
+    if (result?.receive === 'granted') return 'granted'
+    if (result?.receive === 'denied') return 'denied'
+    return 'prompt'
+  } catch (err) {
+    console.warn('Push permission probe failed', err)
+    return 'unavailable'
+  }
+}
+
 export async function resetPushRegistration() {
   pushHandlers.onToken = null
   pushHandlers.onRoute = null

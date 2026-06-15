@@ -1,18 +1,26 @@
-import { ExternalLink, Smartphone } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { Check, ExternalLink, Settings as SettingsIcon, ShieldOff, Smartphone } from 'lucide-react'
 import { formatDate } from '../utils/format.js'
 import { latest } from '../utils/helpers.js'
 import { routeFromNotification } from '../utils/mobileRoutes.js'
-import { isNativeRuntime } from '../services/nativeBridge.js'
+import { isNativeRuntime, readPushPermissionState } from '../services/nativeBridge.js'
 import { Empty, ListItem, Section } from '../components/ui.jsx'
 
+const STATUS_BADGE = {
+  granted: { label: '허용됨', className: 'badge-success', icon: Check },
+  denied: { label: '거부됨', className: 'badge-danger', icon: ShieldOff },
+  prompt: { label: '미설정', className: 'badge-warn', icon: SettingsIcon },
+  unavailable: { label: '미지원', className: 'badge-muted', icon: ShieldOff },
+}
+
 const PUSH_STATUS_LABEL = {
-  idle: '푸시 알림을 켜면 새 공지와 내 글 댓글을 바로 받을 수 있습니다.',
+  idle: '아래 "켜기"를 누르면 알림 권한을 요청합니다.',
   requesting: '기기 푸시 권한을 요청하는 중입니다.',
-  requested: '기기 등록을 요청했습니다.',
+  requested: '권한 요청을 보냈습니다. 시스템 다이얼로그에서 응답을 기다리세요.',
   registered: '이 기기에서 푸시 알림을 받을 준비가 됐습니다.',
-  denied: '기기 설정에서 알림 권한이 꺼져 있습니다.',
-  unavailable: '브라우저 미리보기에서는 푸시 등록을 건너뜁니다.',
-  'server-unavailable': '앱은 푸시 토큰을 받았지만 서버 등록 API가 아직 없습니다.',
+  denied: '알림 권한이 거부되었습니다. 기기 설정에서 알림을 허용해 주세요.',
+  unavailable: '이 환경에서는 푸시 알림을 사용할 수 없습니다.',
+  'server-unavailable': '권한은 허용되었지만, 서버 푸시 발송이 아직 준비되지 않았습니다. 앱 내 새 알림은 매 30초마다 확인합니다.',
   error: '푸시 등록 중 오류가 발생했습니다.',
 }
 
@@ -24,9 +32,9 @@ async function openExternal(url) {
   if (!url) return
   try {
     if (isNativeRuntime()) {
-      const { Browser } = await import('@capacitor/browser').catch(() => ({}))
-      if (Browser?.open) {
-        await Browser.open({ url })
+      const mod = await import('@capacitor/browser').catch(() => ({}))
+      if (mod?.Browser?.open) {
+        await mod.Browser.open({ url })
         return
       }
     }
@@ -40,6 +48,17 @@ async function openExternal(url) {
 
 export default function NotificationsTab({ notifications, unreadCount, pushStatus, appConfig, enablePush, markRead, markAllRead, openRoute }) {
   const items = latest(notifications, 'createdAt')
+  const [permission, setPermission] = useState(null)
+
+  useEffect(() => {
+    let cancelled = false
+    readPushPermissionState().then((value) => {
+      if (!cancelled) setPermission(value)
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [pushStatus])
 
   async function openNotification(item) {
     if (!item?.read && item?.id) await markRead(item.id)
@@ -48,21 +67,31 @@ export default function NotificationsTab({ notifications, unreadCount, pushStatu
       openRoute(route)
       return
     }
-    // Only fall through to an external link if there is no in-app route at all.
     if (hasExternalAcceptUrl(item)) await openExternal(item.acceptUrl)
   }
 
+  const badge = permission ? STATUS_BADGE[permission] : null
+  const BadgeIcon = badge?.icon
   const pushMessage = PUSH_STATUS_LABEL[pushStatus] || '푸시 상태를 확인할 수 없습니다.'
+  const denied = permission === 'denied'
 
   return (
     <div className="stack">
       <section className="panel">
         <div className="section-title">
           <h2>푸시 알림</h2>
-          <button type="button" onClick={enablePush} disabled={!appConfig.pushEnabled || pushStatus === 'requesting'}>
-            <Smartphone size={15} aria-hidden="true" /> 켜기
+          <button type="button" onClick={enablePush} disabled={!appConfig.pushEnabled || pushStatus === 'requesting' || denied}>
+            <Smartphone size={15} aria-hidden="true" /> {denied ? '거부됨' : '켜기'}
           </button>
         </div>
+        {badge && (
+          <div className="status-row">
+            <span className={`status-badge ${badge.className}`}>
+              {BadgeIcon && <BadgeIcon size={12} aria-hidden="true" />} {badge.label}
+            </span>
+            <span className="muted">시스템 알림 권한 상태</span>
+          </div>
+        )}
         <p className="muted">{appConfig.pushEnabled ? pushMessage : '현재 앱 설정에서 푸시 알림이 비활성화되어 있습니다.'}</p>
         <p className="muted" style={{ marginTop: '0.4rem' }}>알림 종류·잠금·테마는 설정에서 바꿀 수 있습니다.</p>
       </section>
