@@ -30,6 +30,7 @@ import { getNotificationSummary, listNotifications, markAllNotificationsRead, ma
 import { asArray } from './utils/format.js'
 import { isAdminUser, normalizeAppConfig, normalizeHomeData } from './utils/helpers.js'
 import { isVersionBelow } from './utils/version.js'
+import { useNotificationPolling } from './hooks/useNotificationPolling.js'
 import { isNew, readLastSeen, writeLastSeen } from './utils/lastSeen.js'
 import { markOnboarded, readFontScale, readIdleLock, readOnboarded, readTheme, resolveIdleLockMs, resolveTheme, writeTheme } from './utils/preferences.js'
 import { setUserContext } from './services/observability.js'
@@ -149,6 +150,10 @@ export default function App() {
   const refreshDashboard = useCallback(() => {
     void queryClient.invalidateQueries({ queryKey: DASHBOARD_QUERY_KEY })
   }, [queryClient])
+
+  // Without FCM we still want users to see new notifications while the app is
+  // foregrounded — poll every 30s and skip when the document is hidden.
+  useNotificationPolling({ enabled: Boolean(user), refresh: refreshDashboard })
 
   const patchDashboard = useCallback((updater) => {
     queryClient.setQueryData(DASHBOARD_QUERY_KEY, (prev) => {
