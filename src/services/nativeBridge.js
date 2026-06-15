@@ -44,6 +44,20 @@ export async function setupAppStateListener(onChange) {
   }
 }
 
+export async function setupBackButtonListener(handler) {
+  if (!isNativeRuntime()) return () => {}
+  const { App } = await import('@capacitor/app')
+  const handle = await App.addListener('backButton', ({ canGoBack }) => {
+    const result = handler?.({ canGoBack })
+    if (!result) {
+      void App.exitApp()
+    }
+  })
+  return () => {
+    void handle.remove()
+  }
+}
+
 export async function requestPushRegistration({ onToken, onRoute } = {}) {
   if (!isNativeRuntime()) return { status: 'unavailable' }
   const { PushNotifications } = await import('@capacitor/push-notifications')
