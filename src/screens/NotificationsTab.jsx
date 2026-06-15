@@ -1,9 +1,8 @@
-import { useState } from 'react'
-import { Smartphone } from 'lucide-react'
+import { ExternalLink, Smartphone } from 'lucide-react'
 import { formatDate } from '../utils/format.js'
 import { latest } from '../utils/helpers.js'
 import { routeFromNotification } from '../utils/mobileRoutes.js'
-import { PUSH_TYPES, readPushPreferences, writePushPreferences } from '../utils/preferences.js'
+import { isNativeRuntime } from '../services/nativeBridge.js'
 import { Empty, ListItem, Section } from '../components/ui.jsx'
 
 const PUSH_STATUS_LABEL = {
@@ -17,26 +16,40 @@ const PUSH_STATUS_LABEL = {
   error: '푸시 등록 중 오류가 발생했습니다.',
 }
 
-export default function NotificationsTab({ notifications, unreadCount, pushStatus, appConfig, enablePush, markRead, markAllRead, openRoute, showPushPrefs = false }) {
-  const items = latest(notifications, 'createdAt')
-  const [pushPrefs, setPushPrefs] = useState(() => readPushPreferences())
+function hasExternalAcceptUrl(item) {
+  return typeof item?.acceptUrl === 'string' && /^https?:\/\//i.test(item.acceptUrl)
+}
 
-  function togglePushPref(id) {
-    setPushPrefs((current) => {
-      const next = { ...current, [id]: !current[id] }
-      writePushPreferences(next)
-      return next
-    })
+async function openExternal(url) {
+  if (!url) return
+  try {
+    if (isNativeRuntime()) {
+      const { Browser } = await import('@capacitor/browser').catch(() => ({}))
+      if (Browser?.open) {
+        await Browser.open({ url })
+        return
+      }
+    }
+    if (typeof window !== 'undefined') {
+      window.open(url, '_blank', 'noopener,noreferrer')
+    }
+  } catch (err) {
+    console.warn('open external failed', err)
   }
+}
+
+export default function NotificationsTab({ notifications, unreadCount, pushStatus, appConfig, enablePush, markRead, markAllRead, openRoute }) {
+  const items = latest(notifications, 'createdAt')
 
   async function openNotification(item) {
     if (!item?.read && item?.id) await markRead(item.id)
-    if (typeof item?.acceptUrl === 'string' && /^https?:\/\//i.test(item.acceptUrl)) {
-      window.open(item.acceptUrl, '_blank', 'noopener,noreferrer')
+    const route = routeFromNotification(item)
+    if (route) {
+      openRoute(route)
       return
     }
-    const route = routeFromNotification(item)
-    if (route) openRoute(route)
+    // Only fall through to an external link if there is no in-app route at all.
+    if (hasExternalAcceptUrl(item)) await openExternal(item.acceptUrl)
   }
 
   const pushMessage = PUSH_STATUS_LABEL[pushStatus] || '푸시 상태를 확인할 수 없습니다.'
@@ -51,27 +64,8 @@ export default function NotificationsTab({ notifications, unreadCount, pushStatu
           </button>
         </div>
         <p className="muted">{appConfig.pushEnabled ? pushMessage : '현재 앱 설정에서 푸시 알림이 비활성화되어 있습니다.'}</p>
+        <p className="muted" style={{ marginTop: '0.4rem' }}>알림 종류·잠금·테마는 설정에서 바꿀 수 있습니다.</p>
       </section>
-      {showPushPrefs && (
-        <section className="panel">
-          <div className="section-title">
-            <h2>알림 종류</h2>
-          </div>
-          <div className="list compact-list">
-            {PUSH_TYPES.map((type) => (
-              <label key={type.id} className="toggle-row">
-                <span>{type.label}</span>
-                <input
-                  type="checkbox"
-                  checked={Boolean(pushPrefs[type.id])}
-                  onChange={() => togglePushPref(type.id)}
-                />
-              </label>
-            ))}
-          </div>
-          <p className="muted" style={{ marginTop: '0.45rem' }}>여기서 끈 종류는 이 기기에서 무음으로 처리됩니다. (서버 발송은 별도)</p>
-        </section>
-      )}
       <Section title={`알림 ${unreadCount > 0 ? `· 안 읽음 ${unreadCount}` : ''}`} action={items.length ? '모두 읽음' : ''} onAction={markAllRead}>
         {items.map((item) => (
           <ListItem
@@ -81,7 +75,11 @@ export default function NotificationsTab({ notifications, unreadCount, pushStatu
             body={item.read ? '읽음' : '읽지 않음'}
             pinned={!item.read}
             onClick={() => openNotification(item)}
-          />
+          >
+            {hasExternalAcceptUrl(item) && (
+              <span className="media-chip"><ExternalLink size={12} aria-hidden="true" /> 외부 링크</span>
+            )}
+          </ListItem>
         ))}
         {items.length === 0 && <Empty text="새 알림이 없습니다." />}
       </Section>

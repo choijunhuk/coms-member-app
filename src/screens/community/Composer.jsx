@@ -1,11 +1,12 @@
 import { useState } from 'react'
 import { Image as ImageIcon, Send, X } from 'lucide-react'
-import { categoryLabels } from '../../utils/helpers.js'
+import { categoryOptionsForUser } from '../../utils/helpers.js'
 
 const MAX_IMAGE_SIZE = 8 * 1024 * 1024
 const MAX_IMAGES = 6
 
-export default function Composer({ onSubmit }) {
+export default function Composer({ onSubmit, currentUser }) {
+  const categoryOptions = categoryOptionsForUser(currentUser)
   const [title, setTitle] = useState('')
   const [content, setContent] = useState('')
   const [category, setCategory] = useState('GENERAL')
@@ -80,7 +81,7 @@ export default function Composer({ onSubmit }) {
   return (
     <form className="form panel" onSubmit={submit}>
       <label>제목<input value={title} onChange={(event) => setTitle(event.target.value)} maxLength={80} /></label>
-      <label>분류<select value={category} onChange={(event) => setCategory(event.target.value)}>{Object.entries(categoryLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
+      <label>분류<select value={category} onChange={(event) => setCategory(event.target.value)}>{categoryOptions.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
       {isAnonymous && (
         <label>표시 이름 (비워두면 "익명")
           <input value={anonymousName} onChange={(event) => setAnonymousName(event.target.value)} maxLength={20} placeholder="예: 익명 회원" />

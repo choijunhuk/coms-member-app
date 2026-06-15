@@ -1187,6 +1187,36 @@ p {
   height: 1.1rem;
 }
 
+.settings-row {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  border: 0;
+  background: transparent;
+  padding: 0.65rem 0;
+  color: var(--app-text);
+  font-size: 0.88rem;
+  text-align: left;
+  border-bottom: 1px solid var(--app-hairline);
+}
+
+.settings-row:last-child {
+  border-bottom: 0;
+}
+
+.settings-row span {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+html[data-font-scale='small'] { font-size: 14.4px; }
+html[data-font-scale='medium'] { font-size: 16px; }
+html[data-font-scale='large'] { font-size: 17.6px; }
+html[data-font-scale='xlarge'] { font-size: 20px; }
+
 .emoji {
   width: 1.05em;
   height: 1.05em;

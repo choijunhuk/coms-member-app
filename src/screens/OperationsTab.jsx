@@ -4,7 +4,7 @@ import { listAuditLogs, listEligibleMembers, listMembers } from '../services/adm
 import { deleteCommunityPost } from '../services/communityApi.js'
 import { createNotice, updateNotice } from '../services/noticeApi.js'
 import { asArray, formatDate, generationFromStudentId, plainText } from '../utils/format.js'
-import { categoryLabels, isAdminUser, latest } from '../utils/helpers.js'
+import { categoryLabels, isAdminUser, latest, noticeCategoryLabels } from '../utils/helpers.js'
 import { Empty, Info, ListItem, Metric, Section } from '../components/ui.jsx'
 
 export default function OperationsTab({ user, notices, posts, loadDashboard }) {
@@ -12,6 +12,7 @@ export default function OperationsTab({ user, notices, posts, loadDashboard }) {
   const [noticeTitle, setNoticeTitle] = useState('')
   const [noticeContent, setNoticeContent] = useState('')
   const [noticePinned, setNoticePinned] = useState(true)
+  const [noticeCategory, setNoticeCategory] = useState('GENERAL')
   const [savingNotice, setSavingNotice] = useState(false)
   const [deletingPostId, setDeletingPostId] = useState(null)
   const [eligibleMembers, setEligibleMembers] = useState([])
@@ -57,6 +58,7 @@ export default function OperationsTab({ user, notices, posts, loadDashboard }) {
     setNoticeTitle(selected?.title || '')
     setNoticeContent(plainText(selected?.content || ''))
     setNoticePinned(Boolean(selected?.pinned))
+    setNoticeCategory(selected?.category || 'GENERAL')
   }
 
   async function submitNotice(event) {
@@ -70,7 +72,7 @@ export default function OperationsTab({ user, notices, posts, loadDashboard }) {
       content: noticeContent.trim(),
       author: user?.name || '운영진',
       pinned: noticePinned,
-      category: 'GENERAL',
+      category: noticeCategory,
     }
     try {
       if (noticeId) await updateNotice(noticeId, payload)
@@ -80,6 +82,7 @@ export default function OperationsTab({ user, notices, posts, loadDashboard }) {
       setNoticeTitle('')
       setNoticeContent('')
       setNoticePinned(true)
+      setNoticeCategory('GENERAL')
       await loadDashboard({ quiet: true })
     } catch (err) {
       setError(err.message || '공지 저장에 실패했습니다.')
@@ -123,6 +126,12 @@ export default function OperationsTab({ user, notices, posts, loadDashboard }) {
             </select>
           </label>
           <label>제목<input value={noticeTitle} onChange={(event) => setNoticeTitle(event.target.value)} maxLength={255} /></label>
+          <label>
+            분류
+            <select value={noticeCategory} onChange={(event) => setNoticeCategory(event.target.value)}>
+              {Object.entries(noticeCategoryLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+            </select>
+          </label>
           <label>내용<textarea value={noticeContent} onChange={(event) => setNoticeContent(event.target.value)} rows={5} /></label>
           <label className="check-row"><input type="checkbox" checked={noticePinned} onChange={(event) => setNoticePinned(event.target.checked)} />중요 공지로 표시</label>
           <button className="button primary" type="submit" disabled={savingNotice || !noticeTitle.trim() || !noticeContent.trim()}>
