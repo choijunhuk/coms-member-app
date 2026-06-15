@@ -31,6 +31,7 @@ import { asArray } from './utils/format.js'
 import { isAdminUser, normalizeAppConfig, normalizeHomeData } from './utils/helpers.js'
 import { isVersionBelow } from './utils/version.js'
 import { isNew, readLastSeen, writeLastSeen } from './utils/lastSeen.js'
+import { markOnboarded, readOnboarded, readTheme, resolveTheme, writeTheme } from './utils/preferences.js'
 import { setUserContext } from './services/observability.js'
 import { purgePersistedCache } from './services/queryClient.js'
 import { hapticLight, hapticSuccess } from './services/haptics.js'
@@ -38,6 +39,7 @@ import { AppConfigBanner, LoadingScreen } from './components/ui.jsx'
 import { Shell } from './components/Shell.jsx'
 import OfflineBanner from './components/OfflineBanner.jsx'
 import ErrorBoundary from './components/ErrorBoundary.jsx'
+import OnboardingCard from './components/OnboardingCard.jsx'
 import LoginScreen from './screens/LoginScreen.jsx'
 import HomeTab from './screens/HomeTab.jsx'
 import ForcedUpdateScreen from './screens/ForcedUpdateScreen.jsx'
@@ -115,6 +117,9 @@ export default function App() {
   const [pushStatus, setPushStatus] = useState('idle')
   const [lastSeenNotices, setLastSeenNotices] = useState(() => readLastSeen('notices'))
   const [lastSeenPosts, setLastSeenPosts] = useState(() => readLastSeen('posts'))
+  const [themePreference, setThemePreference] = useState(() => readTheme())
+  const [onboardingDismissed, setOnboardingDismissed] = useState(() => readOnboarded())
+  const [biometricReady, setBiometricReady] = useState(false)
   const [selectedNotice, setSelectedNotice] = useState(null)
   const [noticeLoading, setNoticeLoading] = useState(false)
   const [selectedPost, setSelectedPost] = useState(null)
@@ -172,6 +177,48 @@ export default function App() {
   useEffect(() => {
     void setUserContext(user)
   }, [user])
+
+  useEffect(() => {
+    if (typeof document === 'undefined') return undefined
+    const apply = () => {
+      const resolved = resolveTheme(themePreference)
+      document.documentElement.setAttribute('data-theme', resolved)
+    }
+    apply()
+    if (themePreference !== 'system' || typeof window === 'undefined' || !window.matchMedia) return undefined
+    const media = window.matchMedia('(prefers-color-scheme: dark)')
+    const listener = () => apply()
+    media.addEventListener?.('change', listener)
+    return () => media.removeEventListener?.('change', listener)
+  }, [themePreference])
+
+  const applyTheme = useCallback((next) => {
+    setThemePreference(next)
+    writeTheme(next)
+  }, [])
+
+  useEffect(() => {
+    let cancelled = false
+    if (!user) {
+      void Promise.resolve().then(() => {
+        if (!cancelled) setBiometricReady(false)
+      })
+      return () => {
+        cancelled = true
+      }
+    }
+    isBiometricAvailable().then((available) => {
+      if (!cancelled) setBiometricReady(available)
+    }).catch(() => {})
+    return () => {
+      cancelled = true
+    }
+  }, [user])
+
+  const dismissOnboarding = useCallback(() => {
+    markOnboarded()
+    setOnboardingDismissed(true)
+  }, [])
 
   useEffect(() => {
     if (!user) return undefined
@@ -472,13 +519,25 @@ export default function App() {
   let content
   if (dashboardLoading) content = <LoadingScreen label="회원 앱 데이터를 불러오는 중입니다." />
   else if (dashboardError && !dashboardQuery.data) content = <section className="empty-panel"><ShieldCheck size={24} /><p>{dashboardError}</p><button className="button secondary" onClick={refreshDashboard}>다시 시도</button></section>
-  else if (activeTab === 'home') content = <HomeTab notices={notices} posts={posts} files={files} unreadCount={unreadCount} openNotice={openNotice} openPost={openPost} setActiveTab={changeTab} />
+  else if (activeTab === 'home') content = (
+    <div className="stack">
+      {!onboardingDismissed && (
+        <OnboardingCard
+          pushEnabled={appConfig.pushEnabled}
+          biometricAvailable={biometricReady}
+          onEnablePush={enablePush}
+          onDismiss={dismissOnboarding}
+        />
+      )}
+      <HomeTab notices={notices} posts={posts} files={files} unreadCount={unreadCount} openNotice={openNotice} openPost={openPost} setActiveTab={changeTab} />
+    </div>
+  )
   else if (activeTab === 'notices') content = <NoticesTab notices={notices} selected={selectedNotice} loading={noticeLoading} openNotice={openNotice} closeNotice={() => setSelectedNotice(null)} />
   else if (activeTab === 'community') content = <CommunityTab posts={posts} selected={selectedPost} comments={comments} loading={postLoading} openPost={openPost} closePost={() => { setSelectedPost(null); setComments([]) }} createPost={createPost} createCommentForPost={createCommentForPost} editComment={editCommentForPost} removeComment={removeCommentForPost} vote={vote} pollVote={pollVote} currentUser={user} />
   else if (activeTab === 'resources') content = <ResourcesTab files={files} />
-  else if (activeTab === 'notifications') content = <NotificationsTab notifications={notifications} unreadCount={unreadCount} pushStatus={pushStatus} appConfig={appConfig} enablePush={enablePush} markRead={markRead} markAllRead={markAllRead} openRoute={openRoute} />
+  else if (activeTab === 'notifications') content = <NotificationsTab notifications={notifications} unreadCount={unreadCount} pushStatus={pushStatus} appConfig={appConfig} enablePush={enablePush} markRead={markRead} markAllRead={markAllRead} openRoute={openRoute} showPushPrefs />
   else if (activeTab === 'operations') content = <OperationsTab user={user} notices={notices} posts={posts} loadDashboard={refreshDashboard} />
-  else content = <ProfileTab user={user} onLogout={handleLogout} />
+  else content = <ProfileTab user={user} onLogout={handleLogout} themePreference={themePreference} onChangeTheme={applyTheme} />
 
   const body = (
     <div className="stack">
