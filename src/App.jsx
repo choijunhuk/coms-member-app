@@ -347,6 +347,14 @@ export default function App() {
     let cleanup = () => {}
     let mounted = true
     setupBackButtonListener(() => {
+      if (showSettings) {
+        setShowSettings(false)
+        return true
+      }
+      if (showPrivacy) {
+        setShowPrivacy(false)
+        return true
+      }
       if (selectedNotice) {
         setSelectedNotice(null)
         return true
@@ -369,7 +377,7 @@ export default function App() {
       mounted = false
       cleanup()
     }
-  }, [activeTab, selectedNotice, selectedPost, user])
+  }, [activeTab, selectedNotice, selectedPost, showPrivacy, showSettings, user])
 
   const createPostMutation = useMutation({
     mutationFn: async ({ payload, images }) => {
