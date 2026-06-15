@@ -2,6 +2,15 @@
 
 COMS 회원이 매일 쓰는 기능만 담은 독립 모바일 앱 프로젝트입니다.
 
+## 다운로드
+
+| 버전 | 빌드 | 파일 |
+|---|---|---|
+| v0.1.0 | Debug (테스트용) | [coms-member-debug.apk](https://github.com/choijunhuk/coms-member-app/releases/download/v0.1.0-debug/coms-member-debug.apk) |
+
+설치 방법은 [Android APK 빌드 및 배포 > 회원용 설치 가이드](#3-회원용-설치-가이드-앱-다운로드-후) 참고.
+
+
 이 앱은 기존 `coms-website` 저장소와 분리되어 있으며, 기존 Spring Boot API 서버(`https://coms.kw.ac.kr/api`)를 호출합니다. 웹사이트의 모집, 지원서, 소개, 회원가입, 전체 관리자 패널은 앱에 포함하지 않습니다.
 
 ## 1차 MVP 범위
