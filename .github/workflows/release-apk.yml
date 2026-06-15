@@ -1,0 +1,75 @@
+name: Release APK
+
+on:
+  push:
+    tags:
+      - 'v*-debug'
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Release tag (e.g. v0.2.0-debug). Created if it does not exist.'
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Resolve tag
+        id: tag
+        env:
+          INPUT_TAG: ${{ github.event.inputs.tag }}
+          EVENT_NAME: ${{ github.event_name }}
+        run: |
+          if [ "$EVENT_NAME" = "workflow_dispatch" ]; then
+            # Reject anything outside [A-Za-z0-9._-] so we don't smuggle shell.
+            case "$INPUT_TAG" in
+              ''|*[!A-Za-z0-9._-]*)
+                echo "Invalid tag: $INPUT_TAG" >&2
+                exit 1
+                ;;
+            esac
+            printf 'name=%s\n' "$INPUT_TAG" >> "$GITHUB_OUTPUT"
+          else
+            printf 'name=%s\n' "${GITHUB_REF#refs/tags/}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Install
+        run: npm ci
+
+      - name: Sync Capacitor
+        run: npx cap sync android
+
+      - name: Build debug APK
+        working-directory: android
+        run: ./gradlew assembleDebug --no-daemon
+
+      - name: Stage APK
+        run: |
+          mkdir -p out
+          cp android/app/build/outputs/apk/debug/app-debug.apk out/coms-member-debug.apk
+
+      - name: Create or update release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.tag.outputs.name }}
+          name: COMS Member App ${{ steps.tag.outputs.name }}
+          files: out/coms-member-debug.apk
+          fail_on_unmatched_files: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
