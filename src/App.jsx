@@ -23,7 +23,7 @@ import {
   isRecoverableMobileApiError,
   registerPushToken,
 } from './services/mobileApi.js'
-import { nativePlatform, readAppVersion, requestPushRegistration, setupAppStateListener, setupBackButtonListener, setupDeepLinkListener } from './services/nativeBridge.js'
+import { nativePlatform, readAppVersion, requestPushRegistration, resetPushRegistration, setupAppStateListener, setupBackButtonListener, setupDeepLinkListener } from './services/nativeBridge.js'
 import { isBiometricAvailable } from './services/biometric.js'
 import { getNotice, listNotices } from './services/noticeApi.js'
 import { getNotificationSummary, listNotifications, markAllNotificationsRead, markNotificationRead } from './services/notificationApi.js'
@@ -491,6 +491,8 @@ export default function App() {
       await logoutUser()
     } finally {
       setUser(null)
+      setPushStatus('idle')
+      await resetPushRegistration()
       queryClient.cancelQueries()
       queryClient.clear()
       await purgePersistedCache()
@@ -500,6 +502,8 @@ export default function App() {
   async function handleWithdraw() {
     await withdrawSelf()
     setUser(null)
+    setPushStatus('idle')
+    await resetPushRegistration()
     queryClient.cancelQueries()
     queryClient.clear()
     await purgePersistedCache()
@@ -514,6 +518,8 @@ export default function App() {
   }
 
   async function handleWipeDevice() {
+    setPushStatus('idle')
+    await resetPushRegistration()
     queryClient.cancelQueries()
     queryClient.clear()
     await purgePersistedCache()

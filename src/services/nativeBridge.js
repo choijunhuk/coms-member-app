@@ -58,9 +58,27 @@ export async function setupBackButtonListener(handler) {
   }
 }
 
-// Track listeners so a second call doesn't stack duplicates.
+// Listeners are bound once per process, but the user-scoped callbacks live in
+// `pushHandlers` so logout can null them out — preventing a stale onToken bound
+// to user A from registering user B's freshly-issued FCM token as user A.
 let pushListenersBound = false
 let pushRegistrationErrorReason = null
+const pushHandlers = { onToken: null, onRoute: null }
+
+export async function resetPushRegistration() {
+  pushHandlers.onToken = null
+  pushHandlers.onRoute = null
+  pushRegistrationErrorReason = null
+  if (!isNativeRuntime() || !pushListenersBound) return
+  try {
+    const { PushNotifications } = await import('@capacitor/push-notifications')
+    await PushNotifications.removeAllListeners()
+  } catch (err) {
+    console.warn('Push reset failed', err)
+  } finally {
+    pushListenersBound = false
+  }
+}
 
 export async function requestPushRegistration({ onToken, onRoute } = {}) {
   if (!isNativeRuntime()) return { status: 'unavailable' }
@@ -81,11 +99,16 @@ export async function requestPushRegistration({ onToken, onRoute } = {}) {
   }
   if (permission.receive !== 'granted') return { status: 'denied' }
 
+  // Latest callbacks always win — the listeners below dereference these at fire
+  // time, so a token that arrives after a logout simply finds onToken === null.
+  pushHandlers.onToken = onToken || null
+  pushHandlers.onRoute = onRoute || null
+
   if (!pushListenersBound) {
     try {
       await PushNotifications.addListener('registration', (token) => {
         pushRegistrationErrorReason = null
-        try { onToken?.(token?.value) } catch (err) { console.warn('Push token handler failed', err) }
+        try { pushHandlers.onToken?.(token?.value) } catch (err) { console.warn('Push token handler failed', err) }
       })
       await PushNotifications.addListener('registrationError', (error) => {
         pushRegistrationErrorReason = error?.error || error?.message || 'registration-failed'
@@ -94,7 +117,7 @@ export async function requestPushRegistration({ onToken, onRoute } = {}) {
       await PushNotifications.addListener('pushNotificationActionPerformed', (event) => {
         try {
           const route = routeFromNotification(event?.notification)
-          if (route) onRoute?.(route)
+          if (route) pushHandlers.onRoute?.(route)
         } catch (err) {
           console.warn('Push action handler failed', err)
         }
