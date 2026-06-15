@@ -1,7 +1,9 @@
+import { useState } from 'react'
 import { Smartphone } from 'lucide-react'
 import { formatDate } from '../utils/format.js'
 import { latest } from '../utils/helpers.js'
 import { routeFromNotification } from '../utils/mobileRoutes.js'
+import { PUSH_TYPES, readPushPreferences, writePushPreferences } from '../utils/preferences.js'
 import { Empty, ListItem, Section } from '../components/ui.jsx'
 
 const PUSH_STATUS_LABEL = {
@@ -15,8 +17,17 @@ const PUSH_STATUS_LABEL = {
   error: '푸시 등록 중 오류가 발생했습니다.',
 }
 
-export default function NotificationsTab({ notifications, unreadCount, pushStatus, appConfig, enablePush, markRead, markAllRead, openRoute }) {
+export default function NotificationsTab({ notifications, unreadCount, pushStatus, appConfig, enablePush, markRead, markAllRead, openRoute, showPushPrefs = false }) {
   const items = latest(notifications, 'createdAt')
+  const [pushPrefs, setPushPrefs] = useState(() => readPushPreferences())
+
+  function togglePushPref(id) {
+    setPushPrefs((current) => {
+      const next = { ...current, [id]: !current[id] }
+      writePushPreferences(next)
+      return next
+    })
+  }
 
   async function openNotification(item) {
     if (!item?.read && item?.id) await markRead(item.id)
@@ -41,6 +52,26 @@ export default function NotificationsTab({ notifications, unreadCount, pushStatu
         </div>
         <p className="muted">{appConfig.pushEnabled ? pushMessage : '현재 앱 설정에서 푸시 알림이 비활성화되어 있습니다.'}</p>
       </section>
+      {showPushPrefs && (
+        <section className="panel">
+          <div className="section-title">
+            <h2>알림 종류</h2>
+          </div>
+          <div className="list compact-list">
+            {PUSH_TYPES.map((type) => (
+              <label key={type.id} className="toggle-row">
+                <span>{type.label}</span>
+                <input
+                  type="checkbox"
+                  checked={Boolean(pushPrefs[type.id])}
+                  onChange={() => togglePushPref(type.id)}
+                />
+              </label>
+            ))}
+          </div>
+          <p className="muted" style={{ marginTop: '0.45rem' }}>여기서 끈 종류는 이 기기에서 무음으로 처리됩니다. (서버 발송은 별도)</p>
+        </section>
+      )}
       <Section title={`알림 ${unreadCount > 0 ? `· 안 읽음 ${unreadCount}` : ''}`} action={items.length ? '모두 읽음' : ''} onAction={markAllRead}>
         {items.map((item) => (
           <ListItem

@@ -1,11 +1,17 @@
 import { useState } from 'react'
-import { LogOut } from 'lucide-react'
+import { LogOut, Moon, Smartphone, Sun } from 'lucide-react'
 import { changePassword } from '../services/authApi.js'
 import { generationFromStudentId } from '../utils/format.js'
 import { passwordPolicyMessage, validPassword } from '../utils/passwordPolicy.js'
 import { Info } from '../components/ui.jsx'
 
-export default function ProfileTab({ user, onLogout }) {
+const THEME_OPTIONS = [
+  { id: 'system', label: '시스템', icon: Smartphone },
+  { id: 'light', label: '라이트', icon: Sun },
+  { id: 'dark', label: '다크', icon: Moon },
+]
+
+export default function ProfileTab({ user, onLogout, themePreference = 'system', onChangeTheme }) {
   const [currentPassword, setCurrentPassword] = useState('')
   const [newPassword, setNewPassword] = useState('')
   const [message, setMessage] = useState('')
@@ -32,6 +38,23 @@ export default function ProfileTab({ user, onLogout }) {
     <div className="stack">
       <section className="profile-card"><div className="avatar">{(user?.name || 'C').slice(0, 1)}</div><div><h2>{user?.name || '회원'}</h2><p>{user?.studentId || '학번 없음'} · {generationFromStudentId(user?.studentId)}</p></div></section>
       <section className="panel"><Info label="이메일 인증" value={user?.emailVerified ? '완료' : '미완료'} /><Info label="학과" value={user?.department || '미등록'} /><Info label="권한" value={user?.role === 'ADMIN' ? '관리자' : '회원'} /></section>
+      <section className="panel">
+        <div className="section-title">
+          <h2>테마</h2>
+        </div>
+        <div className="segments">
+          {THEME_OPTIONS.map(({ id, label, icon: Icon }) => (
+            <button
+              key={id}
+              type="button"
+              className={themePreference === id ? 'active' : ''}
+              onClick={() => onChangeTheme?.(id)}
+            >
+              <Icon size={14} aria-hidden="true" /> {label}
+            </button>
+          ))}
+        </div>
+      </section>
       <form className="form panel" onSubmit={submit}>
         <h2>비밀번호 변경</h2>
         <label>현재 비밀번호<input type="password" value={currentPassword} onChange={(event) => setCurrentPassword(event.target.value)} /></label>
