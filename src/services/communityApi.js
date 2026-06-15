@@ -25,6 +25,15 @@ export function createCommunityPostWithImage(payload, image) {
   })
 }
 
+export function appendCommunityPostImages(postId, images) {
+  const form = new FormData()
+  for (const file of images) form.append('images', file)
+  return request(`/api/community/posts/${postId}/images`, {
+    method: 'POST',
+    body: form,
+  })
+}
+
 export function deleteCommunityPost(id) {
   return request(`/api/community/posts/${id}`, {
     method: 'DELETE',
@@ -49,10 +58,10 @@ export function listComments(postId) {
   return request(`/api/community/posts/${postId}/comments`)
 }
 
-export function createComment(postId, content) {
+export function createComment(postId, content, parentCommentId = null) {
   return request(`/api/community/posts/${postId}/comments`, {
     method: 'POST',
-    body: JSON.stringify({ content, parentCommentId: null, anonymousName: '' }),
+    body: JSON.stringify({ content, parentCommentId, anonymousName: '' }),
   })
 }
 

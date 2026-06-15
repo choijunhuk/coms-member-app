@@ -1,6 +1,7 @@
 import { Download } from 'lucide-react'
 import { asArray, plainText } from '../../utils/format.js'
 import { mediaSrc } from '../../utils/helpers.js'
+import { renderMarkdownToHtml } from '../../utils/markdown.js'
 import { postBlocks } from '../../utils/postBlocks.js'
 import PollBlock from './PollBlock.jsx'
 import Polls from './Polls.jsx'
@@ -14,7 +15,8 @@ export default function PostContent({ post, pollVote }) {
       {blocks.map((block, index) => {
         if (block.type === 'text') {
           const text = plainText(block.content)
-          return text ? <p className="body-text" key={index}>{text}</p> : null
+          if (!text) return null
+          return <p className="body-text" key={index} dangerouslySetInnerHTML={{ __html: renderMarkdownToHtml(text) }} />
         }
         if (block.type === 'image') {
           const src = mediaSrc(block.url)
