@@ -39,6 +39,19 @@ body {
   min-width: 320px;
   min-height: 100vh;
   background: #f3f6f8;
+  overflow-x: hidden;
+}
+
+html {
+  overflow-x: hidden;
+}
+
+.app-shell,
+.login-screen,
+.center-screen {
+  width: 100%;
+  max-width: 100vw;
+  overflow-x: hidden;
 }
 
 button,
@@ -331,6 +344,14 @@ p {
 .content {
   min-height: calc(100dvh - 8rem);
   padding: 0.7rem 0.85rem calc(5rem + env(safe-area-inset-bottom));
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
+.stack > *,
+.list > * {
+  min-width: 0;
+  max-width: 100%;
 }
 
 .stack,
