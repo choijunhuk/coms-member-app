@@ -118,15 +118,34 @@ export function pollTotals(result) {
   }
 }
 
+function looksLikeBlockJson(value) {
+  const trimmed = String(value || '').trim()
+  if (!trimmed) return false
+  // The structured-block content starts with [ or { and includes a "type" tag — if a
+  // plain author types either character at the very start we still want to render it.
+  return (trimmed.startsWith('[') || trimmed.startsWith('{')) && /"type"\s*:/.test(trimmed)
+}
+
+function hasImageEvidence(post, blocks) {
+  if (post?.imageUrl) return true
+  if (Array.isArray(post?.imageUrls) && post.imageUrls.length) return true
+  if (Array.isArray(post?.imageInfos) && post.imageInfos.length) return true
+  return blocks.some((block) => block.type === 'image' || (block.type === 'externalEmbed' && block.kind === 'image'))
+}
+
 export function postPreviewText(post) {
   const blocks = postBlocks(post)
-  const text = blocks.find((block) => block.type === 'text' && plainText(block.content).trim())
+  const text = blocks.find((block) => {
+    if (block.type !== 'text') return false
+    const stripped = plainText(block.content).trim()
+    return stripped.length > 0 && !looksLikeBlockJson(stripped)
+  })
   if (text) return preview(text.content)
 
   const poll = blocks.find((block) => block.type === 'poll' && block.question)
   if (poll) return preview(`투표: ${poll.question}`)
 
-  if (blocks.some((block) => block.type === 'image')) return '이미지가 포함된 글입니다.'
+  if (hasImageEvidence(post, blocks)) return '이미지가 포함된 글입니다.'
   if (blocks.some((block) => block.type === 'video')) return '영상이 포함된 글입니다.'
   if (blocks.some((block) => block.type === 'file')) return '첨부파일이 포함된 글입니다.'
 
