@@ -21,3 +21,7 @@ export function changePassword(currentPassword, newPassword) {
     body: JSON.stringify({ currentPassword, newPassword }),
   })
 }
+
+export function withdrawSelf() {
+  return requestNoContent('/api/auth/me', { method: 'DELETE' })
+}

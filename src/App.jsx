@@ -1,7 +1,7 @@
 import { Suspense, lazy, useCallback, useEffect, useRef, useState } from 'react'
 import { ShieldCheck } from 'lucide-react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { getCurrentUser, logoutUser } from './services/authApi.js'
+import { getCurrentUser, logoutUser, withdrawSelf } from './services/authApi.js'
 import { listFiles } from './services/archiveApi.js'
 import {
   appendCommunityPostImages,
@@ -44,6 +44,7 @@ import LoginScreen from './screens/LoginScreen.jsx'
 import HomeTab from './screens/HomeTab.jsx'
 import ForcedUpdateScreen from './screens/ForcedUpdateScreen.jsx'
 import BiometricLockScreen from './screens/BiometricLockScreen.jsx'
+import PrivacyPolicyScreen from './screens/PrivacyPolicyScreen.jsx'
 
 const IDLE_LOCK_THRESHOLD_MS = 5 * 60 * 1000
 const DASHBOARD_QUERY_KEY = ['member-app', 'dashboard']
@@ -120,6 +121,7 @@ export default function App() {
   const [themePreference, setThemePreference] = useState(() => readTheme())
   const [onboardingDismissed, setOnboardingDismissed] = useState(() => readOnboarded())
   const [biometricReady, setBiometricReady] = useState(false)
+  const [showPrivacy, setShowPrivacy] = useState(false)
   const [selectedNotice, setSelectedNotice] = useState(null)
   const [noticeLoading, setNoticeLoading] = useState(false)
   const [selectedPost, setSelectedPost] = useState(null)
@@ -488,6 +490,41 @@ export default function App() {
     }
   }
 
+  async function handleWithdraw() {
+    await withdrawSelf()
+    setUser(null)
+    queryClient.cancelQueries()
+    queryClient.clear()
+    await purgePersistedCache()
+    if (typeof window !== 'undefined') {
+      const keys = []
+      for (let i = 0; i < window.localStorage.length; i += 1) {
+        const key = window.localStorage.key(i)
+        if (key && key.startsWith('coms.')) keys.push(key)
+      }
+      keys.forEach((key) => window.localStorage.removeItem(key))
+    }
+  }
+
+  async function handleWipeDevice() {
+    queryClient.cancelQueries()
+    queryClient.clear()
+    await purgePersistedCache()
+    if (typeof window !== 'undefined') {
+      const keys = []
+      for (let i = 0; i < window.localStorage.length; i += 1) {
+        const key = window.localStorage.key(i)
+        if (key && key.startsWith('coms.')) keys.push(key)
+      }
+      keys.forEach((key) => window.localStorage.removeItem(key))
+    }
+    try {
+      await logoutUser()
+    } finally {
+      setUser(null)
+    }
+  }
+
   const createPost = useCallback(async (input) => {
     await createPostMutation.mutateAsync(input)
   }, [createPostMutation])
@@ -502,6 +539,7 @@ export default function App() {
       />
     )
   }
+  if (showPrivacy) return <PrivacyPolicyScreen onBack={() => setShowPrivacy(false)} />
   if (authLoading) return <LoadingScreen label="세션을 확인하는 중입니다." />
   if (!user) return <LoginScreen onLogin={restoreSession} />
   if (locked) {
@@ -537,7 +575,7 @@ export default function App() {
   else if (activeTab === 'resources') content = <ResourcesTab files={files} />
   else if (activeTab === 'notifications') content = <NotificationsTab notifications={notifications} unreadCount={unreadCount} pushStatus={pushStatus} appConfig={appConfig} enablePush={enablePush} markRead={markRead} markAllRead={markAllRead} openRoute={openRoute} showPushPrefs />
   else if (activeTab === 'operations') content = <OperationsTab user={user} notices={notices} posts={posts} loadDashboard={refreshDashboard} />
-  else content = <ProfileTab user={user} onLogout={handleLogout} themePreference={themePreference} onChangeTheme={applyTheme} posts={posts} openPost={openPost} />
+  else content = <ProfileTab user={user} onLogout={handleLogout} onWithdraw={handleWithdraw} onWipeDevice={handleWipeDevice} onShowPrivacy={() => setShowPrivacy(true)} themePreference={themePreference} onChangeTheme={applyTheme} posts={posts} openPost={openPost} />
 
   const body = (
     <div className="stack">

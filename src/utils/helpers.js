@@ -4,10 +4,9 @@ import { asArray } from './format.js'
 
 export const categoryLabels = {
   GENERAL: '자유',
-  STUDY: '스터디',
   QUESTION: '질문',
-  PROJECT: '프로젝트',
-  NOTICE: '공지',
+  INFO: '정보',
+  ANONYMOUS: '익명',
 }
 
 export const fileCategoryLabels = {
