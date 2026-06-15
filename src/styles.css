@@ -1129,6 +1129,14 @@ p {
   height: 1.1rem;
 }
 
+.emoji {
+  width: 1.05em;
+  height: 1.05em;
+  margin: 0 0.04em 0 0.06em;
+  vertical-align: -0.18em;
+  display: inline-block;
+}
+
 .compact-list {
   display: grid;
   gap: 0;
