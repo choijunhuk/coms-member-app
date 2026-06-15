@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { Bookmark, LogOut, MessageCircle, Moon, Smartphone, Sun } from 'lucide-react'
+import { Bookmark, Eraser, FileText, LogOut, MessageCircle, Moon, Smartphone, Sun, UserX } from 'lucide-react'
 import { changePassword } from '../services/authApi.js'
 import { formatDate, generationFromStudentId, preview } from '../utils/format.js'
 import { passwordPolicyMessage, validPassword } from '../utils/passwordPolicy.js'
@@ -21,7 +21,9 @@ function postOwnedBy(post, user) {
   return false
 }
 
-export default function ProfileTab({ user, onLogout, themePreference = 'system', onChangeTheme, posts = [], openPost }) {
+export default function ProfileTab({ user, onLogout, onWithdraw, onWipeDevice, onShowPrivacy, themePreference = 'system', onChangeTheme, posts = [], openPost }) {
+  const [withdrawError, setWithdrawError] = useState('')
+  const [busyAction, setBusyAction] = useState('')
   const [currentPassword, setCurrentPassword] = useState('')
   const [newPassword, setNewPassword] = useState('')
   const [message, setMessage] = useState('')
@@ -112,6 +114,46 @@ export default function ProfileTab({ user, onLogout, themePreference = 'system',
         {error && <p className="form-error">{error}</p>}
         <button type="submit" className="button primary" disabled={!canSubmit}>변경</button>
       </form>
+      <section className="panel">
+        <div className="section-title">
+          <h2>계정</h2>
+        </div>
+        <div className="stack">
+          <button type="button" className="button secondary" onClick={onShowPrivacy}><FileText size={16} aria-hidden="true" /> 개인정보 처리방침 보기</button>
+          <button
+            type="button"
+            className="button secondary"
+            disabled={busyAction === 'wipe'}
+            onClick={async () => {
+              if (typeof window !== 'undefined' && !window.confirm('이 기기에 저장된 캐시·북마크·테마 설정을 모두 지우고 로그아웃합니다. 계속할까요?')) return
+              setBusyAction('wipe')
+              try { await onWipeDevice?.() } finally { setBusyAction('') }
+            }}
+          >
+            <Eraser size={16} aria-hidden="true" /> 이 기기에서 데이터 지우기
+          </button>
+          <button
+            type="button"
+            className="button danger"
+            disabled={busyAction === 'withdraw'}
+            onClick={async () => {
+              if (typeof window !== 'undefined' && !window.confirm('정말로 회원에서 탈퇴할까요? 작성한 글과 댓글도 함께 삭제되며 되돌릴 수 없습니다.')) return
+              setBusyAction('withdraw')
+              setWithdrawError('')
+              try {
+                await onWithdraw?.()
+              } catch (err) {
+                setWithdrawError(err?.message || '회원 탈퇴 처리 중 오류가 발생했습니다.')
+              } finally {
+                setBusyAction('')
+              }
+            }}
+          >
+            <UserX size={16} aria-hidden="true" /> 회원 탈퇴
+          </button>
+          {withdrawError && <p className="form-error">{withdrawError}</p>}
+        </div>
+      </section>
       <button type="button" className="button danger" onClick={onLogout}><LogOut size={17} />로그아웃</button>
     </div>
   )
