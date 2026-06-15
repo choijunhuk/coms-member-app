@@ -9,13 +9,22 @@
     "build:mobile": "node scripts/build-mobile.mjs",
     "preview": "vite preview",
     "lint": "eslint .",
-    "test": "node tests/appScope.test.mjs && node tests/apiClient.test.mjs",
+    "test": "node tests/appScope.test.mjs && node tests/apiClient.test.mjs && node tests/mobileRoutes.test.mjs && node tests/mobileApi.test.mjs && node tests/adminLight.test.mjs && node tests/postBlocks.test.mjs && node tests/passwordPolicy.test.mjs && node tests/version.test.mjs",
     "cap:sync": "npm run build:mobile && npx cap sync",
     "cap:android": "npm run build:mobile && npx cap sync android && npx cap open android",
     "cap:ios": "npm run build:mobile && npx cap sync ios && npx cap open ios"
   },
   "dependencies": {
+    "@aparajita/capacitor-biometric-auth": "^10.0.0",
+    "@capacitor/app": "^8.1.0",
     "@capacitor/core": "^8.4.0",
+    "@capacitor/haptics": "^8.0.2",
+    "@capacitor/push-notifications": "^8.1.1",
+    "@capacitor/share": "^8.0.1",
+    "@sentry/react": "^10.57.0",
+    "@tanstack/query-sync-storage-persister": "^5.101.0",
+    "@tanstack/react-query": "^5.101.0",
+    "@tanstack/react-query-persist-client": "^5.101.0",
     "lucide-react": "^0.542.0",
     "react": "^19.2.6",
     "react-dom": "^19.2.6"

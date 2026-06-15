@@ -15,6 +15,22 @@ export function createCommunityPost(payload) {
   })
 }
 
+export function createCommunityPostWithImage(payload, image) {
+  const form = new FormData()
+  form.append('post', new Blob([JSON.stringify(payload)], { type: 'application/json' }))
+  form.append('image', image)
+  return request('/api/community/posts', {
+    method: 'POST',
+    body: form,
+  })
+}
+
+export function deleteCommunityPost(id) {
+  return request(`/api/community/posts/${id}`, {
+    method: 'DELETE',
+  })
+}
+
 export function voteCommunityPost(id, value) {
   return request(`/api/community/posts/${id}/vote`, {
     method: 'POST',
@@ -37,5 +53,18 @@ export function createComment(postId, content) {
   return request(`/api/community/posts/${postId}/comments`, {
     method: 'POST',
     body: JSON.stringify({ content, parentCommentId: null, anonymousName: '' }),
+  })
+}
+
+export function updateComment(postId, commentId, content) {
+  return request(`/api/community/posts/${postId}/comments/${commentId}`, {
+    method: 'PATCH',
+    body: JSON.stringify({ content }),
+  })
+}
+
+export function deleteComment(postId, commentId) {
+  return request(`/api/community/posts/${postId}/comments/${commentId}`, {
+    method: 'DELETE',
   })
 }

@@ -1,10 +1,12 @@
-import { Bell, FileText, Home, MessageSquareText, UserRound } from 'lucide-react'
+import { Bell, BellRing, FileText, Home, MessageSquareText, ShieldCheck, UserRound } from 'lucide-react'
 
 export const APP_SHELL_TABS = [
   { id: 'home', label: '홈', icon: Home },
   { id: 'notices', label: '공지', icon: Bell },
   { id: 'community', label: '커뮤니티', icon: MessageSquareText },
   { id: 'resources', label: '자료실', icon: FileText },
+  { id: 'notifications', label: '알림', icon: BellRing },
+  { id: 'operations', label: '운영', icon: ShieldCheck, adminOnly: true },
   { id: 'profile', label: '내 정보', icon: UserRound },
 ]
 
@@ -16,6 +18,12 @@ export const APP_INCLUDED_FEATURES = [
   'notices',
   'community',
   'resources',
+  'notification-center',
+  'push-notifications',
+  'deep-links',
+  'mobile-home-api',
+  'app-config',
+  'operator-light',
   'profile',
 ]
 
