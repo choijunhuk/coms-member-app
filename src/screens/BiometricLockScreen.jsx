@@ -31,7 +31,7 @@ export default function BiometricLockScreen({ onUnlock, onLogout }) {
   return (
     <main className="center-screen">
       <section className="login-panel">
-        <div className="brand-pill">COMS</div>
+        <img className="brand-logo" src="/coms-logo.png" alt="COM's" />
         <h1>잠금 해제</h1>
         <p className="muted">잠시 자리를 비웠습니다. Face ID / 지문으로 다시 들어오세요.</p>
         <button type="button" className="button primary" onClick={attempt} disabled={busy}>

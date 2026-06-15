@@ -28,7 +28,7 @@ export default function LoginScreen({ onLogin }) {
   return (
     <main className="login-screen">
       <section className="login-panel">
-        <div className="brand-pill">COMS</div>
+        <img className="brand-logo" src="/coms-logo.png" alt="COM's" />
         <p className="eyebrow">Member App</p>
         <h1>회원용 앱으로 바로 들어가기</h1>
         <p className="muted">지원서, 모집, 관리자 기능은 웹에 두고 회원이 매일 쓰는 기능만 담았습니다.</p>
