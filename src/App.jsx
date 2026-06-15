@@ -6,9 +6,12 @@ import { listFiles } from './services/archiveApi.js'
 import {
   createComment,
   createCommunityPost,
+  createCommunityPostWithImage,
+  deleteComment,
   getCommunityPost,
   listComments,
   listCommunityPosts,
+  updateComment,
   voteCommunityPoll,
   voteCommunityPost,
 } from './services/communityApi.js'
@@ -265,7 +268,7 @@ export default function App() {
   }, [openRoute, user])
 
   const createPostMutation = useMutation({
-    mutationFn: createCommunityPost,
+    mutationFn: ({ payload, image }) => (image ? createCommunityPostWithImage(payload, image) : createCommunityPost(payload)),
     onSuccess: () => {
       void hapticSuccess()
       refreshDashboard()
@@ -286,6 +289,20 @@ export default function App() {
     if (!selectedPost?.id) return
     await createComment(selectedPost.id, content)
     void hapticSuccess()
+    await openPost(selectedPost.id)
+  }
+
+  async function editCommentForPost(commentId, content) {
+    if (!selectedPost?.id) return
+    await updateComment(selectedPost.id, commentId, content)
+    void hapticLight()
+    await openPost(selectedPost.id)
+  }
+
+  async function removeCommentForPost(commentId) {
+    if (!selectedPost?.id) return
+    await deleteComment(selectedPost.id, commentId)
+    void hapticLight()
     await openPost(selectedPost.id)
   }
 
@@ -359,8 +376,8 @@ export default function App() {
     }
   }
 
-  const createPost = useCallback(async (payload) => {
-    await createPostMutation.mutateAsync(payload)
+  const createPost = useCallback(async (input) => {
+    await createPostMutation.mutateAsync(input)
   }, [createPostMutation])
 
   const loadDashboardForOps = useMemo(() => async () => refreshDashboard(), [refreshDashboard])
@@ -393,7 +410,7 @@ export default function App() {
   else if (dashboardError && !dashboardQuery.data) content = <section className="empty-panel"><ShieldCheck size={24} /><p>{dashboardError}</p><button className="button secondary" onClick={refreshDashboard}>다시 시도</button></section>
   else if (activeTab === 'home') content = <HomeTab notices={notices} posts={posts} files={files} unreadCount={unreadCount} openNotice={openNotice} openPost={openPost} setActiveTab={changeTab} />
   else if (activeTab === 'notices') content = <NoticesTab notices={notices} selected={selectedNotice} loading={noticeLoading} openNotice={openNotice} closeNotice={() => setSelectedNotice(null)} />
-  else if (activeTab === 'community') content = <CommunityTab posts={posts} selected={selectedPost} comments={comments} loading={postLoading} openPost={openPost} closePost={() => { setSelectedPost(null); setComments([]) }} createPost={createPost} createCommentForPost={createCommentForPost} vote={vote} pollVote={pollVote} />
+  else if (activeTab === 'community') content = <CommunityTab posts={posts} selected={selectedPost} comments={comments} loading={postLoading} openPost={openPost} closePost={() => { setSelectedPost(null); setComments([]) }} createPost={createPost} createCommentForPost={createCommentForPost} editComment={editCommentForPost} removeComment={removeCommentForPost} vote={vote} pollVote={pollVote} currentUser={user} />
   else if (activeTab === 'resources') content = <ResourcesTab files={files} />
   else if (activeTab === 'notifications') content = <NotificationsTab notifications={notifications} unreadCount={unreadCount} pushStatus={pushStatus} appConfig={appConfig} enablePush={enablePush} markRead={markRead} markAllRead={markAllRead} openRoute={openRoute} />
   else if (activeTab === 'operations') content = <OperationsTab user={user} notices={notices} posts={posts} loadDashboard={loadDashboardForOps} />

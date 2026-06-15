@@ -895,3 +895,47 @@ p {
   0% { background-position: 200% 0; }
   100% { background-position: -200% 0; }
 }
+
+.image-picker {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.55rem 0.75rem;
+  border-radius: 8px;
+  border: 1px dashed rgba(255, 255, 255, 0.25);
+  color: rgba(255, 255, 255, 0.85);
+  font-size: 0.84rem;
+  cursor: pointer;
+}
+
+.image-preview {
+  position: relative;
+  display: block;
+  max-width: 100%;
+}
+
+.image-preview img {
+  display: block;
+  max-width: 100%;
+  border-radius: 10px;
+}
+
+.image-preview .icon-button {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  background: rgba(0, 0, 0, 0.55);
+  color: #fff;
+  border-radius: 999px;
+  padding: 0.25rem;
+}
+
+.comment-actions {
+  display: flex;
+  gap: 0.35rem;
+  margin-top: 0.35rem;
+}
+
+.comment-actions .icon-button {
+  padding: 0.25rem 0.4rem;
+}
