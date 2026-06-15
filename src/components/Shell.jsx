@@ -1,10 +1,10 @@
-import { Bell, RefreshCcw, UserRound } from 'lucide-react'
+import { Bell, RefreshCcw, Settings, UserRound } from 'lucide-react'
 import { APP_SHELL_TABS } from '../config/appScope.js'
 import { isAdminUser } from '../utils/helpers.js'
 import { usePullToRefresh } from '../hooks/usePullToRefresh.js'
 import { hapticLight } from '../services/haptics.js'
 
-export function Shell({ user, activeTab, setActiveTab, unreadCount, onRefresh, refreshing, children, tabBadges = {} }) {
+export function Shell({ user, activeTab, setActiveTab, unreadCount, onRefresh, refreshing, children, tabBadges = {}, onOpenSettings }) {
   const tabs = APP_SHELL_TABS.filter((tab) => !tab.adminOnly || isAdminUser(user))
   const active = APP_SHELL_TABS.find((tab) => tab.id === activeTab)
 
@@ -28,6 +28,11 @@ export function Shell({ user, activeTab, setActiveTab, unreadCount, onRefresh, r
           <button type="button" className="icon-button" onClick={onRefresh} disabled={refreshing} aria-label="새로고침">
             <RefreshCcw size={18} className={refreshing ? 'spin' : ''} aria-hidden="true" />
           </button>
+          {onOpenSettings && (
+            <button type="button" className="icon-button" onClick={onOpenSettings} aria-label="설정">
+              <Settings size={18} aria-hidden="true" />
+            </button>
+          )}
           <span className="user-chip"><UserRound size={14} aria-hidden="true" />{user?.name || '회원'}</span>
         </div>
       </header>

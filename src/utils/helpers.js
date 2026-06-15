@@ -3,10 +3,32 @@ import { DEFAULT_APP_CONFIG } from '../services/mobileApi.js'
 import { asArray } from './format.js'
 
 export const categoryLabels = {
-  GENERAL: '자유',
+  GENERAL: '일반',
   QUESTION: '질문',
   INFO: '정보',
   ANONYMOUS: '익명',
+}
+
+export const noticeCategoryLabels = {
+  GENERAL: '공지',
+  PROMOTION: '홍보',
+  SMALL_GROUP: '소모임',
+  JOB: '취업공고',
+}
+
+export function isGraduateStudentId(studentId) {
+  if (!/^\d{10}$/.test(String(studentId || ''))) return true
+  const admissionYear = Number(String(studentId).slice(0, 4))
+  return admissionYear <= new Date().getFullYear() - 7
+}
+
+export function canAccessAnonymousBoard(user) {
+  return user?.role === 'ADMIN' || !isGraduateStudentId(user?.studentId)
+}
+
+export function categoryOptionsForUser(user) {
+  const all = Object.entries(categoryLabels)
+  return canAccessAnonymousBoard(user) ? all : all.filter(([key]) => key !== 'ANONYMOUS')
 }
 
 export const fileCategoryLabels = {

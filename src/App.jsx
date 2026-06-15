@@ -31,7 +31,7 @@ import { asArray } from './utils/format.js'
 import { isAdminUser, normalizeAppConfig, normalizeHomeData } from './utils/helpers.js'
 import { isVersionBelow } from './utils/version.js'
 import { isNew, readLastSeen, writeLastSeen } from './utils/lastSeen.js'
-import { markOnboarded, readOnboarded, readTheme, resolveTheme, writeTheme } from './utils/preferences.js'
+import { markOnboarded, readFontScale, readIdleLock, readOnboarded, readTheme, resolveIdleLockMs, resolveTheme, writeTheme } from './utils/preferences.js'
 import { setUserContext } from './services/observability.js'
 import { purgePersistedCache } from './services/queryClient.js'
 import { hapticLight, hapticSuccess } from './services/haptics.js'
@@ -45,8 +45,9 @@ import HomeTab from './screens/HomeTab.jsx'
 import ForcedUpdateScreen from './screens/ForcedUpdateScreen.jsx'
 import BiometricLockScreen from './screens/BiometricLockScreen.jsx'
 import PrivacyPolicyScreen from './screens/PrivacyPolicyScreen.jsx'
+import SettingsScreen from './screens/SettingsScreen.jsx'
 
-const IDLE_LOCK_THRESHOLD_MS = 5 * 60 * 1000
+const DEFAULT_IDLE_LOCK_THRESHOLD_MS = 5 * 60 * 1000
 const DASHBOARD_QUERY_KEY = ['member-app', 'dashboard']
 
 const NoticesTab = lazy(() => import('./screens/NoticesTab.jsx'))
@@ -111,6 +112,7 @@ export default function App() {
   const [onboardingDismissed, setOnboardingDismissed] = useState(() => readOnboarded())
   const [biometricReady, setBiometricReady] = useState(false)
   const [showPrivacy, setShowPrivacy] = useState(false)
+  const [showSettings, setShowSettings] = useState(false)
   const [selectedNotice, setSelectedNotice] = useState(null)
   const [noticeLoading, setNoticeLoading] = useState(false)
   const [selectedPost, setSelectedPost] = useState(null)
@@ -183,6 +185,12 @@ export default function App() {
     return () => media.removeEventListener?.('change', listener)
   }, [themePreference])
 
+  useEffect(() => {
+    if (typeof document === 'undefined') return undefined
+    document.documentElement.setAttribute('data-font-scale', readFontScale())
+    return undefined
+  }, [showSettings])
+
   const applyTheme = useCallback((next) => {
     setThemePreference(next)
     writeTheme(next)
@@ -222,7 +230,9 @@ export default function App() {
       }
       const last = lastBackgroundedRef.current
       lastBackgroundedRef.current = null
-      if (!last || Date.now() - last < IDLE_LOCK_THRESHOLD_MS) return
+      const threshold = resolveIdleLockMs(readIdleLock()) ?? DEFAULT_IDLE_LOCK_THRESHOLD_MS
+      if (threshold === null) return
+      if (!last || Date.now() - last < threshold) return
       void isBiometricAvailable().then((available) => {
         if (available) setLocked(true)
       })
@@ -529,6 +539,19 @@ export default function App() {
     )
   }
   if (showPrivacy) return <PrivacyPolicyScreen onBack={() => setShowPrivacy(false)} />
+  if (showSettings && user) {
+    return (
+      <SettingsScreen
+        themePreference={themePreference}
+        onChangeTheme={applyTheme}
+        onShowPrivacy={() => { setShowSettings(false); setShowPrivacy(true) }}
+        onWipeDevice={async () => { await handleWipeDevice(); setShowSettings(false) }}
+        onWithdraw={async () => { await handleWithdraw(); setShowSettings(false) }}
+        onLogout={async () => { await handleLogout(); setShowSettings(false) }}
+        onBack={() => setShowSettings(false)}
+      />
+    )
+  }
   if (authLoading) return <LoadingScreen label="세션을 확인하는 중입니다." />
   if (!user) return <LoginScreen onLogin={restoreSession} />
   if (locked) {
@@ -562,7 +585,7 @@ export default function App() {
   else if (activeTab === 'notices') content = <NoticesTab notices={notices} selected={selectedNotice} loading={noticeLoading} openNotice={openNotice} closeNotice={() => setSelectedNotice(null)} />
   else if (activeTab === 'community') content = <CommunityTab posts={posts} selected={selectedPost} comments={comments} loading={postLoading} openPost={openPost} closePost={() => { setSelectedPost(null); setComments([]) }} createPost={createPost} createCommentForPost={createCommentForPost} editComment={editCommentForPost} removeComment={removeCommentForPost} vote={vote} pollVote={pollVote} currentUser={user} />
   else if (activeTab === 'resources') content = <ResourcesTab files={files} />
-  else if (activeTab === 'notifications') content = <NotificationsTab notifications={notifications} unreadCount={unreadCount} pushStatus={pushStatus} appConfig={appConfig} enablePush={enablePush} markRead={markRead} markAllRead={markAllRead} openRoute={openRoute} showPushPrefs />
+  else if (activeTab === 'notifications') content = <NotificationsTab notifications={notifications} unreadCount={unreadCount} pushStatus={pushStatus} appConfig={appConfig} enablePush={enablePush} markRead={markRead} markAllRead={markAllRead} openRoute={openRoute} />
   else if (activeTab === 'operations') content = <OperationsTab user={user} notices={notices} posts={posts} loadDashboard={refreshDashboard} />
   else content = <ProfileTab user={user} onLogout={handleLogout} onWithdraw={handleWithdraw} onWipeDevice={handleWipeDevice} onShowPrivacy={() => setShowPrivacy(true)} themePreference={themePreference} onChangeTheme={applyTheme} posts={posts} openPost={openPost} />
 
@@ -575,7 +598,7 @@ export default function App() {
   )
 
   return (
-    <Shell user={user} activeTab={activeTab} setActiveTab={changeTab} unreadCount={unreadCount} refreshing={refreshing} onRefresh={refreshDashboard} tabBadges={tabBadges}>
+    <Shell user={user} activeTab={activeTab} setActiveTab={changeTab} unreadCount={unreadCount} refreshing={refreshing} onRefresh={refreshDashboard} tabBadges={tabBadges} onOpenSettings={() => setShowSettings(true)}>
       <ErrorBoundary label={activeTab}>
         <Suspense fallback={<LoadingScreen label="화면을 준비 중입니다." />}>{body}</Suspense>
       </ErrorBoundary>

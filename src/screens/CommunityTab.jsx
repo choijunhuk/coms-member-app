@@ -196,10 +196,11 @@ export default function CommunityTab({ posts, selected, comments, loading, openP
     setWriting={setWriting}
     createPost={createPost}
     openPost={openPost}
+    currentUser={currentUser}
   />
 }
 
-function CommunityListView({ posts, filtered, query, setQuery, category, setCategory, writing, setWriting, createPost, openPost }) {
+function CommunityListView({ posts, filtered, query, setQuery, category, setCategory, writing, setWriting, createPost, openPost, currentUser }) {
   const availableCategories = useMemo(() => {
     const set = new Set()
     for (const post of posts) if (post?.category) set.add(post.category)
@@ -211,7 +212,7 @@ function CommunityListView({ posts, filtered, query, setQuery, category, setCate
   return (
     <div className="stack">
       <button type="button" className="button primary" onClick={() => setWriting((value) => !value)}><Plus size={17} />글 작성</button>
-      {writing && <Composer onSubmit={async (input) => { await createPost(input); setWriting(false) }} />}
+      {writing && <Composer currentUser={currentUser} onSubmit={async (input) => { await createPost(input); setWriting(false) }} />}
       <div className="search-row"><Search size={17} /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="제목·본문·작성자 검색" /></div>
       {availableCategories.length > 2 && (
         <div className="segments">
