@@ -1,4 +1,4 @@
-import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { Suspense, lazy, useCallback, useEffect, useRef, useState } from 'react'
 import { ShieldCheck } from 'lucide-react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { getCurrentUser, logoutUser } from './services/authApi.js'
@@ -22,13 +22,14 @@ import {
   isRecoverableMobileApiError,
   registerPushToken,
 } from './services/mobileApi.js'
-import { nativePlatform, readAppVersion, requestPushRegistration, setupAppStateListener, setupDeepLinkListener } from './services/nativeBridge.js'
+import { nativePlatform, readAppVersion, requestPushRegistration, setupAppStateListener, setupBackButtonListener, setupDeepLinkListener } from './services/nativeBridge.js'
 import { isBiometricAvailable } from './services/biometric.js'
 import { getNotice, listNotices } from './services/noticeApi.js'
 import { getNotificationSummary, listNotifications, markAllNotificationsRead, markNotificationRead } from './services/notificationApi.js'
 import { asArray } from './utils/format.js'
 import { isAdminUser, normalizeAppConfig, normalizeHomeData } from './utils/helpers.js'
 import { isVersionBelow } from './utils/version.js'
+import { isNew, readLastSeen, writeLastSeen } from './utils/lastSeen.js'
 import { setUserContext } from './services/observability.js'
 import { purgePersistedCache } from './services/queryClient.js'
 import { hapticLight, hapticSuccess } from './services/haptics.js'
@@ -111,6 +112,8 @@ export default function App() {
   const lastBackgroundedRef = useRef(null)
   const [activeTab, setActiveTab] = useState('home')
   const [pushStatus, setPushStatus] = useState('idle')
+  const [lastSeenNotices, setLastSeenNotices] = useState(() => readLastSeen('notices'))
+  const [lastSeenPosts, setLastSeenPosts] = useState(() => readLastSeen('posts'))
   const [selectedNotice, setSelectedNotice] = useState(null)
   const [noticeLoading, setNoticeLoading] = useState(false)
   const [selectedPost, setSelectedPost] = useState(null)
@@ -214,7 +217,30 @@ export default function App() {
       setSelectedPost(null)
       setComments([])
     }
-  }, [user])
+    if (nextTab === 'notices') {
+      const latestTs = notices.reduce((acc, item) => Math.max(acc, new Date(item?.createdAt || 0).getTime() || 0), 0)
+      if (latestTs > lastSeenNotices) {
+        setLastSeenNotices(latestTs)
+        writeLastSeen('notices', latestTs)
+      }
+    }
+    if (nextTab === 'community') {
+      const latestTs = posts.reduce((acc, item) => Math.max(acc, new Date(item?.createdAt || 0).getTime() || 0), 0)
+      if (latestTs > lastSeenPosts) {
+        setLastSeenPosts(latestTs)
+        writeLastSeen('posts', latestTs)
+      }
+    }
+  }, [user, notices, posts, lastSeenNotices, lastSeenPosts])
+
+  const newNoticesCount = notices.reduce((acc, item) => acc + (isNew(item?.createdAt, lastSeenNotices) ? 1 : 0), 0)
+  const newPostsCount = posts.reduce((acc, item) => acc + (isNew(item?.createdAt, lastSeenPosts) ? 1 : 0), 0)
+
+  const tabBadges = {
+    notices: newNoticesCount,
+    community: newPostsCount,
+    notifications: unreadCount,
+  }
 
   const openNotice = useCallback(async (id) => {
     changeTab('notices')
@@ -266,6 +292,35 @@ export default function App() {
       cleanup()
     }
   }, [openRoute, user])
+
+  useEffect(() => {
+    if (!user) return undefined
+    let cleanup = () => {}
+    let mounted = true
+    setupBackButtonListener(() => {
+      if (selectedNotice) {
+        setSelectedNotice(null)
+        return true
+      }
+      if (selectedPost) {
+        setSelectedPost(null)
+        setComments([])
+        return true
+      }
+      if (activeTab !== 'home') {
+        setActiveTab('home')
+        return true
+      }
+      return false
+    }).then((remove) => {
+      if (mounted) cleanup = remove
+      else remove()
+    }).catch(() => {})
+    return () => {
+      mounted = false
+      cleanup()
+    }
+  }, [activeTab, selectedNotice, selectedPost, user])
 
   const createPostMutation = useMutation({
     mutationFn: ({ payload, image }) => (image ? createCommunityPostWithImage(payload, image) : createCommunityPost(payload)),
@@ -380,7 +435,6 @@ export default function App() {
     await createPostMutation.mutateAsync(input)
   }, [createPostMutation])
 
-  const loadDashboardForOps = useMemo(() => async () => refreshDashboard(), [refreshDashboard])
 
   if (appVersion && isVersionBelow(appVersion, appConfig.minimumSupportedVersion)) {
     return (
@@ -413,7 +467,7 @@ export default function App() {
   else if (activeTab === 'community') content = <CommunityTab posts={posts} selected={selectedPost} comments={comments} loading={postLoading} openPost={openPost} closePost={() => { setSelectedPost(null); setComments([]) }} createPost={createPost} createCommentForPost={createCommentForPost} editComment={editCommentForPost} removeComment={removeCommentForPost} vote={vote} pollVote={pollVote} currentUser={user} />
   else if (activeTab === 'resources') content = <ResourcesTab files={files} />
   else if (activeTab === 'notifications') content = <NotificationsTab notifications={notifications} unreadCount={unreadCount} pushStatus={pushStatus} appConfig={appConfig} enablePush={enablePush} markRead={markRead} markAllRead={markAllRead} openRoute={openRoute} />
-  else if (activeTab === 'operations') content = <OperationsTab user={user} notices={notices} posts={posts} loadDashboard={loadDashboardForOps} />
+  else if (activeTab === 'operations') content = <OperationsTab user={user} notices={notices} posts={posts} loadDashboard={refreshDashboard} />
   else content = <ProfileTab user={user} onLogout={handleLogout} />
 
   const body = (
@@ -425,7 +479,7 @@ export default function App() {
   )
 
   return (
-    <Shell user={user} activeTab={activeTab} setActiveTab={changeTab} unreadCount={unreadCount} refreshing={refreshing} onRefresh={refreshDashboard}>
+    <Shell user={user} activeTab={activeTab} setActiveTab={changeTab} unreadCount={unreadCount} refreshing={refreshing} onRefresh={refreshDashboard} tabBadges={tabBadges}>
       <ErrorBoundary label={activeTab}>
         <Suspense fallback={<LoadingScreen label="화면을 준비 중입니다." />}>{body}</Suspense>
       </ErrorBoundary>

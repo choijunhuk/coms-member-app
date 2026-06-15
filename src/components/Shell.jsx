@@ -4,7 +4,7 @@ import { isAdminUser } from '../utils/helpers.js'
 import { usePullToRefresh } from '../hooks/usePullToRefresh.js'
 import { hapticLight } from '../services/haptics.js'
 
-export function Shell({ user, activeTab, setActiveTab, unreadCount, onRefresh, refreshing, children }) {
+export function Shell({ user, activeTab, setActiveTab, unreadCount, onRefresh, refreshing, children, tabBadges = {} }) {
   const tabs = APP_SHELL_TABS.filter((tab) => !tab.adminOnly || isAdminUser(user))
   const active = APP_SHELL_TABS.find((tab) => tab.id === activeTab)
 
@@ -48,9 +48,13 @@ export function Shell({ user, activeTab, setActiveTab, unreadCount, onRefresh, r
         {tabs.map((tab) => {
           const Icon = tab.icon
           const selected = activeTab === tab.id
+          const badge = tabBadges[tab.id] || 0
           return (
             <button key={tab.id} type="button" className={selected ? 'tab active' : 'tab'} onClick={() => setActiveTab(tab.id)}>
-              <Icon size={20} aria-hidden="true" />
+              <span className="tab-icon">
+                <Icon size={20} aria-hidden="true" />
+                {badge > 0 && <span className="tab-badge" aria-label={`${badge}개의 새 알림`}>{badge > 99 ? '99+' : badge}</span>}
+              </span>
               <span>{tab.label}</span>
             </button>
           )
