@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { Eye, Plus, Search, Send, Share2, ThumbsDown, ThumbsUp, Trash2, Pencil, Check, X } from 'lucide-react'
+import { CornerDownRight, Eye, Plus, Search, Send, Share2, ThumbsDown, ThumbsUp, Trash2, Pencil, Check, X } from 'lucide-react'
 import { asArray, formatDate } from '../utils/format.js'
 import { categoryLabels, latest, postImage } from '../utils/helpers.js'
 import { postPreviewText } from '../utils/postBlocks.js'
@@ -8,6 +8,8 @@ import { hapticLight } from '../services/haptics.js'
 import { Detail, Empty, ListItem, LoadingScreen, Section } from '../components/ui.jsx'
 import Composer from './community/Composer.jsx'
 import PostContent from './community/PostContent.jsx'
+
+const MAX_THREAD_DEPTH = 3
 
 const ORIGIN = (typeof window !== 'undefined' && window.location?.origin) || 'https://coms.kw.ac.kr'
 
@@ -23,12 +25,22 @@ export default function CommunityTab({ posts, selected, comments, loading, openP
   const [query, setQuery] = useState('')
   const [editingCommentId, setEditingCommentId] = useState(null)
   const [editingContent, setEditingContent] = useState('')
+  const [replyingToId, setReplyingToId] = useState(null)
+  const [replyContent, setReplyContent] = useState('')
 
   async function submitComment(event) {
     event.preventDefault()
     if (!comment.trim()) return
     await createCommentForPost(comment.trim())
     setComment('')
+  }
+
+  async function submitReply(parentId) {
+    const next = replyContent.trim()
+    if (!next) return
+    await createCommentForPost(next, parentId)
+    setReplyContent('')
+    setReplyingToId(null)
   }
 
   async function shareSelected() {
@@ -87,10 +99,13 @@ export default function CommunityTab({ posts, selected, comments, loading, openP
               {asArray(comments).map((item) => {
                 const owned = isOwnedByMe(item)
                 const editing = editingCommentId === item.id
+                const depth = Math.min(Number(item.depth || 0), MAX_THREAD_DEPTH)
+                const replying = replyingToId === item.id
                 return (
-                  <div className="comment" key={item.id}>
+                  <div className={`comment comment-depth-${depth}`} key={item.id}>
+                    {depth > 0 && <CornerDownRight className="comment-thread-arrow" size={14} aria-hidden="true" />}
                     <strong>{item.authorDisplayName || item.authorName || '회원'}</strong>
-                    <span>{formatDate(item.createdAt)}</span>
+                    <span>{formatDate(item.createdAt)}{item.edited ? ' · 수정됨' : ''}</span>
                     {editing ? (
                       <form className="inline-form" onSubmit={(event) => { event.preventDefault(); void commitEditing(item.id) }}>
                         <input value={editingContent} onChange={(event) => setEditingContent(event.target.value)} autoFocus />
@@ -100,11 +115,25 @@ export default function CommunityTab({ posts, selected, comments, loading, openP
                     ) : (
                       <p>{item.content}</p>
                     )}
-                    {owned && !editing && (
+                    {!editing && (
                       <div className="comment-actions">
-                        <button type="button" className="icon-button" onClick={() => startEditing(item)} aria-label="댓글 수정"><Pencil size={13} /></button>
-                        <button type="button" className="icon-button danger" onClick={() => removeOne(item.id)} aria-label="댓글 삭제"><Trash2 size={13} /></button>
+                        {depth < MAX_THREAD_DEPTH && (
+                          <button type="button" className="link-button" onClick={() => { setReplyingToId(item.id); setReplyContent('') }}>답글</button>
+                        )}
+                        {owned && (
+                          <>
+                            <button type="button" className="icon-button" onClick={() => startEditing(item)} aria-label="댓글 수정"><Pencil size={13} /></button>
+                            <button type="button" className="icon-button danger" onClick={() => removeOne(item.id)} aria-label="댓글 삭제"><Trash2 size={13} /></button>
+                          </>
+                        )}
                       </div>
+                    )}
+                    {replying && (
+                      <form className="inline-form" onSubmit={(event) => { event.preventDefault(); void submitReply(item.id) }}>
+                        <input value={replyContent} onChange={(event) => setReplyContent(event.target.value)} placeholder="답글 작성" autoFocus />
+                        <button type="submit" aria-label="답글 등록"><Send size={15} /></button>
+                        <button type="button" aria-label="취소" onClick={() => setReplyingToId(null)}><X size={15} /></button>
+                      </form>
                     )}
                   </div>
                 )

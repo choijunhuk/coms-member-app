@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { getCurrentUser, logoutUser } from './services/authApi.js'
 import { listFiles } from './services/archiveApi.js'
 import {
+  appendCommunityPostImages,
   createComment,
   createCommunityPost,
   createCommunityPostWithImage,
@@ -323,7 +324,16 @@ export default function App() {
   }, [activeTab, selectedNotice, selectedPost, user])
 
   const createPostMutation = useMutation({
-    mutationFn: ({ payload, image }) => (image ? createCommunityPostWithImage(payload, image) : createCommunityPost(payload)),
+    mutationFn: async ({ payload, images }) => {
+      const list = Array.isArray(images) ? images : []
+      if (list.length === 0) return createCommunityPost(payload)
+      const created = await createCommunityPostWithImage(payload, list[0])
+      const extra = list.slice(1)
+      if (extra.length && created?.id) {
+        await appendCommunityPostImages(created.id, extra)
+      }
+      return created
+    },
     onSuccess: () => {
       void hapticSuccess()
       refreshDashboard()
@@ -340,9 +350,9 @@ export default function App() {
     onSuccess: () => { void hapticLight() },
   })
 
-  async function createCommentForPost(content) {
+  async function createCommentForPost(content, parentCommentId = null) {
     if (!selectedPost?.id) return
-    await createComment(selectedPost.id, content)
+    await createComment(selectedPost.id, content, parentCommentId)
     void hapticSuccess()
     await openPost(selectedPost.id)
   }
