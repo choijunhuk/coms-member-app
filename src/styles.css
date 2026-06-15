@@ -1210,6 +1210,40 @@ p {
   font-weight: 600;
 }
 
+.report-dialog {
+  width: min(92vw, 24rem);
+  display: grid;
+  gap: 0.6rem;
+}
+
+.report-reasons {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.4rem;
+}
+
+.report-reason {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.55rem 0.65rem;
+  border: 1px solid var(--app-hairline);
+  border-radius: 10px;
+  font-size: 0.82rem;
+  cursor: pointer;
+}
+
+.report-reason.active {
+  border-color: var(--app-accent);
+  background: var(--app-accent-soft);
+  color: var(--app-accent);
+}
+
+.report-reason input[type='radio'] {
+  width: 1rem;
+  height: 1rem;
+}
+
 .compact-list {
   display: grid;
   gap: 0;

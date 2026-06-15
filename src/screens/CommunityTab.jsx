@@ -1,16 +1,18 @@
 import { useMemo, useState } from 'react'
-import { Bookmark, BookmarkCheck, CornerDownRight, Eye, Plus, Search, Send, Share2, ThumbsDown, ThumbsUp, Trash2, Pencil, Check, X } from 'lucide-react'
+import { AlertTriangle, Bookmark, BookmarkCheck, CornerDownRight, Eye, Plus, Search, Send, Share2, ThumbsDown, ThumbsUp, Trash2, Pencil, Check, X } from 'lucide-react'
 import { asArray, formatDate } from '../utils/format.js'
 import { categoryLabels, latest, postImage } from '../utils/helpers.js'
 import { postPreviewText } from '../utils/postBlocks.js'
 import { sharePost } from '../services/nativeShare.js'
-import { hapticLight } from '../services/haptics.js'
+import { hapticLight, hapticSuccess } from '../services/haptics.js'
 import { isBookmarked, toggleBookmark } from '../utils/bookmarks.js'
 import { Detail, Empty, ListItem, LoadingScreen, Section } from '../components/ui.jsx'
 import EmojiText from '../components/EmojiText.jsx'
 import { useInfiniteList } from '../hooks/useInfiniteList.js'
 import Composer from './community/Composer.jsx'
 import PostContent from './community/PostContent.jsx'
+import ReportDialog from './community/ReportDialog.jsx'
+import { reportCommunityPost } from '../services/communityApi.js'
 
 const MAX_THREAD_DEPTH = 3
 
@@ -32,6 +34,15 @@ export default function CommunityTab({ posts, selected, comments, loading, openP
   const [replyingToId, setReplyingToId] = useState(null)
   const [replyContent, setReplyContent] = useState('')
   const [bookmarkTick, setBookmarkTick] = useState(0)
+  const [reporting, setReporting] = useState(false)
+  const [reportedAt, setReportedAt] = useState(null)
+
+  async function submitReport(reason, detail) {
+    if (!selected?.id) return
+    await reportCommunityPost(selected.id, reason, detail)
+    void hapticSuccess()
+    setReportedAt(Date.now())
+  }
 
   // Derive from localStorage on each render keyed by selected id and the toggle tick.
   // Cheaper than wiring an effect, and the tick triggers a refresh after toggleBookmark writes.
@@ -117,7 +128,11 @@ export default function CommunityTab({ posts, selected, comments, loading, openP
                 {bookmarked ? <BookmarkCheck size={16} /> : <Bookmark size={16} />}
                 {bookmarked ? '북마크됨' : '북마크'}
               </button>
+              <button className="button secondary" onClick={() => setReporting(true)} disabled={Boolean(reportedAt)}>
+                <AlertTriangle size={16} /> {reportedAt ? '신고됨' : '신고'}
+              </button>
             </div>
+            {reporting && <ReportDialog onClose={() => setReporting(false)} onSubmit={submitReport} />}
             <Section title={`댓글 ${asArray(comments).length}`}>
               {asArray(comments).map((item) => {
                 const owned = isOwnedByMe(item)

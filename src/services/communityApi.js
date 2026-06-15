@@ -77,3 +77,10 @@ export function deleteComment(postId, commentId) {
     method: 'DELETE',
   })
 }
+
+export function reportCommunityPost(postId, reason, detail) {
+  return request(`/api/community/posts/${postId}/reports`, {
+    method: 'POST',
+    body: JSON.stringify({ reason, detail: detail || null }),
+  })
+}
