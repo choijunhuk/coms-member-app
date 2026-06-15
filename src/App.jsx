@@ -537,7 +537,7 @@ export default function App() {
   else if (activeTab === 'resources') content = <ResourcesTab files={files} />
   else if (activeTab === 'notifications') content = <NotificationsTab notifications={notifications} unreadCount={unreadCount} pushStatus={pushStatus} appConfig={appConfig} enablePush={enablePush} markRead={markRead} markAllRead={markAllRead} openRoute={openRoute} showPushPrefs />
   else if (activeTab === 'operations') content = <OperationsTab user={user} notices={notices} posts={posts} loadDashboard={refreshDashboard} />
-  else content = <ProfileTab user={user} onLogout={handleLogout} themePreference={themePreference} onChangeTheme={applyTheme} />
+  else content = <ProfileTab user={user} onLogout={handleLogout} themePreference={themePreference} onChangeTheme={applyTheme} posts={posts} openPost={openPost} />
 
   const body = (
     <div className="stack">

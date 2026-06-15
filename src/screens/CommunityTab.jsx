@@ -1,12 +1,14 @@
 import { useMemo, useState } from 'react'
-import { CornerDownRight, Eye, Plus, Search, Send, Share2, ThumbsDown, ThumbsUp, Trash2, Pencil, Check, X } from 'lucide-react'
+import { Bookmark, BookmarkCheck, CornerDownRight, Eye, Plus, Search, Send, Share2, ThumbsDown, ThumbsUp, Trash2, Pencil, Check, X } from 'lucide-react'
 import { asArray, formatDate } from '../utils/format.js'
 import { categoryLabels, latest, postImage } from '../utils/helpers.js'
 import { postPreviewText } from '../utils/postBlocks.js'
 import { sharePost } from '../services/nativeShare.js'
 import { hapticLight } from '../services/haptics.js'
+import { isBookmarked, toggleBookmark } from '../utils/bookmarks.js'
 import { Detail, Empty, ListItem, LoadingScreen, Section } from '../components/ui.jsx'
 import EmojiText from '../components/EmojiText.jsx'
+import { useInfiniteList } from '../hooks/useInfiniteList.js'
 import Composer from './community/Composer.jsx'
 import PostContent from './community/PostContent.jsx'
 
@@ -24,10 +26,24 @@ export default function CommunityTab({ posts, selected, comments, loading, openP
   const [writing, setWriting] = useState(false)
   const [comment, setComment] = useState('')
   const [query, setQuery] = useState('')
+  const [category, setCategory] = useState('ALL')
   const [editingCommentId, setEditingCommentId] = useState(null)
   const [editingContent, setEditingContent] = useState('')
   const [replyingToId, setReplyingToId] = useState(null)
   const [replyContent, setReplyContent] = useState('')
+  const [bookmarkTick, setBookmarkTick] = useState(0)
+
+  // Derive from localStorage on each render keyed by selected id and the toggle tick.
+  // Cheaper than wiring an effect, and the tick triggers a refresh after toggleBookmark writes.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const bookmarked = useMemo(() => Boolean(selected?.id) && isBookmarked(selected.id), [selected?.id, bookmarkTick])
+
+  function onToggleBookmark() {
+    if (!selected?.id) return
+    void hapticLight()
+    toggleBookmark(selected.id)
+    setBookmarkTick((tick) => tick + 1)
+  }
 
   async function submitComment(event) {
     event.preventDefault()
@@ -81,8 +97,10 @@ export default function CommunityTab({ posts, selected, comments, loading, openP
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase()
-    return latest(posts, 'createdAt').filter((post) => matchesQuery(post, q))
-  }, [posts, query])
+    return latest(posts, 'createdAt')
+      .filter((post) => (category === 'ALL' || (post.category || 'GENERAL') === category))
+      .filter((post) => matchesQuery(post, q))
+  }, [posts, query, category])
 
   if (selected) {
     return (
@@ -95,6 +113,10 @@ export default function CommunityTab({ posts, selected, comments, loading, openP
               <button className="button secondary" onClick={() => vote(1)}><ThumbsUp size={16} />추천</button>
               <button className="button secondary" onClick={() => vote(-1)}><ThumbsDown size={16} />비추천</button>
               <button className="button secondary" onClick={shareSelected}><Share2 size={16} />공유</button>
+              <button className="button secondary" onClick={onToggleBookmark}>
+                {bookmarked ? <BookmarkCheck size={16} /> : <Bookmark size={16} />}
+                {bookmarked ? '북마크됨' : '북마크'}
+              </button>
             </div>
             <Section title={`댓글 ${asArray(comments).length}`}>
               {asArray(comments).map((item) => {
@@ -148,14 +170,47 @@ export default function CommunityTab({ posts, selected, comments, loading, openP
     )
   }
 
+  return <CommunityListView
+    posts={posts}
+    filtered={filtered}
+    query={query}
+    setQuery={setQuery}
+    category={category}
+    setCategory={setCategory}
+    writing={writing}
+    setWriting={setWriting}
+    createPost={createPost}
+    openPost={openPost}
+  />
+}
+
+function CommunityListView({ posts, filtered, query, setQuery, category, setCategory, writing, setWriting, createPost, openPost }) {
+  const availableCategories = useMemo(() => {
+    const set = new Set()
+    for (const post of posts) if (post?.category) set.add(post.category)
+    return ['ALL', ...set]
+  }, [posts])
+
+  const { visible, hasMore, sentinelRef } = useInfiniteList(filtered)
+
   return (
     <div className="stack">
       <button type="button" className="button primary" onClick={() => setWriting((value) => !value)}><Plus size={17} />글 작성</button>
       {writing && <Composer onSubmit={async (input) => { await createPost(input); setWriting(false) }} />}
       <div className="search-row"><Search size={17} /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="제목·본문·작성자 검색" /></div>
-      <Section title={`커뮤니티${query ? ` · ${filtered.length}건` : ''}`}>
-        {filtered.map((post) => <ListItem key={post.id} title={post.title} meta={`${categoryLabels[post.category] || '자유'} · 댓글 ${post.commentCount || 0}`} body={postPreviewText(post)} image={postImage(post)} onClick={() => openPost(post.id)} />)}
-        {filtered.length === 0 && <Empty text={query ? '검색 결과가 없습니다.' : '커뮤니티 글이 없습니다.'} />}
+      {availableCategories.length > 2 && (
+        <div className="segments">
+          {availableCategories.map((value) => (
+            <button key={value} type="button" className={category === value ? 'active' : ''} onClick={() => setCategory(value)}>
+              {value === 'ALL' ? '전체' : (categoryLabels[value] || value)}
+            </button>
+          ))}
+        </div>
+      )}
+      <Section title={`커뮤니티${query || category !== 'ALL' ? ` · ${filtered.length}건` : ''}`}>
+        {visible.map((post) => <ListItem key={post.id} title={post.title} meta={`${categoryLabels[post.category] || '자유'} · 댓글 ${post.commentCount || 0}`} body={postPreviewText(post)} image={postImage(post)} onClick={() => openPost(post.id)} />)}
+        {hasMore && <div ref={sentinelRef} className="infinite-sentinel" aria-hidden="true" />}
+        {filtered.length === 0 && <Empty text={query || category !== 'ALL' ? '검색 결과가 없습니다.' : '커뮤니티 글이 없습니다.'} />}
       </Section>
     </div>
   )
