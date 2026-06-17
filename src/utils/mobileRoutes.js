@@ -34,6 +34,7 @@ export function routeFromNotification(notification) {
   if (linked) return linked
   if (data.noticeId) return { tab: 'notices', noticeId: String(data.noticeId) }
   if (data.postId) return { tab: 'community', postId: String(data.postId) }
+  if (data.type === 'COMMUNITY_POST_DELETED') return { tab: 'profile', section: 'deleted-posts' }
   if (String(data.type || '').startsWith('NOTICE')) return data.targetId ? { tab: 'notices', noticeId: String(data.targetId) } : { tab: 'notices' }
   if (String(data.type || '').startsWith('COMMUNITY')) return data.targetId ? { tab: 'community', postId: String(data.targetId) } : { tab: 'community' }
   if (data.target === 'notifications') return { tab: 'notifications' }

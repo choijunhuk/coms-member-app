@@ -40,6 +40,17 @@ export function deleteCommunityPost(id) {
   })
 }
 
+export function listMyDeletedCommunityPosts() {
+  return request('/api/community/posts/deleted/me')
+}
+
+export function appealDeletedCommunityPost(id, message) {
+  return request(`/api/community/posts/deleted/${id}/appeals`, {
+    method: 'POST',
+    body: JSON.stringify({ message }),
+  })
+}
+
 export function voteCommunityPost(id, value) {
   return request(`/api/community/posts/${id}/vote`, {
     method: 'POST',

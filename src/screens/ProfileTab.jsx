@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { Bookmark, Eraser, FileText, LogOut, MessageCircle, Moon, Smartphone, Sun, UserX } from 'lucide-react'
+import { Bookmark, Eraser, FileText, LogOut, MessageCircle, Moon, RotateCcw, ShieldAlert, Smartphone, Sun, UserX } from 'lucide-react'
 import { changePassword } from '../services/authApi.js'
 import { formatDate, generationFromStudentId, preview } from '../utils/format.js'
 import { passwordPolicyMessage, validPassword } from '../utils/passwordPolicy.js'
@@ -21,9 +21,30 @@ function postOwnedBy(post, user) {
   return false
 }
 
-export default function ProfileTab({ user, onLogout, onWithdraw, onWipeDevice, onShowPrivacy, themePreference = 'system', onChangeTheme, posts = [], openPost }) {
+function deletedByLabel(record) {
+  const name = record?.deletedByName || '알 수 없음'
+  return record?.deletedByStudentId ? `${name}(${record.deletedByStudentId})` : name
+}
+
+export default function ProfileTab({
+  user,
+  onLogout,
+  onWithdraw,
+  onWipeDevice,
+  onShowPrivacy,
+  themePreference = 'system',
+  onChangeTheme,
+  posts = [],
+  deletedPosts = [],
+  deletedPostsLoading = false,
+  appealDeletedPost,
+  appealBusy = false,
+  openPost,
+}) {
   const [withdrawError, setWithdrawError] = useState('')
   const [busyAction, setBusyAction] = useState('')
+  const [appealId, setAppealId] = useState(null)
+  const [appealMessage, setAppealMessage] = useState('')
   const [currentPassword, setCurrentPassword] = useState('')
   const [newPassword, setNewPassword] = useState('')
   const [message, setMessage] = useState('')
@@ -60,6 +81,19 @@ export default function ProfileTab({ user, onLogout, onWithdraw, onWipeDevice, o
     }
   }
 
+  async function submitAppeal(record) {
+    const clean = appealMessage.trim()
+    if (!clean) {
+      setError('복원 요청 사유를 입력해주세요.')
+      return
+    }
+    setError('')
+    await appealDeletedPost?.(record.id, clean)
+    setAppealId(null)
+    setAppealMessage('')
+    setMessage('복원 요청이 접수되었습니다.')
+  }
+
   return (
     <div className="stack">
       <section className="profile-card"><div className="avatar">{(user?.name || 'C').slice(0, 1)}</div><div><h2>{user?.name || '회원'}</h2><p>{user?.studentId || '학번 없음'} · {generationFromStudentId(user?.studentId)}</p></div></section>
@@ -75,6 +109,40 @@ export default function ProfileTab({ user, onLogout, onWithdraw, onWipeDevice, o
           />
         ))}
         {myPosts.length === 0 && <Empty text="아직 작성한 글이 없습니다." />}
+      </Section>
+      <Section title={<><ShieldAlert size={14} aria-hidden="true" /> 삭제된 내 글</>}>
+        {deletedPostsLoading && <Empty text="삭제 기록을 불러오는 중입니다." />}
+        {!deletedPostsLoading && deletedPosts.map((record) => {
+          const restored = Boolean(record.restoredPostId)
+          const appealed = Boolean(record.latestAppealStatus)
+          return (
+            <article key={record.id} className="deleted-record">
+              <div className="deleted-record-head">
+                <strong>{record.title}</strong>
+                <span className={restored ? 'status-pill restored' : 'status-pill deleted'}>{restored ? '복원됨' : '삭제됨'}</span>
+              </div>
+              <p className="item-meta">처리자 {deletedByLabel(record)} · {formatDate(record.deletedAt)}</p>
+              <p className="item-body">사유: {record.deletionReason || '사유 없음'}</p>
+              <p className="item-body">원문: {postPreviewText(record) || preview(record.content)}</p>
+              {restored ? (
+                <button type="button" className="button secondary compact" onClick={() => openPost?.(record.restoredPostId)}><RotateCcw size={14} aria-hidden="true" /> 복원된 글 열기</button>
+              ) : appealed ? (
+                <p className="trust-note">복원 요청 접수됨: {record.latestAppealMessage}</p>
+              ) : appealId === record.id ? (
+                <div className="appeal-box">
+                  <textarea value={appealMessage} onChange={(event) => setAppealMessage(event.target.value)} maxLength={500} rows={3} placeholder="복원이 필요한 이유를 적어주세요." />
+                  <div className="button-row">
+                    <button type="button" className="button primary compact" disabled={appealBusy} onClick={() => submitAppeal(record)}>{appealBusy ? '보내는 중' : '요청 보내기'}</button>
+                    <button type="button" className="button secondary compact" onClick={() => { setAppealId(null); setAppealMessage('') }}>취소</button>
+                  </div>
+                </div>
+              ) : (
+                <button type="button" className="button secondary compact" onClick={() => setAppealId(record.id)}><RotateCcw size={14} aria-hidden="true" /> 복원 요청</button>
+              )}
+            </article>
+          )
+        })}
+        {!deletedPostsLoading && deletedPosts.length === 0 && <Empty text="삭제된 내 글이 없습니다." />}
       </Section>
       <Section title={<><Bookmark size={14} aria-hidden="true" /> 북마크</>}>
         {bookmarkedPosts.map((post) => (

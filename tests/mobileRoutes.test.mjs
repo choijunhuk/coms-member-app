@@ -13,6 +13,8 @@ assert.equal(routeFromUrl('not a url'), null)
 assert.deepEqual(routeFromNotification({ data: { url: 'https://coms.kw.ac.kr/notices/5' } }), { tab: 'notices', noticeId: '5' })
 assert.deepEqual(routeFromNotification({ data: { type: 'NOTICE', noticeId: 6 } }), { tab: 'notices', noticeId: '6' })
 assert.deepEqual(routeFromNotification({ data: { type: 'COMMUNITY_COMMENT', postId: 9 } }), { tab: 'community', postId: '9' })
+assert.deepEqual(routeFromNotification({ data: { type: 'COMMUNITY_POST_DELETED' } }), { tab: 'profile', section: 'deleted-posts' })
+assert.deepEqual(routeFromNotification({ data: { type: 'COMMUNITY_POST_RESTORED', postId: 10 } }), { tab: 'community', postId: '10' })
 assert.deepEqual(routeFromNotification({ data: { target: 'notifications' } }), { tab: 'notifications' })
 assert.equal(routeFromNotification({ data: { type: 'UNKNOWN' } }), null)
 
