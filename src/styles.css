@@ -848,11 +848,13 @@ p {
 }
 
 .poll button {
+  position: relative;
   display: flex;
   min-height: 2.75rem;
   align-items: center;
   justify-content: space-between;
   gap: 0.75rem;
+  overflow: hidden;
   border: 0;
   border-radius: 12px;
   background: #f8fafc;
@@ -863,8 +865,9 @@ p {
 }
 
 .poll button.active {
-  background: #0071e3;
-  color: white;
+  background: #eaf4ff;
+  color: #003b76;
+  box-shadow: inset 0 0 0 1px rgba(0, 113, 227, 0.22);
 }
 
 .poll button:disabled {
@@ -872,11 +875,27 @@ p {
 }
 
 .poll-label {
+  position: relative;
+  z-index: 1;
   display: flex;
   min-width: 0;
   align-items: center;
   gap: 0.55rem;
   overflow-wrap: anywhere;
+}
+
+.poll-label span {
+  min-width: 0;
+}
+
+.poll-label b {
+  flex: 0 0 auto;
+  border-radius: 999px;
+  background: rgba(0, 113, 227, 0.11);
+  color: #005bb7;
+  padding: 0.12rem 0.38rem;
+  font-size: 0.66rem;
+  line-height: 1.2;
 }
 
 .poll-label img {
@@ -886,6 +905,22 @@ p {
   border-radius: 6px;
   background: white;
   object-fit: cover;
+}
+
+.poll-progress {
+  position: absolute;
+  inset: 0 auto 0 0;
+  border-radius: inherit;
+  background: linear-gradient(90deg, rgba(0, 113, 227, 0.16), rgba(48, 209, 88, 0.11));
+  transition: width 180ms ease;
+}
+
+.poll-count {
+  position: relative;
+  z-index: 1;
+  flex: 0 0 auto;
+  color: #334155;
+  font-size: 0.76rem;
 }
 
 .search-row {

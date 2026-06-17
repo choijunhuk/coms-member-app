@@ -1,32 +1,36 @@
 import { asArray } from '../../utils/format.js'
-import { pollOptionImageUrl, pollOptionLabel, pollTotals } from '../../utils/postBlocks.js'
+import { pollResultRows, pollSummaryText } from '../../utils/pollResults.js'
 
 export default function PollBlock({ block, result, pollVote }) {
-  const { counts, total } = pollTotals(result)
   const closed = Boolean(result?.closed)
   const voted = result?.myOption !== null && result?.myOption !== undefined
   const disabled = closed || voted
+  const rows = pollResultRows(block, result)
 
   return (
     <section className="poll-card">
       <div className="poll-head">
         <strong>{block.question || '투표'}</strong>
-        <span>{closed ? '종료' : total > 0 ? `총 ${total}표` : '진행 중'}</span>
+        <span>{pollSummaryText(result)}</span>
       </div>
       <div className="poll">
-        {asArray(block.options).map((option, index) => {
-          const label = pollOptionLabel(option) || `선택 ${index + 1}`
-          const imageUrl = pollOptionImageUrl(option)
-          const count = counts[index] || 0
-          const pct = total > 0 ? Math.round((count / total) * 100) : 0
-          const selected = result?.myOption === index
+        {asArray(rows).map((row) => {
           return (
-            <button key={`${block.pollId}-${index}`} type="button" className={selected ? 'active' : ''} disabled={disabled} onClick={() => pollVote(block.pollId, index)}>
+            <button
+              key={`${block.pollId}-${row.index}`}
+              type="button"
+              className={row.selected ? 'active' : ''}
+              disabled={disabled}
+              onClick={() => pollVote(block.pollId, row.index)}
+            >
+              <span className="poll-progress" style={{ width: `${row.percent}%` }} aria-hidden="true" />
               <span className="poll-label">
-                {imageUrl && <img src={imageUrl} alt="" loading="lazy" />}
-                {label}
+                {row.imageUrl && <img src={row.imageUrl} alt="" loading="lazy" />}
+                <span>{row.label}</span>
+                {row.selected && <b>내 선택</b>}
+                {row.leading && <b>최다</b>}
               </span>
-              <span>{count}표 · {pct}%</span>
+              <span className="poll-count">{row.count.toLocaleString('ko-KR')}표 · {row.percent}%</span>
             </button>
           )
         })}

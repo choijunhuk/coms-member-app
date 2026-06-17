@@ -1,12 +1,13 @@
 import { useEffect, useState } from 'react'
 import { WifiOff } from 'lucide-react'
+import { networkBannerMessage } from '../utils/networkStatus.js'
 
 function readOnlineState() {
   if (typeof navigator === 'undefined') return true
   return navigator.onLine !== false
 }
 
-export default function OfflineBanner() {
+export default function OfflineBanner({ slow = false }) {
   const [online, setOnline] = useState(readOnlineState())
 
   useEffect(() => {
@@ -21,10 +22,11 @@ export default function OfflineBanner() {
     }
   }, [])
 
-  if (online) return null
+  const message = networkBannerMessage({ online, slow })
+  if (!message) return null
   return (
     <div className="offline-banner" role="status">
-      <WifiOff size={14} aria-hidden="true" /> 오프라인 — 마지막 동기화된 내용을 보고 있습니다.
+      <WifiOff size={14} aria-hidden="true" /> {message}
     </div>
   )
 }
