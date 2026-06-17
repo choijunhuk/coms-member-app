@@ -10,6 +10,8 @@ import {
   createCommunityPostWithImage,
   deleteComment,
   getCommunityPost,
+  appealDeletedCommunityPost,
+  listMyDeletedCommunityPosts,
   listComments,
   listCommunityPosts,
   updateComment,
@@ -137,6 +139,13 @@ export default function App() {
   const dashboardQuery = useQuery({
     queryKey: DASHBOARD_QUERY_KEY,
     queryFn: fetchDashboard,
+    enabled: Boolean(user),
+    placeholderData: (previous) => previous,
+  })
+
+  const deletedPostsQuery = useQuery({
+    queryKey: ['member-app', 'deleted-community-posts'],
+    queryFn: listMyDeletedCommunityPosts,
     enabled: Boolean(user),
     placeholderData: (previous) => previous,
   })
@@ -411,6 +420,24 @@ export default function App() {
     onSuccess: () => { void hapticLight() },
   })
 
+  const appealDeletedPostMutation = useMutation({
+    mutationFn: ({ id, message }) => appealDeletedCommunityPost(id, message),
+    onSuccess: (appeal) => {
+      queryClient.setQueryData(['member-app', 'deleted-community-posts'], (prev) => asArray(prev).map((item) => (
+        item.id === appeal.deletedPostId
+          ? {
+              ...item,
+              latestAppealStatus: appeal.status,
+              latestAppealMessage: appeal.message,
+              latestAppealCreatedAt: appeal.createdAt,
+              latestAppealRequesterStudentId: appeal.requesterStudentId,
+              latestAppealRequesterName: appeal.requesterName,
+            }
+          : item
+      )))
+    },
+  })
+
   async function createCommentForPost(content, parentCommentId = null) {
     if (!selectedPost?.id) return
     await createComment(selectedPost.id, content, parentCommentId)
@@ -606,7 +633,23 @@ export default function App() {
   else if (activeTab === 'resources') content = <ResourcesTab files={files} />
   else if (activeTab === 'notifications') content = <NotificationsTab notifications={notifications} unreadCount={unreadCount} pushStatus={pushStatus} appConfig={appConfig} enablePush={enablePush} markRead={markRead} markAllRead={markAllRead} openRoute={openRoute} />
   else if (activeTab === 'operations') content = <OperationsTab user={user} notices={notices} posts={posts} loadDashboard={refreshDashboard} />
-  else content = <ProfileTab user={user} onLogout={handleLogout} onWithdraw={handleWithdraw} onWipeDevice={handleWipeDevice} onShowPrivacy={() => setShowPrivacy(true)} themePreference={themePreference} onChangeTheme={applyTheme} posts={posts} openPost={openPost} />
+  else content = (
+    <ProfileTab
+      user={user}
+      onLogout={handleLogout}
+      onWithdraw={handleWithdraw}
+      onWipeDevice={handleWipeDevice}
+      onShowPrivacy={() => setShowPrivacy(true)}
+      themePreference={themePreference}
+      onChangeTheme={applyTheme}
+      posts={posts}
+      deletedPosts={asArray(deletedPostsQuery.data)}
+      deletedPostsLoading={deletedPostsQuery.isLoading}
+      appealDeletedPost={(id, message) => appealDeletedPostMutation.mutateAsync({ id, message })}
+      appealBusy={appealDeletedPostMutation.isPending}
+      openPost={openPost}
+    />
+  )
 
   const body = (
     <div className="stack">
