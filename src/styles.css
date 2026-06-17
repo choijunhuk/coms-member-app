@@ -224,6 +224,12 @@ p {
   color: #111827;
 }
 
+.button.compact {
+  min-height: 2.25rem;
+  padding-inline: 0.75rem;
+  font-size: 0.82rem;
+}
+
 .button.danger {
   background: #be123c;
   color: white;
@@ -681,6 +687,66 @@ p {
 }
 
 .poll-card {
+  display: grid;
+  gap: 0.65rem;
+  border: 1px solid #dbeafe;
+  border-radius: 12px;
+  background: #f8fbff;
+  padding: 0.8rem;
+}
+
+.poll-composer {
+  display: grid;
+  gap: 0.75rem;
+  border-block: 1px solid var(--app-hairline);
+  padding-block: 0.15rem 0.9rem;
+}
+
+.poll-composer .toggle-row {
+  border-bottom: 0;
+  padding: 0.55rem 0 0;
+}
+
+.poll-composer .toggle-row span {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  color: #111827;
+  font-weight: 900;
+}
+
+.poll-composer-body {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.poll-option-editor {
+  display: grid;
+  gap: 0.45rem;
+}
+
+.poll-option-row {
+  display: grid !important;
+  grid-template-columns: 4.25rem minmax(0, 1fr) 2.25rem;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.poll-option-row span {
+  color: #64748b;
+  font-size: 0.78rem;
+  font-weight: 900;
+}
+
+.poll-option-row .icon-button {
+  width: 2.25rem;
+  min-height: 2.25rem;
+  border-radius: 10px;
+  background: #f1f5f9;
+  color: #475569;
+}
+
+.poll-composer-preview {
   display: grid;
   gap: 0.65rem;
   border: 1px solid #dbeafe;
