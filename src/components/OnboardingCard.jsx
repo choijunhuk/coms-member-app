@@ -1,6 +1,15 @@
-import { BellRing, Fingerprint, Sparkles, X } from 'lucide-react'
+import { BellRing, Check, Fingerprint, Sparkles, X } from 'lucide-react'
+import { pushPermissionActionLabel } from '../utils/pushPermissionStatus.js'
 
-export default function OnboardingCard({ pushEnabled, biometricAvailable, onEnablePush, onDismiss }) {
+export default function OnboardingCard({ pushEnabled, pushPermission, biometricAvailable, onEnablePush, onDismiss }) {
+  const pushGranted = pushPermission === 'granted'
+  const pushDenied = pushPermission === 'denied'
+  const pushCopy = pushGranted
+    ? '기기 알림 권한이 허용되어 있습니다.'
+    : pushDenied
+      ? '기기 설정에서 COMS 알림을 허용해야 합니다.'
+      : '새 공지·댓글·답글을 즉시 받아보세요.'
+
   return (
     <section className="onboarding-card">
       <header className="onboarding-head">
@@ -9,12 +18,14 @@ export default function OnboardingCard({ pushEnabled, biometricAvailable, onEnab
       </header>
       <ul className="onboarding-steps">
         <li>
-          <BellRing size={15} aria-hidden="true" />
+          {pushGranted ? <Check size={15} aria-hidden="true" /> : <BellRing size={15} aria-hidden="true" />}
           <div>
-            <strong>푸시 알림 켜기</strong>
-            <p className="muted">새 공지·댓글·답글을 즉시 받아보세요.</p>
+            <strong>{pushGranted ? '푸시 알림 허용됨' : '푸시 알림 켜기'}</strong>
+            <p className="muted">{pushCopy}</p>
           </div>
-          <button type="button" className="button secondary" onClick={onEnablePush} disabled={!pushEnabled}>켜기</button>
+          <button type="button" className="button secondary" onClick={onEnablePush} disabled={!pushEnabled || pushGranted || pushDenied}>
+            {pushPermissionActionLabel(pushPermission, pushEnabled)}
+          </button>
         </li>
         <li>
           <Fingerprint size={15} aria-hidden="true" />
