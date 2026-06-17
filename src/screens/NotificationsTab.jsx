@@ -1,9 +1,10 @@
-import { useEffect, useState } from 'react'
+import { useEffect } from 'react'
 import { Check, ExternalLink, Settings as SettingsIcon, ShieldOff, Smartphone } from 'lucide-react'
 import { formatDate } from '../utils/format.js'
 import { latest } from '../utils/helpers.js'
 import { routeFromNotification } from '../utils/mobileRoutes.js'
-import { isNativeRuntime, readPushPermissionState } from '../services/nativeBridge.js'
+import { isNativeRuntime } from '../services/nativeBridge.js'
+import { pushPermissionActionLabel } from '../utils/pushPermissionStatus.js'
 import { Empty, ListItem, Section } from '../components/ui.jsx'
 
 const STATUS_BADGE = {
@@ -46,19 +47,12 @@ async function openExternal(url) {
   }
 }
 
-export default function NotificationsTab({ notifications, unreadCount, pushStatus, appConfig, enablePush, markRead, markAllRead, openRoute }) {
+export default function NotificationsTab({ notifications, unreadCount, pushStatus, pushPermission, refreshPushPermission, appConfig, enablePush, markRead, markAllRead, openRoute }) {
   const items = latest(notifications, 'createdAt')
-  const [permission, setPermission] = useState(null)
 
   useEffect(() => {
-    let cancelled = false
-    readPushPermissionState().then((value) => {
-      if (!cancelled) setPermission(value)
-    })
-    return () => {
-      cancelled = true
-    }
-  }, [pushStatus])
+    Promise.resolve(refreshPushPermission?.()).catch(() => {})
+  }, [pushStatus, refreshPushPermission])
 
   async function openNotification(item) {
     if (!item?.read && item?.id) await markRead(item.id)
@@ -70,18 +64,20 @@ export default function NotificationsTab({ notifications, unreadCount, pushStatu
     if (hasExternalAcceptUrl(item)) await openExternal(item.acceptUrl)
   }
 
+  const permission = pushPermission
   const badge = permission ? STATUS_BADGE[permission] : null
   const BadgeIcon = badge?.icon
   const pushMessage = PUSH_STATUS_LABEL[pushStatus] || '푸시 상태를 확인할 수 없습니다.'
   const denied = permission === 'denied'
+  const granted = permission === 'granted'
 
   return (
     <div className="stack">
       <section className="panel">
         <div className="section-title">
           <h2>푸시 알림</h2>
-          <button type="button" onClick={enablePush} disabled={!appConfig.pushEnabled || pushStatus === 'requesting' || denied}>
-            <Smartphone size={15} aria-hidden="true" /> {denied ? '거부됨' : '켜기'}
+          <button type="button" onClick={enablePush} disabled={!appConfig.pushEnabled || pushStatus === 'requesting' || denied || granted}>
+            <Smartphone size={15} aria-hidden="true" /> {pushPermissionActionLabel(permission, appConfig.pushEnabled)}
           </button>
         </div>
         {badge && (

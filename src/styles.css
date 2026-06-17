@@ -349,7 +349,7 @@ p {
 
 .content {
   min-height: calc(100dvh - 8rem);
-  padding: 0.7rem 0.85rem calc(5rem + env(safe-area-inset-bottom));
+  padding: 0.95rem 1rem calc(5.7rem + env(safe-area-inset-bottom));
   max-width: 100%;
   overflow-x: hidden;
 }
@@ -363,7 +363,7 @@ p {
 .stack,
 .list {
   display: grid;
-  gap: 0.6rem;
+  gap: 0.8rem;
 }
 
 .hero-card {
@@ -439,7 +439,7 @@ p {
 .panel,
 .detail,
 .empty-panel {
-  padding: 0.7rem 0.8rem;
+  padding: 0.9rem 0.95rem;
 }
 
 .section-title {
@@ -506,11 +506,12 @@ p {
 .list-item {
   display: grid;
   width: 100%;
-  gap: 0.2rem;
+  min-height: 4.15rem;
+  gap: 0.32rem;
   border: 1px solid var(--app-hairline);
   border-radius: 12px;
   background: var(--app-surface);
-  padding: 0.6rem 0.75rem;
+  padding: 0.75rem 0.85rem;
   color: inherit;
   text-align: left;
   transition: background 120ms ease, transform 120ms ease;
@@ -1088,15 +1089,17 @@ p {
 
 .tab {
   display: grid;
+  min-height: 3.85rem;
   min-width: 0;
+  align-content: center;
   justify-items: center;
-  gap: 0.2rem;
+  gap: 0.24rem;
   border: 0;
   border-radius: 12px;
   background: transparent;
   color: var(--app-muted);
-  padding: 0.45rem 0.2rem;
-  font-size: 0.68rem;
+  padding: 0.42rem 0.12rem;
+  font-size: 0.66rem;
   font-weight: 600;
 }
 
@@ -1115,24 +1118,33 @@ p {
 .tab-icon {
   position: relative;
   display: inline-grid;
+  width: 1.55rem;
+  height: 1.55rem;
   place-items: center;
+}
+
+.tab-icon svg {
+  width: 1.15rem;
+  height: 1.15rem;
+  stroke-width: 2.25;
 }
 
 .tab-badge {
   position: absolute;
-  top: -6px;
-  right: -10px;
+  top: -4px;
+  right: -8px;
   display: inline-flex;
-  min-width: 1.05rem;
-  height: 1.05rem;
+  min-width: 0.92rem;
+  height: 0.92rem;
   align-items: center;
   justify-content: center;
-  padding: 0 0.3rem;
+  padding: 0 0.22rem;
+  border: 1px solid var(--app-surface);
   border-radius: 999px;
-  background: #ff3b30;
-  color: #fff;
-  font-size: 0.62rem;
-  font-weight: 700;
+  background: #ef4444;
+  color: white;
+  font-size: 0.58rem;
+  font-weight: 800;
   line-height: 1;
 }
 

@@ -25,7 +25,7 @@ import {
   isRecoverableMobileApiError,
   registerPushToken,
 } from './services/mobileApi.js'
-import { nativePlatform, readAppVersion, requestPushRegistration, resetPushRegistration, setupAppStateListener, setupBackButtonListener, setupDeepLinkListener } from './services/nativeBridge.js'
+import { nativePlatform, readAppVersion, readPushPermissionState, requestPushRegistration, resetPushRegistration, setupAppStateListener, setupBackButtonListener, setupDeepLinkListener } from './services/nativeBridge.js'
 import { isBiometricAvailable } from './services/biometric.js'
 import { getNotice, listNotices } from './services/noticeApi.js'
 import { getNotificationSummary, listNotifications, markAllNotificationsRead, markNotificationRead } from './services/notificationApi.js'
@@ -38,6 +38,7 @@ import { markOnboarded, readFontScale, readIdleLock, readOnboarded, readTheme, r
 import { setUserContext } from './services/observability.js'
 import { purgePersistedCache } from './services/queryClient.js'
 import { registerPushTokenWithRetry } from './utils/pushRegistration.js'
+import { pushStatusFromPermission } from './utils/pushPermissionStatus.js'
 import { hapticLight, hapticSuccess } from './services/haptics.js'
 import { AppConfigBanner, LoadingScreen } from './components/ui.jsx'
 import { Shell } from './components/Shell.jsx'
@@ -110,6 +111,7 @@ export default function App() {
   const lastBackgroundedRef = useRef(null)
   const [activeTab, setActiveTab] = useState('home')
   const [pushStatus, setPushStatus] = useState('idle')
+  const [pushPermission, setPushPermission] = useState(null)
   const [lastSeenNotices, setLastSeenNotices] = useState(() => readLastSeen('notices'))
   const [lastSeenPosts, setLastSeenPosts] = useState(() => readLastSeen('posts'))
   const [themePreference, setThemePreference] = useState(() => readTheme())
@@ -130,6 +132,7 @@ export default function App() {
       setUser(current)
     } catch {
       setUser(null)
+      setPushPermission(null)
       // No active session — any persisted cache belongs to a previous user or an expired login.
       queryClient.clear()
       await purgePersistedCache()
@@ -242,6 +245,26 @@ export default function App() {
     setOnboardingDismissed(true)
   }, [])
 
+  const refreshPushPermission = useCallback(async () => {
+    const permission = await readPushPermissionState()
+    setPushPermission(permission)
+    setPushStatus((status) => pushStatusFromPermission(permission, status))
+    return permission
+  }, [])
+
+  useEffect(() => {
+    if (!user) return undefined
+    let cancelled = false
+    readPushPermissionState().then((permission) => {
+      if (cancelled) return
+      setPushPermission(permission)
+      setPushStatus((status) => pushStatusFromPermission(permission, status))
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [user])
+
   useEffect(() => {
     if (!user) return undefined
     let cleanup = () => {}
@@ -251,6 +274,7 @@ export default function App() {
         lastBackgroundedRef.current = Date.now()
         return
       }
+      void refreshPushPermission()
       const last = lastBackgroundedRef.current
       lastBackgroundedRef.current = null
       const threshold = resolveIdleLockMs(readIdleLock()) ?? DEFAULT_IDLE_LOCK_THRESHOLD_MS
@@ -267,7 +291,7 @@ export default function App() {
       mounted = false
       cleanup()
     }
-  }, [user])
+  }, [refreshPushPermission, user])
 
   useEffect(() => {
     let cancelled = false
@@ -524,12 +548,13 @@ export default function App() {
           }
         },
       })
-      if (result.status !== 'requested') setPushStatus(result.status)
-      else setPushStatus((status) => status === 'registered' ? status : 'requested')
+      const permission = await refreshPushPermission()
+      if (result.status !== 'requested') setPushStatus(pushStatusFromPermission(permission, result.status))
+      else setPushStatus((status) => status === 'registered' ? status : pushStatusFromPermission(permission, 'requested'))
     } catch {
       setPushStatus('error')
     }
-  }, [openRoute, user])
+  }, [openRoute, refreshPushPermission, user])
 
   async function handleLogout() {
     try {
@@ -537,6 +562,7 @@ export default function App() {
     } finally {
       setUser(null)
       setPushStatus('idle')
+      setPushPermission(null)
       await resetPushRegistration()
       queryClient.cancelQueries()
       queryClient.clear()
@@ -633,6 +659,7 @@ export default function App() {
       {!onboardingDismissed && (
         <OnboardingCard
           pushEnabled={appConfig.pushEnabled}
+          pushPermission={pushPermission}
           biometricAvailable={biometricReady}
           onEnablePush={enablePush}
           onDismiss={dismissOnboarding}
@@ -644,7 +671,7 @@ export default function App() {
   else if (activeTab === 'notices') content = <NoticesTab notices={notices} selected={selectedNotice} loading={noticeLoading} openNotice={openNotice} closeNotice={() => setSelectedNotice(null)} />
   else if (activeTab === 'community') content = <CommunityTab posts={posts} selected={selectedPost} comments={comments} loading={postLoading} openPost={openPost} closePost={() => { setSelectedPost(null); setComments([]) }} createPost={createPost} createCommentForPost={createCommentForPost} editComment={editCommentForPost} removeComment={removeCommentForPost} vote={vote} pollVote={pollVote} currentUser={user} />
   else if (activeTab === 'resources') content = <ResourcesTab files={files} />
-  else if (activeTab === 'notifications') content = <NotificationsTab notifications={notifications} unreadCount={unreadCount} pushStatus={pushStatus} appConfig={appConfig} enablePush={enablePush} markRead={markRead} markAllRead={markAllRead} openRoute={openRoute} />
+  else if (activeTab === 'notifications') content = <NotificationsTab notifications={notifications} unreadCount={unreadCount} pushStatus={pushStatus} pushPermission={pushPermission} refreshPushPermission={refreshPushPermission} appConfig={appConfig} enablePush={enablePush} markRead={markRead} markAllRead={markAllRead} openRoute={openRoute} />
   else if (activeTab === 'operations') content = <OperationsTab user={user} notices={notices} posts={posts} loadDashboard={refreshDashboard} />
   else content = (
     <ProfileTab
