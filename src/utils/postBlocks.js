@@ -8,6 +8,42 @@ function hasInlineImageBlock(blocks, imageUrl) {
   return Boolean(imageUrl) && blocks.some((block) => block.type === 'image' && block.url === imageUrl)
 }
 
+function looksLikeBlockJson(value) {
+  const trimmed = String(value || '').trim()
+  if (!trimmed) return false
+  return (trimmed.startsWith('[') || trimmed.startsWith('{')) && /"type"\s*:/.test(trimmed)
+}
+
+function looksLikeQuotedBlockJson(value) {
+  const trimmed = String(value || '').trim()
+  if (!trimmed.startsWith('"')) return false
+  try {
+    const parsed = JSON.parse(trimmed)
+    return typeof parsed === 'string' && looksLikeBlockJson(parsed)
+  } catch {
+    return false
+  }
+}
+
+function parseContentBlocks(value, depth = 0) {
+  if (value == null || depth > 4) return null
+  if (Array.isArray(value)) return value
+  if (typeof value === 'object') {
+    if (Array.isArray(value.blocks)) return value.blocks
+    if (value.type) return [value]
+    return null
+  }
+  if (typeof value !== 'string') return null
+
+  const trimmed = value.trim()
+  if (!looksLikeBlockJson(trimmed) && !looksLikeQuotedBlockJson(trimmed)) return null
+  try {
+    return parseContentBlocks(JSON.parse(trimmed), depth + 1)
+  } catch {
+    return null
+  }
+}
+
 function withLegacyImage(post, blocks) {
   if (!post?.imageUrl || hasInlineImageBlock(blocks, post.imageUrl)) return blocks
   return [
@@ -78,39 +114,59 @@ function normalizeBlock(post, block) {
   if (block.type === 'poll') {
     return {
       type: 'poll',
-      pollId: block.pollId || '',
-      question: block.question || '투표',
-      options: Array.isArray(block.options) ? block.options : [],
+      pollId: block.pollId || block.id || '',
+      question: block.question || block.title || block.prompt || '투표',
+      options: Array.isArray(block.options)
+        ? block.options
+        : Array.isArray(block.choices)
+          ? block.choices
+          : Array.isArray(block.answers)
+            ? block.answers
+            : [],
     }
   }
 
   return { type: 'text', content: block.content || '' }
 }
 
+function normalizeBlocks(post, blocks, depth = 0) {
+  const normalized = []
+  for (const block of blocks) {
+    if (depth < 4 && block?.type === 'text') {
+      const nested = parseContentBlocks(block.content)
+      if (nested) {
+        normalized.push(...normalizeBlocks(post, nested, depth + 1))
+        continue
+      }
+    }
+    normalized.push(normalizeBlock(post, block))
+  }
+  return normalized
+}
+
 export function postBlocks(post) {
   if (!post) return [{ type: 'text', content: '' }]
 
-  try {
-    const parsed = JSON.parse(post.content)
-    if (Array.isArray(parsed)) {
-      return withLegacyImage(post, parsed.map((block) => normalizeBlock(post, block)))
-    }
-    if (parsed && typeof parsed === 'object') {
-      return withLegacyImage(post, [normalizeBlock(post, parsed)])
-    }
-  } catch {
-    // not block-JSON — treat as plain text
+  const parsedBlocks = parseContentBlocks(post.content)
+  if (parsedBlocks) {
+    return withLegacyImage(post, normalizeBlocks(post, parsedBlocks))
   }
 
   return withLegacyImage(post, [{ type: 'text', content: post.content || '' }])
 }
 
 export function pollOptionLabel(option) {
-  return typeof option === 'object' && option !== null ? String(option.label || '') : String(option || '')
+  if (typeof option === 'object' && option !== null) {
+    return String(option.label || option.text || option.title || option.value || '')
+  }
+  return String(option || '')
 }
 
 export function pollOptionImageUrl(option) {
-  return typeof option === 'object' && option !== null ? String(option.imageUrl || '') : ''
+  if (typeof option === 'object' && option !== null) {
+    return String(option.imageUrl || option.image || option.thumbnailUrl || '')
+  }
+  return ''
 }
 
 export function pollTotals(result) {
@@ -119,12 +175,6 @@ export function pollTotals(result) {
     counts,
     total: counts.reduce((sum, count) => sum + count, 0),
   }
-}
-
-function looksLikeBlockJson(value) {
-  const trimmed = String(value || '').trim()
-  if (!trimmed) return false
-  return (trimmed.startsWith('[') || trimmed.startsWith('{')) && /"type"\s*:/.test(trimmed)
 }
 
 // Walk every shape we have seen for posted content (JSON block arrays, single
@@ -163,17 +213,19 @@ function hasImageEvidence(post, blocks) {
 
 export function postPreviewText(post) {
   const blocks = postBlocks(post)
+  const poll = blocks.find((block) => block.type === 'poll' && block.question)
+  const pollLabel = poll ? `투표: ${plainText(poll.question)}` : ''
+  const withPollLabel = (text) => (pollLabel ? `${text} · ${pollLabel}` : text)
 
   // 1. Walk the normalised blocks, then the raw post.content. Whichever yields
   //    real author text first wins.
   const fromBlocks = harvestText(blocks)
-  if (fromBlocks) return preview(fromBlocks)
+  if (fromBlocks) return preview(withPollLabel(fromBlocks))
 
   const fromRaw = harvestText(post?.content)
-  if (fromRaw) return preview(fromRaw)
+  if (fromRaw) return preview(withPollLabel(fromRaw))
 
-  const poll = blocks.find((block) => block.type === 'poll' && block.question)
-  if (poll) return preview(`투표: ${poll.question}`)
+  if (pollLabel) return preview(pollLabel)
 
   if (hasImageEvidence(post, blocks)) return '이미지가 포함된 글입니다.'
   if (blocks.some((block) => block.type === 'video')) return '영상이 포함된 글입니다.'
