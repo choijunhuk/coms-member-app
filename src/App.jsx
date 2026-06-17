@@ -37,6 +37,7 @@ import { isNew, readLastSeen, writeLastSeen } from './utils/lastSeen.js'
 import { markOnboarded, readFontScale, readIdleLock, readOnboarded, readTheme, resolveIdleLockMs, resolveTheme, writeTheme } from './utils/preferences.js'
 import { setUserContext } from './services/observability.js'
 import { purgePersistedCache } from './services/queryClient.js'
+import { registerPushTokenWithRetry } from './utils/pushRegistration.js'
 import { hapticLight, hapticSuccess } from './services/haptics.js'
 import { AppConfigBanner, LoadingScreen } from './components/ui.jsx'
 import { Shell } from './components/Shell.jsx'
@@ -121,6 +122,7 @@ export default function App() {
   const [selectedPost, setSelectedPost] = useState(null)
   const [postLoading, setPostLoading] = useState(false)
   const [comments, setComments] = useState([])
+  const [slowSync, setSlowSync] = useState(false)
 
   const restoreSession = useCallback(async () => {
     try {
@@ -155,6 +157,13 @@ export default function App() {
   const dashboardLoading = dashboardQuery.isLoading && !dashboardQuery.data
   const dashboardError = dashboardQuery.error?.message || ''
   const refreshing = dashboardQuery.isFetching && !dashboardLoading
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      setSlowSync(Boolean(dashboardQuery.isFetching))
+    }, dashboardQuery.isFetching ? 4500 : 0)
+    return () => window.clearTimeout(timer)
+  }, [dashboardQuery.isFetching])
 
   const refreshDashboard = useCallback(() => {
     void queryClient.invalidateQueries({ queryKey: DASHBOARD_QUERY_KEY })
@@ -500,10 +509,14 @@ export default function App() {
         onToken: async (token) => {
           if (!token) return
           try {
-            await registerPushToken({
-              token,
-              platform: nativePlatform(),
-              deviceId: String(user?.studentId || user?.id || 'member'),
+            await registerPushTokenWithRetry({
+              register: registerPushToken,
+              payload: {
+                token,
+                platform: nativePlatform(),
+                deviceId: String(user?.studentId || user?.id || 'member'),
+              },
+              isRecoverable: isRecoverableMobileApiError,
             })
             setPushStatus('registered')
           } catch (err) {
@@ -653,7 +666,7 @@ export default function App() {
 
   const body = (
     <div className="stack">
-      <OfflineBanner />
+        <OfflineBanner slow={slowSync} />
       {appConfig.maintenanceMessage && <AppConfigBanner appConfig={appConfig} />}
       {content}
     </div>
