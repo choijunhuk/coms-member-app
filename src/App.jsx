@@ -560,7 +560,7 @@ export default function App() {
     } catch {
       setPushStatus('error')
     }
-  }, [openRoute, refreshPushPermission, user])
+  }, [appConfig.pushEnabled, openRoute, refreshPushPermission, user])
 
   async function handleLogout() {
     try {

@@ -52,8 +52,8 @@ jobs:
       - name: Install
         run: npm ci
 
-      - name: Sync Capacitor
-        run: npx cap sync android
+      - name: Build and sync Capacitor
+        run: npm run build:mobile && npx cap sync android
 
       - name: Build debug APK
         working-directory: android
