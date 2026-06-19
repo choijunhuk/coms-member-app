@@ -534,6 +534,7 @@ export default function App() {
     setPushStatus('requesting')
     try {
       const result = await requestPushRegistration({
+        pushEnabled: appConfig.pushEnabled,
         onRoute: openRoute,
         onToken: async (token) => {
           if (!token) return
