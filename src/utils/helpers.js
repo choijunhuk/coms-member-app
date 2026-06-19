@@ -33,6 +33,7 @@ export function categoryOptionsForUser(user) {
 
 export const fileCategoryLabels = {
   GENERAL: '일반',
+  ACADEMIC_JOURNAL: '학술지',
   STUDY: '스터디',
   PROJECT: '프로젝트',
   NOTICE: '공지',
