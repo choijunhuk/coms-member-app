@@ -1,24 +1,10 @@
-import { Bell, CalendarDays, ExternalLink, MessageCircle, ShieldCheck, Sparkles } from 'lucide-react'
+import { Bell, CalendarDays, MessageCircle, ShieldCheck, Sparkles } from 'lucide-react'
 import { downloadUrl } from '../services/archiveApi.js'
-import { companionServices, formatActivityDate, nextSchedules, recentActivities } from '../services/clubActivityApi.js'
+import { formatActivityDate, nextSchedules, recentActivities } from '../services/clubActivityApi.js'
 import { formatDate, preview } from '../utils/format.js'
 import { categoryLabels, fileCategoryLabels, latest, postImage } from '../utils/helpers.js'
 import { postPreviewText } from '../utils/postBlocks.js'
 import { Empty, ListItem, Metric, Section } from '../components/ui.jsx'
-
-async function openService(url) {
-  if (!url) return
-  try {
-    const mod = await import('@capacitor/browser').catch(() => ({}))
-    if (mod?.Browser?.open) {
-      await mod.Browser.open({ url })
-      return
-    }
-  } catch (err) {
-    console.warn('open service failed', err)
-  }
-  window.open(url, '_blank', 'noopener,noreferrer')
-}
 
 export default function HomeTab({ notices, posts, files, unreadCount, clubActivities = [], openNotice, openPost, setActiveTab }) {
   const recentNotices = latest(notices, 'createdAt').slice(0, 3)
@@ -57,9 +43,6 @@ export default function HomeTab({ notices, posts, files, unreadCount, clubActivi
       <Section title="빠른 자료실" action="열기" onAction={() => setActiveTab('resources')}>
         {recentFiles.map((file) => <ListItem key={file.id} title={file.title} meta={fileCategoryLabels[file.category] || '일반'} body={file.originalName} onClick={() => window.open(downloadUrl(file.id), '_blank', 'noopener,noreferrer')} />)}
         {recentFiles.length === 0 && <Empty text="최근 자료가 없습니다." />}
-      </Section>
-      <Section title="COMS Apps" action="전체" onAction={() => setActiveTab('activity')}>
-        {companionServices.slice(0, 3).map((service) => <ListItem key={service.title} title={service.title} meta={service.eyebrow} body={service.body} onClick={() => openService(service.href)}><span className="media-chip"><ExternalLink size={14} />열기</span></ListItem>)}
       </Section>
     </div>
   )
