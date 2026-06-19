@@ -94,16 +94,13 @@ export async function resetPushRegistration() {
   }
 }
 
-// Flip this to true only once a google-services.json is shipped in
-// android/app/ AND the backend has a real FCM/APNs send pipeline behind
-// /api/mobile/v1/push-tokens. Without those, calling register() throws a
-// native exception that the OS surfaces by killing the activity — there is
-// no JS-side try/catch path that can recover from it. Until then we still
-// negotiate permission with the user so the system flag is on for when
-// push lands.
-const PUSH_REGISTER_ENABLED = false
-
-export async function requestPushRegistration({ onToken, onRoute } = {}) {
+// pushEnabled must come from the server's appConfig.pushEnabled value.
+// When false (or omitted), the function still requests OS permission so the
+// system flag is primed, but deliberately skips PushNotifications.register()
+// — avoiding a native crash on devices that lack google-services.json / APNs
+// credentials. The caller (App.jsx) passes appConfig.pushEnabled so the
+// decision is driven by the backend at runtime, not by a build-time constant.
+export async function requestPushRegistration({ onToken, onRoute, pushEnabled = false } = {}) {
   if (!isNativeRuntime()) return { status: 'unavailable' }
   let PushNotifications
   try {
@@ -127,9 +124,9 @@ export async function requestPushRegistration({ onToken, onRoute } = {}) {
   pushHandlers.onToken = onToken || null
   pushHandlers.onRoute = onRoute || null
 
-  if (!PUSH_REGISTER_ENABLED) {
+  if (!pushEnabled) {
     // Permission granted, but we deliberately skip the native register() call so
-    // the app never gets pushed back to the launcher on devices without FCM.
+    // the app never crashes on devices without google-services.json / APNs creds.
     return { status: 'server-unavailable' }
   }
 
