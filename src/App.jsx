@@ -3,6 +3,7 @@ import { ShieldCheck } from 'lucide-react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { getCurrentUser, logoutUser, withdrawSelf } from './services/authApi.js'
 import { listFiles } from './services/archiveApi.js'
+import { listClubActivities } from './services/clubActivityApi.js'
 import {
   appendCommunityPostImages,
   createComment,
@@ -47,6 +48,7 @@ import ErrorBoundary from './components/ErrorBoundary.jsx'
 import OnboardingCard from './components/OnboardingCard.jsx'
 import LoginScreen from './screens/LoginScreen.jsx'
 import HomeTab from './screens/HomeTab.jsx'
+import ActivityTab from './screens/ActivityTab.jsx'
 import ForcedUpdateScreen from './screens/ForcedUpdateScreen.jsx'
 import BiometricLockScreen from './screens/BiometricLockScreen.jsx'
 import PrivacyPolicyScreen from './screens/PrivacyPolicyScreen.jsx'
@@ -67,6 +69,7 @@ const EMPTY_DASHBOARD = {
   notices: [],
   posts: [],
   files: [],
+  clubActivities: [],
   notifications: [],
   unreadCount: 0,
 }
@@ -76,7 +79,7 @@ async function fetchDashboard() {
   // can show every entry, not just the small "recent" slice the mobile home aggregate
   // returns. Mobile home is still consulted in parallel for unreadCount and the
   // pre-shaped notifications block, but we prefer the full lists when they arrive.
-  const [configData, mobileHome, noticeData, postData, fileData, notificationData, notificationList] = await Promise.all([
+  const [configData, mobileHome, noticeData, postData, fileData, clubActivityData, notificationData, notificationList] = await Promise.all([
     getAppConfig().catch(() => DEFAULT_APP_CONFIG),
     getMobileHome().catch((err) => {
       if (isRecoverableMobileApiError(err)) return null
@@ -85,6 +88,7 @@ async function fetchDashboard() {
     listNotices().catch(() => []),
     listCommunityPosts().catch(() => []),
     listFiles().catch(() => []),
+    listClubActivities().catch(() => []),
     getNotificationSummary().catch(() => ({ unreadCount: 0 })),
     listNotifications().catch(() => []),
   ])
@@ -97,6 +101,7 @@ async function fetchDashboard() {
     notices: asArray(noticeData),
     posts: asArray(postData),
     files: asArray(fileData),
+    clubActivities: asArray(clubActivityData),
     notifications: asArray(notificationList),
     unreadCount: Number(home?.unreadCount ?? notificationData?.unreadCount ?? 0),
   }
@@ -156,7 +161,7 @@ export default function App() {
   })
 
   const dashboard = dashboardQuery.data ?? EMPTY_DASHBOARD
-  const { appConfig, notices, posts, files, notifications, unreadCount } = dashboard
+  const { appConfig, notices, posts, files, clubActivities, notifications, unreadCount } = dashboard
   const dashboardLoading = dashboardQuery.isLoading && !dashboardQuery.data
   const dashboardError = dashboardQuery.error?.message || ''
   const refreshing = dashboardQuery.isFetching && !dashboardLoading
@@ -665,14 +670,15 @@ export default function App() {
           onDismiss={dismissOnboarding}
         />
       )}
-      <HomeTab notices={notices} posts={posts} files={files} unreadCount={unreadCount} openNotice={openNotice} openPost={openPost} setActiveTab={changeTab} />
+      <HomeTab notices={notices} posts={posts} files={files} clubActivities={clubActivities} unreadCount={unreadCount} openNotice={openNotice} openPost={openPost} setActiveTab={changeTab} />
     </div>
   )
+  else if (activeTab === 'activity') content = <ActivityTab clubActivities={clubActivities} />
   else if (activeTab === 'notices') content = <NoticesTab notices={notices} selected={selectedNotice} loading={noticeLoading} openNotice={openNotice} closeNotice={() => setSelectedNotice(null)} />
   else if (activeTab === 'community') content = <CommunityTab posts={posts} selected={selectedPost} comments={comments} loading={postLoading} openPost={openPost} closePost={() => { setSelectedPost(null); setComments([]) }} createPost={createPost} createCommentForPost={createCommentForPost} editComment={editCommentForPost} removeComment={removeCommentForPost} vote={vote} pollVote={pollVote} currentUser={user} />
   else if (activeTab === 'resources') content = <ResourcesTab files={files} />
   else if (activeTab === 'notifications') content = <NotificationsTab notifications={notifications} unreadCount={unreadCount} pushStatus={pushStatus} pushPermission={pushPermission} refreshPushPermission={refreshPushPermission} appConfig={appConfig} enablePush={enablePush} markRead={markRead} markAllRead={markAllRead} openRoute={openRoute} />
-  else if (activeTab === 'operations') content = <OperationsTab user={user} notices={notices} posts={posts} loadDashboard={refreshDashboard} />
+  else if (activeTab === 'operations') content = <OperationsTab user={user} notices={notices} posts={posts} clubActivities={clubActivities} loadDashboard={refreshDashboard} />
   else content = (
     <ProfileTab
       user={user}

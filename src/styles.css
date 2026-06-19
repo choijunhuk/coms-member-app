@@ -963,6 +963,41 @@ p {
   color: white;
 }
 
+.calendar-picker {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 0.65rem;
+  margin-bottom: 0.85rem;
+}
+
+.calendar-picker label {
+  display: grid;
+  gap: 0.35rem;
+  color: var(--app-muted);
+  font-size: 0.75rem;
+  font-weight: 800;
+}
+
+.calendar-picker input,
+.calendar-picker select {
+  width: 100%;
+  min-height: 2.5rem;
+  border: 1px solid var(--app-hairline);
+  border-radius: 14px;
+  background: var(--app-surface-soft);
+  padding: 0 0.8rem;
+  color: var(--app-text);
+  font-size: 0.95rem;
+  font-weight: 800;
+  outline: none;
+}
+
+.calendar-picker input:focus,
+.calendar-picker select:focus {
+  border-color: var(--app-accent);
+  box-shadow: 0 0 0 3px var(--app-accent-soft);
+}
+
 .profile-card {
   display: flex;
   align-items: center;
