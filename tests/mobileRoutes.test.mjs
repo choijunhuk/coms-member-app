@@ -7,6 +7,8 @@ assert.deepEqual(routeFromUrl('https://coms.kw.ac.kr/notices/4?from=push'), { ta
 assert.deepEqual(routeFromUrl('https://coms.kw.ac.kr/community/18'), { tab: 'community', postId: '18' })
 assert.deepEqual(routeFromUrl('https://coms.kw.ac.kr/notifications'), { tab: 'notifications' })
 assert.deepEqual(routeFromUrl('https://coms.kw.ac.kr/resources'), { tab: 'resources' })
+assert.deepEqual(routeFromUrl('https://coms.kw.ac.kr/activity-log'), { tab: 'activity' })
+assert.deepEqual(routeFromUrl('https://coms.kw.ac.kr/monthly-calendar'), { tab: 'activity' })
 assert.equal(routeFromUrl('https://example.com/community/18'), null)
 assert.equal(routeFromUrl('not a url'), null)
 
@@ -15,6 +17,8 @@ assert.deepEqual(routeFromNotification({ data: { type: 'NOTICE', noticeId: 6 } }
 assert.deepEqual(routeFromNotification({ data: { type: 'COMMUNITY_COMMENT', postId: 9 } }), { tab: 'community', postId: '9' })
 assert.deepEqual(routeFromNotification({ data: { type: 'COMMUNITY_POST_DELETED' } }), { tab: 'profile', section: 'deleted-posts' })
 assert.deepEqual(routeFromNotification({ data: { type: 'COMMUNITY_POST_RESTORED', postId: 10 } }), { tab: 'community', postId: '10' })
+assert.deepEqual(routeFromNotification({ data: { type: 'SCHEDULE_REMINDER' } }), { tab: 'activity' })
+assert.deepEqual(routeFromNotification({ data: { type: 'ACTIVITY_LOG_CREATED' } }), { tab: 'activity' })
 assert.deepEqual(routeFromNotification({ data: { target: 'notifications' } }), { tab: 'notifications' })
 assert.equal(routeFromNotification({ data: { type: 'UNKNOWN' } }), null)
 

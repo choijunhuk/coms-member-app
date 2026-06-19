@@ -8,23 +8,29 @@ import {
   isWebOnlyFeature,
 } from '../src/config/appScope.js'
 
-assert.deepEqual(getAppTabIds(), ['home', 'notices', 'community', 'resources', 'notifications', 'operations', 'profile'])
-assert.equal(APP_SHELL_TABS.length, 7)
+assert.deepEqual(getAppTabIds(), ['home', 'activity', 'notices', 'community', 'resources', 'notifications', 'operations', 'profile'])
+assert.equal(APP_SHELL_TABS.length, 8)
 assert.equal(APP_SHELL_TABS.find((tab) => tab.id === 'operations')?.adminOnly, true)
 assert.deepEqual(APP_INCLUDED_FEATURES, [
   'login',
   'logout',
   'session-restore',
   'home-dashboard',
+  'activity-log',
+  'monthly-calendar',
   'notices',
   'community',
   'resources',
+  'resource-queue',
+  'apps-hub',
   'notification-center',
   'push-notifications',
+  'schedule-reminders',
   'deep-links',
   'mobile-home-api',
   'app-config',
   'operator-light',
+  'operator-activity-log',
   'profile',
 ])
 assert.deepEqual(WEB_ONLY_FEATURES, [

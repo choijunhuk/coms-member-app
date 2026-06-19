@@ -38,6 +38,8 @@ export function resolveTheme(preference) {
 
 export const PUSH_TYPES = [
   { id: 'NOTICE', label: '공지 알림' },
+  { id: 'SCHEDULE', label: '일정 리마인더' },
+  { id: 'ACTIVITY', label: '활동 기록' },
   { id: 'COMMENT', label: '내 글에 댓글' },
   { id: 'REPLY', label: '내 댓글에 답글' },
   { id: 'VOTE', label: '내 글 추천' },

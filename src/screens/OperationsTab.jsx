@@ -1,13 +1,16 @@
 import { useCallback, useEffect, useState } from 'react'
-import { CheckCircle2, Edit3, Loader2, RefreshCcw, ShieldCheck, Trash2, Users } from 'lucide-react'
+import { CalendarDays, CheckCircle2, Edit3, Loader2, RefreshCcw, ShieldCheck, Sparkles, Trash2, Users } from 'lucide-react'
 import { listAuditLogs, listEligibleMembers, listMembers } from '../services/adminApi.js'
+import { categoryLabel, createClubActivity } from '../services/clubActivityApi.js'
 import { deleteCommunityPost } from '../services/communityApi.js'
 import { createNotice, updateNotice } from '../services/noticeApi.js'
 import { asArray, formatDate, generationFromStudentId, plainText } from '../utils/format.js'
 import { categoryLabels, isAdminUser, latest, noticeCategoryLabels } from '../utils/helpers.js'
 import { Empty, Info, ListItem, Metric, Section } from '../components/ui.jsx'
 
-export default function OperationsTab({ user, notices, posts, loadDashboard }) {
+const ACTIVITY_CATEGORIES = ['GENERAL', 'SEMINAR', 'STUDY', 'PROJECT', 'MEETING', 'RECRUIT', 'EVENT', 'MT', 'ACHIEVEMENT']
+
+export default function OperationsTab({ user, notices, posts, clubActivities = [], loadDashboard }) {
   const [noticeId, setNoticeId] = useState('')
   const [noticeTitle, setNoticeTitle] = useState('')
   const [noticeContent, setNoticeContent] = useState('')
@@ -19,11 +22,20 @@ export default function OperationsTab({ user, notices, posts, loadDashboard }) {
   const [members, setMembers] = useState([])
   const [auditLogs, setAuditLogs] = useState([])
   const [loadingOps, setLoadingOps] = useState(false)
+  const [activityKind, setActivityKind] = useState('SCHEDULE')
+  const [activityTitle, setActivityTitle] = useState('')
+  const [activityDate, setActivityDate] = useState('')
+  const [activityCategory, setActivityCategory] = useState('MEETING')
+  const [activityDescription, setActivityDescription] = useState('')
+  const [activityImage, setActivityImage] = useState(null)
+  const [activityFileKey, setActivityFileKey] = useState(0)
+  const [savingActivity, setSavingActivity] = useState(false)
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
 
   const recentPosts = latest(posts, 'createdAt').slice(0, 5)
   const recentNotices = latest(notices, 'createdAt').slice(0, 12)
+  const recentClubActivities = latest(clubActivities, 'eventDate').slice(0, 5)
   const pendingRoster = asArray(eligibleMembers).filter((item) => !asArray(members).some((member) => member.studentId && member.studentId === item.studentId))
 
   const loadOperations = useCallback(async () => {
@@ -106,12 +118,72 @@ export default function OperationsTab({ user, notices, posts, loadDashboard }) {
     }
   }
 
+  async function submitActivity(event) {
+    event.preventDefault()
+    if (!activityTitle.trim() || !activityDate) return
+    setSavingActivity(true)
+    setMessage('')
+    setError('')
+    try {
+      await createClubActivity({
+        kind: activityKind,
+        category: activityCategory,
+        title: activityTitle.trim(),
+        description: activityDescription.trim(),
+        eventDate: activityDate,
+        image: activityImage,
+      })
+      setMessage(activityKind === 'SCHEDULE' ? '일정을 등록했습니다.' : '활동 기록을 등록했습니다.')
+      setActivityTitle('')
+      setActivityDate('')
+      setActivityDescription('')
+      setActivityImage(null)
+      setActivityFileKey((value) => value + 1)
+      await loadDashboard({ quiet: true })
+    } catch (err) {
+      setError(err.message || '활동 정보를 저장하지 못했습니다.')
+    } finally {
+      setSavingActivity(false)
+    }
+  }
+
   if (!isAdminUser(user)) {
     return <section className="empty-panel"><ShieldCheck size={24} aria-hidden="true" /><p>운영진 권한이 필요합니다.</p></section>
   }
 
   return (
     <div className="stack">
+      <section className="panel">
+        <div className="section-title">
+          <h2>{activityKind === 'SCHEDULE' ? <CalendarDays size={14} aria-hidden="true" /> : <Sparkles size={14} aria-hidden="true" />} 활동/일정 등록</h2>
+        </div>
+        <form className="form" onSubmit={submitActivity}>
+          <label>
+            등록 유형
+            <select value={activityKind} onChange={(event) => setActivityKind(event.target.value)}>
+              <option value="SCHEDULE">일정</option>
+              <option value="ACTIVITY">활동 기록</option>
+            </select>
+          </label>
+          <label>제목<input value={activityTitle} onChange={(event) => setActivityTitle(event.target.value)} maxLength={120} /></label>
+          <label>날짜<input type="date" value={activityDate} onChange={(event) => setActivityDate(event.target.value)} /></label>
+          <label>
+            분류
+            <select value={activityCategory} onChange={(event) => setActivityCategory(event.target.value)}>
+              {ACTIVITY_CATEGORIES.map((item) => <option key={item} value={item}>{categoryLabel(item)}</option>)}
+            </select>
+          </label>
+          <label>설명<textarea value={activityDescription} onChange={(event) => setActivityDescription(event.target.value)} rows={3} /></label>
+          <label>사진<input key={activityFileKey} type="file" accept="image/*" onChange={(event) => setActivityImage(event.target.files?.[0] || null)} /></label>
+          <button className="button primary" type="submit" disabled={savingActivity || !activityTitle.trim() || !activityDate}>
+            {savingActivity ? <Loader2 className="spin" size={17} aria-hidden="true" /> : <CheckCircle2 size={17} aria-hidden="true" />}등록
+          </button>
+        </form>
+      </section>
+      <Section title="최근 활동/일정">
+        {recentClubActivities.map((item) => <ListItem key={item.id} title={item.title} meta={`${item.kind === 'SCHEDULE' ? '일정' : '활동'} · ${categoryLabel(item.category)} · ${formatDate(item.eventDate)}`} body={item.description} />)}
+        {recentClubActivities.length === 0 && <Empty text="최근 등록된 활동/일정이 없습니다." />}
+      </Section>
       <section className="panel">
         <div className="section-title">
           <h2>공지 작성/수정</h2>

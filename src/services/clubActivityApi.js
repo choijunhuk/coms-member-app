@@ -1,0 +1,111 @@
+import { request } from './apiClient.js'
+
+export const CLUB_ACTIVITIES_PATH = '/api/club-activities'
+
+export const companionServices = [
+  {
+    title: 'Food Club',
+    eyebrow: 'Meal loop',
+    body: '부원들과 밥 약속과 맛집 후보를 모읍니다.',
+    href: 'https://coms.kw.ac.kr/foodclub/',
+  },
+  {
+    title: 'TeamMate',
+    eyebrow: 'Team randomizer',
+    body: '스터디와 프로젝트 팀을 조건에 맞춰 나눕니다.',
+    href: 'https://coms.kw.ac.kr/team-randomizer/',
+  },
+  {
+    title: 'Game Club',
+    eyebrow: 'Playground',
+    body: '동아리 안에서 함께 즐길 작은 게임 공간입니다.',
+    href: 'https://coms.kw.ac.kr/gameclub/',
+  },
+  {
+    title: 'KW Mate',
+    eyebrow: 'Campus utility',
+    body: '광운대 생활 연결과 정보를 빠르게 찾습니다.',
+    href: 'https://kwmate.com/',
+  },
+  {
+    title: 'Daily Coding',
+    eyebrow: 'Practice',
+    body: '매일 코딩 문제와 학습 루틴을 이어갑니다.',
+    href: 'https://dailycoding-final.com/',
+  },
+]
+
+export function listClubActivities() {
+  return request(CLUB_ACTIVITIES_PATH)
+}
+
+export async function createClubActivity({ kind, category, title, description, eventDate, image }) {
+  const form = new FormData()
+  form.append('kind', kind)
+  form.append('category', category)
+  form.append('title', title)
+  form.append('description', description || '')
+  form.append('eventDate', eventDate)
+  if (image) form.append('image', image)
+
+  return request(CLUB_ACTIVITIES_PATH, {
+    method: 'POST',
+    body: form,
+  })
+}
+
+export function parseActivityDate(value) {
+  if (typeof value !== 'string') return null
+  const [year, month, day] = value.split('-').map(Number)
+  if (!year || !month || !day) return null
+  return new Date(year, month - 1, day)
+}
+
+export function formatActivityDate(value) {
+  const date = parseActivityDate(value)
+  if (!date) return value || ''
+  return `${date.getFullYear()}.${String(date.getMonth() + 1).padStart(2, '0')}.${String(date.getDate()).padStart(2, '0')}`
+}
+
+export function categoryLabel(value) {
+  return {
+    GENERAL: '일반',
+    SEMINAR: '세미나',
+    STUDY: '스터디',
+    PROJECT: '프로젝트',
+    MEETING: '회의',
+    RECRUIT: '모집',
+    EVENT: '행사',
+    MT: 'MT',
+    ACHIEVEMENT: '성과',
+  }[value] || value || '일반'
+}
+
+export function nextSchedules(records, referenceDate = new Date(), limit = 4) {
+  const today = new Date(referenceDate.getFullYear(), referenceDate.getMonth(), referenceDate.getDate())
+  return [...(records || [])]
+    .filter((item) => item.kind === 'SCHEDULE')
+    .filter((item) => {
+      const date = parseActivityDate(item.eventDate)
+      return date && date >= today
+    })
+    .sort((a, b) => parseActivityDate(a.eventDate) - parseActivityDate(b.eventDate))
+    .slice(0, limit)
+}
+
+export function recentActivities(records, limit = 4) {
+  return [...(records || [])]
+    .filter((item) => item.kind === 'ACTIVITY')
+    .sort((a, b) => parseActivityDate(b.eventDate) - parseActivityDate(a.eventDate))
+    .slice(0, limit)
+}
+
+export function schedulesForMonth(records, year, month) {
+  return [...(records || [])]
+    .filter((item) => item.kind === 'SCHEDULE')
+    .filter((item) => {
+      const date = parseActivityDate(item.eventDate)
+      return date && date.getFullYear() === year && date.getMonth() === month
+    })
+    .sort((a, b) => parseActivityDate(a.eventDate) - parseActivityDate(b.eventDate))
+}
