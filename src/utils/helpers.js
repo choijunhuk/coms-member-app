@@ -1,20 +1,24 @@
 import { apiUrl } from '../services/apiClient.js'
 import { DEFAULT_APP_CONFIG } from '../services/mobileApi.js'
 import { asArray } from './format.js'
+import { ArchiveCategory, CommunityCategory, NoticeCategory } from '../contract/enums.js'
+import { enumLabels } from '../contract/labels.js'
 
-export const categoryLabels = {
-  GENERAL: '일반',
-  QUESTION: '질문',
-  INFO: '정보',
-  ANONYMOUS: '익명',
-}
+// Keys bound to the canonical CommunityPost.Category enum (drift-guarded).
+export const categoryLabels = enumLabels(CommunityCategory, {
+  [CommunityCategory.GENERAL]: '일반',
+  [CommunityCategory.QUESTION]: '질문',
+  [CommunityCategory.INFO]: '정보',
+  [CommunityCategory.ANONYMOUS]: '익명',
+})
 
-export const noticeCategoryLabels = {
-  GENERAL: '공지',
-  PROMOTION: '홍보',
-  SMALL_GROUP: '소모임',
-  JOB: '취업공고',
-}
+// Keys bound to the canonical Notice.Category enum (drift-guarded).
+export const noticeCategoryLabels = enumLabels(NoticeCategory, {
+  [NoticeCategory.GENERAL]: '공지',
+  [NoticeCategory.PROMOTION]: '홍보',
+  [NoticeCategory.SMALL_GROUP]: '소모임',
+  [NoticeCategory.JOB]: '취업공고',
+})
 
 export function isGraduateStudentId(studentId) {
   if (!/^\d{10}$/.test(String(studentId || ''))) return true
@@ -31,13 +35,17 @@ export function categoryOptionsForUser(user) {
   return canAccessAnonymousBoard(user) ? all : all.filter(([key]) => key !== 'ANONYMOUS')
 }
 
-export const fileCategoryLabels = {
-  GENERAL: '일반',
-  ACADEMIC_JOURNAL: '학술지',
+// Keys bound to the canonical ArchiveFile.Category enum (drift-guarded). The
+// trailing entries are legacy fallback labels for category strings the backend
+// no longer emits; they are kept defensively but are not part of the contract.
+export const fileCategoryLabels = enumLabels(ArchiveCategory, {
+  [ArchiveCategory.GENERAL]: '일반',
+  [ArchiveCategory.ACADEMIC_JOURNAL]: '학술지',
+  // legacy fallbacks (not in ArchiveCategory):
   STUDY: '스터디',
   PROJECT: '프로젝트',
   NOTICE: '공지',
-}
+})
 
 export function latest(items, field) {
   return [...asArray(items)].sort((a, b) => new Date(b?.[field] || 0) - new Date(a?.[field] || 0))

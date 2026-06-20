@@ -1,6 +1,21 @@
 import { request } from './apiClient.js'
+import { ActivityCategory } from '../contract/enums.js'
+import { enumLabels } from '../contract/labels.js'
 
 export const CLUB_ACTIVITIES_PATH = '/api/club-activities'
+
+// Keys bound to the canonical ClubActivity.Category enum (drift-guarded).
+const ACTIVITY_CATEGORY_LABELS = enumLabels(ActivityCategory, {
+  [ActivityCategory.GENERAL]: '일반',
+  [ActivityCategory.SEMINAR]: '세미나',
+  [ActivityCategory.STUDY]: '스터디',
+  [ActivityCategory.PROJECT]: '프로젝트',
+  [ActivityCategory.MEETING]: '회의',
+  [ActivityCategory.RECRUIT]: '모집',
+  [ActivityCategory.EVENT]: '행사',
+  [ActivityCategory.MT]: 'MT',
+  [ActivityCategory.ACHIEVEMENT]: '성과',
+})
 
 export const companionServices = [
   {
@@ -68,17 +83,7 @@ export function formatActivityDate(value) {
 }
 
 export function categoryLabel(value) {
-  return {
-    GENERAL: '일반',
-    SEMINAR: '세미나',
-    STUDY: '스터디',
-    PROJECT: '프로젝트',
-    MEETING: '회의',
-    RECRUIT: '모집',
-    EVENT: '행사',
-    MT: 'MT',
-    ACHIEVEMENT: '성과',
-  }[value] || value || '일반'
+  return ACTIVITY_CATEGORY_LABELS[value] || value || '일반'
 }
 
 export function nextSchedules(records, referenceDate = new Date(), limit = 4) {
