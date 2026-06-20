@@ -1,4 +1,4 @@
-import { Bell, RefreshCcw, Settings, UserRound } from 'lucide-react'
+import { Bell, Grid2X2, RefreshCcw, Settings, UserRound } from 'lucide-react'
 import { APP_SHELL_TABS } from '../config/appScope.js'
 import { isAdminUser } from '../utils/helpers.js'
 import { usePullToRefresh } from '../hooks/usePullToRefresh.js'
@@ -25,6 +25,9 @@ export function Shell({ user, activeTab, setActiveTab, unreadCount, onRefresh, r
           <h1>{active?.label || '회원 앱'}</h1>
         </div>
         <div className="top-actions">
+          <a className="icon-button" href="https://coms.kw.ac.kr/" target="_blank" rel="noreferrer" aria-label="COMS 앱 허브">
+            <Grid2X2 size={18} aria-hidden="true" />
+          </a>
           <button type="button" className="icon-button" onClick={onRefresh} disabled={refreshing} aria-label="새로고침">
             <RefreshCcw size={18} className={refreshing ? 'spin' : ''} aria-hidden="true" />
           </button>
