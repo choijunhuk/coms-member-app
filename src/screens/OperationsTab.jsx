@@ -179,13 +179,14 @@ export default function OperationsTab({ user, notices, posts, clubActivities = [
     if (!appTitle.trim()) return
     const href = appHref.trim()
     if (href) {
-      let protocol = ''
+      let safe
       try {
-        protocol = new URL(href).protocol
+        const protocol = new URL(href).protocol
+        safe = protocol === 'http:' || protocol === 'https:'
       } catch {
-        protocol = ''
+        safe = false
       }
-      if (protocol !== 'http:' && protocol !== 'https:') {
+      if (!safe) {
         setError('링크는 http(s) 주소만 등록할 수 있습니다.')
         return
       }
