@@ -7,6 +7,10 @@ import { postBlocks } from '../../utils/postBlocks.js'
 import PollBlock from './PollBlock.jsx'
 import Polls from './Polls.jsx'
 
+function safeExternalHref(url) {
+  return /^https?:\/\//i.test(String(url || '')) ? url : ''
+}
+
 function collectImageUrls(blocks) {
   const urls = []
   for (const block of blocks) {
@@ -88,15 +92,25 @@ export default function PostContent({ post, pollVote }) {
         }
         if (block.type === 'externalEmbed') {
           if (block.kind === 'image' && block.url) {
+            const src = safeExternalHref(block.url)
+            if (!src) return null
             const galleryIndex = blockImageIndex[index]
             return (
               <button type="button" key={index} className="image-thumb-button" onClick={() => setActiveIndex(galleryIndex)} aria-label={`이미지 ${galleryIndex + 1} 크게 보기`}>
-                <img className="post-image" src={block.url} alt={block.title || '외부 이미지'} loading="lazy" />
+                <img className="post-image" src={src} alt={block.title || '외부 이미지'} loading="lazy" />
               </button>
             )
           }
-          if (block.kind === 'video' && block.url) return <video key={index} className="post-video" src={block.url} controls preload="metadata" />
-          if (block.url) return <a key={index} className="file-link" href={block.url} target="_blank" rel="noreferrer">{block.title || block.url}</a>
+          if (block.kind === 'video' && block.url) {
+            const src = safeExternalHref(block.url)
+            return src ? <video key={index} className="post-video" src={src} controls preload="metadata" /> : null
+          }
+          if (block.url) {
+            const href = safeExternalHref(block.url)
+            return href
+              ? <a key={index} className="file-link" href={href} target="_blank" rel="noreferrer">{block.title || block.url}</a>
+              : <span key={index} className="file-link">{block.title || block.url}</span>
+          }
           return null
         }
         if (block.type === 'poll') {
