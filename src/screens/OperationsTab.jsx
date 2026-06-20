@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useState } from 'react'
-import { CalendarDays, CheckCircle2, Edit3, Loader2, RefreshCcw, ShieldCheck, Sparkles, Trash2, Users } from 'lucide-react'
+import { AppWindow, CalendarDays, CheckCircle2, Edit3, Loader2, RefreshCcw, ShieldCheck, Sparkles, Trash2, Users } from 'lucide-react'
 import { listAuditLogs, listEligibleMembers, listMembers } from '../services/adminApi.js'
 import { categoryLabel, createClubActivity } from '../services/clubActivityApi.js'
+import { createApp, deleteApp, updateApp } from '../services/appCatalogApi.js'
 import { deleteCommunityPost } from '../services/communityApi.js'
 import { createNotice, updateNotice } from '../services/noticeApi.js'
 import { asArray, formatDate, generationFromStudentId, plainText } from '../utils/format.js'
@@ -10,7 +11,7 @@ import { Empty, Info, ListItem, Metric, Section } from '../components/ui.jsx'
 
 const ACTIVITY_CATEGORIES = ['GENERAL', 'SEMINAR', 'STUDY', 'PROJECT', 'MEETING', 'RECRUIT', 'EVENT', 'MT', 'ACHIEVEMENT']
 
-export default function OperationsTab({ user, notices, posts, clubActivities = [], loadDashboard }) {
+export default function OperationsTab({ user, notices, posts, clubActivities = [], apps = [], loadDashboard }) {
   const [noticeId, setNoticeId] = useState('')
   const [noticeTitle, setNoticeTitle] = useState('')
   const [noticeContent, setNoticeContent] = useState('')
@@ -30,6 +31,14 @@ export default function OperationsTab({ user, notices, posts, clubActivities = [
   const [activityImage, setActivityImage] = useState(null)
   const [activityFileKey, setActivityFileKey] = useState(0)
   const [savingActivity, setSavingActivity] = useState(false)
+  const [appId, setAppId] = useState('')
+  const [appTitle, setAppTitle] = useState('')
+  const [appEyebrow, setAppEyebrow] = useState('')
+  const [appBody, setAppBody] = useState('')
+  const [appHref, setAppHref] = useState('')
+  const [appSortOrder, setAppSortOrder] = useState('0')
+  const [savingApp, setSavingApp] = useState(false)
+  const [deletingAppId, setDeletingAppId] = useState(null)
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
 
@@ -147,6 +156,66 @@ export default function OperationsTab({ user, notices, posts, clubActivities = [
     }
   }
 
+  function resetAppForm() {
+    setAppId('')
+    setAppTitle('')
+    setAppEyebrow('')
+    setAppBody('')
+    setAppHref('')
+    setAppSortOrder('0')
+  }
+
+  function chooseApp(app) {
+    setAppId(app.id)
+    setAppTitle(app.title || '')
+    setAppEyebrow(app.eyebrow || '')
+    setAppBody(app.body || '')
+    setAppHref(app.href || '')
+    setAppSortOrder(String(app.sortOrder ?? 0))
+  }
+
+  async function submitApp(event) {
+    event.preventDefault()
+    if (!appTitle.trim()) return
+    setSavingApp(true)
+    setMessage('')
+    setError('')
+    const payload = {
+      title: appTitle.trim(),
+      eyebrow: appEyebrow.trim(),
+      body: appBody.trim(),
+      href: appHref.trim(),
+      sortOrder: Number(appSortOrder) || 0,
+    }
+    try {
+      if (appId) await updateApp(appId, payload)
+      else await createApp(payload)
+      setMessage(appId ? '앱을 수정했습니다.' : '앱을 등록했습니다.')
+      resetAppForm()
+      await loadDashboard({ quiet: true })
+    } catch (err) {
+      setError(err.message || '앱 저장에 실패했습니다.')
+    } finally {
+      setSavingApp(false)
+    }
+  }
+
+  async function removeApp(id) {
+    setDeletingAppId(id)
+    setMessage('')
+    setError('')
+    try {
+      await deleteApp(id)
+      setMessage('앱을 삭제했습니다.')
+      if (String(appId) === String(id)) resetAppForm()
+      await loadDashboard({ quiet: true })
+    } catch (err) {
+      setError(err.message || '앱 삭제에 실패했습니다.')
+    } finally {
+      setDeletingAppId(null)
+    }
+  }
+
   if (!isAdminUser(user)) {
     return <section className="empty-panel"><ShieldCheck size={24} aria-hidden="true" /><p>운영진 권한이 필요합니다.</p></section>
   }
@@ -184,6 +253,41 @@ export default function OperationsTab({ user, notices, posts, clubActivities = [
         {recentClubActivities.map((item) => <ListItem key={item.id} title={item.title} meta={`${item.kind === 'SCHEDULE' ? '일정' : '활동'} · ${categoryLabel(item.category)} · ${formatDate(item.eventDate)}`} body={item.description} />)}
         {recentClubActivities.length === 0 && <Empty text="최근 등록된 활동/일정이 없습니다." />}
       </Section>
+      <section className="panel">
+        <div className="section-title">
+          <h2><AppWindow size={14} aria-hidden="true" /> COMS Apps 관리</h2>
+          <button type="button" onClick={resetAppForm}><Edit3 size={15} aria-hidden="true" /> 새 앱</button>
+        </div>
+        <form className="form" onSubmit={submitApp}>
+          <label>제목<input value={appTitle} onChange={(event) => setAppTitle(event.target.value)} maxLength={120} /></label>
+          <label>부제목<input value={appEyebrow} onChange={(event) => setAppEyebrow(event.target.value)} maxLength={60} /></label>
+          <label>설명<textarea value={appBody} onChange={(event) => setAppBody(event.target.value)} rows={3} /></label>
+          <label>링크<input value={appHref} onChange={(event) => setAppHref(event.target.value)} maxLength={500} placeholder="https://" /></label>
+          <label>정렬 순서<input type="number" value={appSortOrder} onChange={(event) => setAppSortOrder(event.target.value)} /></label>
+          <button className="button primary" type="submit" disabled={savingApp || !appTitle.trim()}>
+            {savingApp ? <Loader2 className="spin" size={17} aria-hidden="true" /> : <CheckCircle2 size={17} aria-hidden="true" />}{appId ? '수정' : '등록'}
+          </button>
+        </form>
+        <div className="list compact-list">
+          {asArray(apps).map((app) => (
+            <div className="admin-row" key={app.id}>
+              <div>
+                <strong>{app.title}</strong>
+                <span>{[app.eyebrow, app.href].filter(Boolean).join(' · ') || '링크 없음'}</span>
+              </div>
+              <div className="admin-row-actions">
+                <button type="button" className="icon-button" onClick={() => chooseApp(app)} aria-label="앱 수정">
+                  <Edit3 size={17} aria-hidden="true" />
+                </button>
+                <button type="button" className="icon-button danger" onClick={() => removeApp(app.id)} disabled={deletingAppId === app.id} aria-label="앱 삭제">
+                  {deletingAppId === app.id ? <Loader2 className="spin" size={17} aria-hidden="true" /> : <Trash2 size={17} aria-hidden="true" />}
+                </button>
+              </div>
+            </div>
+          ))}
+          {asArray(apps).length === 0 && <Empty text="등록된 앱이 없습니다." />}
+        </div>
+      </section>
       <section className="panel">
         <div className="section-title">
           <h2>공지 작성/수정</h2>

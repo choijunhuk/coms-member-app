@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { CalendarDays, ExternalLink, Image, Sparkles } from 'lucide-react'
+import { CalendarDays, Eye, ExternalLink, Image, Sparkles, ThumbsUp } from 'lucide-react'
 import {
   categoryLabel,
   companionServices,
@@ -25,12 +25,13 @@ async function openService(url) {
   window.open(url, '_blank', 'noopener,noreferrer')
 }
 
-export default function ActivityTab({ clubActivities }) {
+export default function ActivityTab({ clubActivities, apps }) {
   const now = new Date()
   const [year, setYear] = useState(now.getFullYear())
   const [month, setMonth] = useState(now.getMonth())
   const activities = useMemo(() => recentActivities(clubActivities, 12), [clubActivities])
   const monthSchedules = useMemo(() => schedulesForMonth(clubActivities, year, month), [clubActivities, year, month])
+  const services = useMemo(() => (Array.isArray(apps) && apps.length > 0 ? apps : companionServices), [apps])
 
   return (
     <div className="stack">
@@ -59,14 +60,15 @@ export default function ActivityTab({ clubActivities }) {
         {activities.map((item) => (
           <ListItem key={item.id} title={item.title} meta={`${formatActivityDate(item.eventDate)} · ${categoryLabel(item.category)}`} body={item.description}>
             {item.imageUrl && <span className="media-chip"><Image size={14} aria-hidden="true" /> 사진</span>}
+            <div className="stats"><span><Eye size={14} />{item.viewCount || 0}</span><span><ThumbsUp size={14} />{item.upvotes || 0}</span></div>
           </ListItem>
         ))}
         {activities.length === 0 && <Empty text="등록된 활동 기록이 없습니다." />}
       </Section>
 
       <Section title="COMS Apps">
-        {companionServices.map((service) => (
-          <ListItem key={service.title} title={service.title} meta={service.eyebrow} body={service.body} onClick={() => openService(service.href)}>
+        {services.map((service) => (
+          <ListItem key={service.id ?? service.title} title={service.title} meta={service.eyebrow} body={service.body} onClick={() => openService(service.href)}>
             <span className="media-chip"><ExternalLink size={14} aria-hidden="true" /> 열기</span>
           </ListItem>
         ))}

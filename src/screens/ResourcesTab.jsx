@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
-import { Download, Search } from 'lucide-react'
-import { downloadUrl } from '../services/archiveApi.js'
+import { Download, Eye, Search, ThumbsUp } from 'lucide-react'
+import { downloadUrl, voteFile } from '../services/archiveApi.js'
 import { asArray, formatDate } from '../utils/format.js'
 import { fileCategoryLabels, latest } from '../utils/helpers.js'
 import { readRecentResourceIds, rememberResource } from '../utils/resourceHistory.js'
@@ -9,6 +9,7 @@ import { Empty, ListItem, Section } from '../components/ui.jsx'
 export default function ResourcesTab({ files }) {
   const [query, setQuery] = useState('')
   const [category, setCategory] = useState('ALL')
+  const [voteState, setVoteState] = useState({})
   const [recentIds, setRecentIds] = useState(() => readRecentResourceIds())
   const categories = useMemo(() => ['ALL', ...new Set(asArray(files).map((file) => file.category || 'GENERAL'))], [files])
   const recentFiles = useMemo(() => {
@@ -27,6 +28,17 @@ export default function ResourcesTab({ files }) {
     setRecentIds(readRecentResourceIds())
     window.open(downloadUrl(file.id), '_blank', 'noopener,noreferrer')
   }
+  const statsFor = (file) => voteState[file.id] || file
+  const toggleVote = async (file) => {
+    const current = statsFor(file)
+    const nextValue = current.myVote ? 0 : 1
+    try {
+      const updated = await voteFile(file.id, nextValue)
+      setVoteState((prev) => ({ ...prev, [file.id]: updated }))
+    } catch {
+      // ignore vote failures; UI stays unchanged
+    }
+  }
 
   return (
     <div className="stack">
@@ -38,7 +50,24 @@ export default function ResourcesTab({ files }) {
         </Section>
       )}
       <Section title="자료실">
-        {filtered.map((file) => <ListItem key={file.id} title={file.title} meta={`${fileCategoryLabels[file.category] || '일반'} · ${formatDate(file.uploadedAt)}`} body={file.description || file.originalName} onClick={() => openFile(file)}><span className="media-chip"><Download size={14} />다운로드</span></ListItem>)}
+        {filtered.map((file) => {
+          const stats = statsFor(file)
+          return (
+            <ListItem key={file.id} title={file.title} meta={`${fileCategoryLabels[file.category] || '일반'} · ${formatDate(file.uploadedAt)}`} body={file.description || file.originalName} onClick={() => openFile(file)}>
+              <span className="media-chip"><Download size={14} />다운로드</span>
+              <div className="stats">
+                <span><Eye size={14} />{stats.viewCount || 0}</span>
+                <span
+                  role="button"
+                  tabIndex={0}
+                  className={stats.myVote ? 'voted' : ''}
+                  onClick={(event) => { event.stopPropagation(); toggleVote(file) }}
+                  onKeyDown={(event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); event.stopPropagation(); toggleVote(file) } }}
+                ><ThumbsUp size={14} />{stats.upvotes || 0}</span>
+              </div>
+            </ListItem>
+          )
+        })}
         {filtered.length === 0 && <Empty text="조건에 맞는 자료가 없습니다." />}
       </Section>
     </div>
