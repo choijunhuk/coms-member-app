@@ -16,6 +16,8 @@ const sentryPlugins = sentryAuthToken
         org: process.env.SENTRY_ORG || 'kw-coms',
         project: process.env.SENTRY_PROJECT || 'coms-member-app',
         authToken: sentryAuthToken,
+        // Delete .map files from dist after upload so they are never served publicly.
+        sourcemaps: { filesToDeleteAfterUpload: ['./dist/**/*.map'] },
       }),
     ]
   : []
@@ -27,9 +29,10 @@ export default defineConfig({
     __APP_VERSION__: JSON.stringify(pkg.version || '0.0.0'),
   },
   build: {
-    // Emit source maps so Sentry can de-minify stack traces. When the upload
-    // plugin is active it strips the maps from the final bundle after upload.
-    sourcemap: true,
+    // Only emit source maps when uploading to Sentry, and use 'hidden' so no
+    // sourceMappingURL comment is written into the bundles — the maps are never
+    // publicly discoverable, and the plugin deletes them from dist after upload.
+    sourcemap: sentryAuthToken ? 'hidden' : false,
   },
   server: {
     port: 5174,
