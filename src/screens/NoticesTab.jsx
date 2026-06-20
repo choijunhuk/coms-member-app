@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { Search } from 'lucide-react'
+import { Eye, Search, ThumbsUp } from 'lucide-react'
 import { formatDate, plainText, preview } from '../utils/format.js'
 import { useInfiniteList } from '../hooks/useInfiniteList.js'
 import { Detail, Empty, ListItem, LoadingScreen, Section } from '../components/ui.jsx'
@@ -56,6 +56,7 @@ export default function NoticesTab({ notices, selected, loading, openNotice, clo
     return (
       <Detail title={selected.title} meta={`${categoryDisplay(selected.category) || '공지'} · ${formatDate(selected.createdAt)}`} onBack={closeNotice}>
         {selected.pinned && <span className="badge">중요 공지</span>}
+        <div className="stats"><span><Eye size={14} />{selected.viewCount || 0}</span><span><ThumbsUp size={14} />{selected.upvotes || 0}</span></div>
         {loading ? <LoadingScreen label="공지 상세를 불러오는 중입니다." /> : <p className="body-text">{plainText(selected.content)}</p>}
       </Detail>
     )
@@ -81,7 +82,9 @@ export default function NoticesTab({ notices, selected, loading, openNotice, clo
             body={preview(notice.content)}
             pinned={notice.pinned}
             onClick={() => openNotice(notice.id)}
-          />
+          >
+            <div className="stats"><span><Eye size={14} />{notice.viewCount || 0}</span><span><ThumbsUp size={14} />{notice.upvotes || 0}</span></div>
+          </ListItem>
         ))}
         {hasMore && <div ref={sentinelRef} className="infinite-sentinel" aria-hidden="true" />}
         {filtered.length === 0 && <Empty text={query || category !== 'ALL' ? '검색 결과가 없습니다.' : '등록된 공지가 없습니다.'} />}
