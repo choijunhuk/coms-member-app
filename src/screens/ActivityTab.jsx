@@ -11,8 +11,17 @@ import { Empty, ListItem, Section } from '../components/ui.jsx'
 
 const MONTHS = Array.from({ length: 12 }, (_, index) => ({ value: index, label: `${index + 1}월` }))
 
+function isSafeHttpUrl(url) {
+  try {
+    const protocol = new URL(url).protocol
+    return protocol === 'http:' || protocol === 'https:'
+  } catch {
+    return false
+  }
+}
+
 async function openService(url) {
-  if (!url) return
+  if (!url || !isSafeHttpUrl(url)) return
   try {
     const mod = await import('@capacitor/browser').catch(() => ({}))
     if (mod?.Browser?.open) {

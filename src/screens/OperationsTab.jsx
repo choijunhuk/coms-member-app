@@ -177,6 +177,19 @@ export default function OperationsTab({ user, notices, posts, clubActivities = [
   async function submitApp(event) {
     event.preventDefault()
     if (!appTitle.trim()) return
+    const href = appHref.trim()
+    if (href) {
+      let protocol = ''
+      try {
+        protocol = new URL(href).protocol
+      } catch {
+        protocol = ''
+      }
+      if (protocol !== 'http:' && protocol !== 'https:') {
+        setError('링크는 http(s) 주소만 등록할 수 있습니다.')
+        return
+      }
+    }
     setSavingApp(true)
     setMessage('')
     setError('')
@@ -184,7 +197,7 @@ export default function OperationsTab({ user, notices, posts, clubActivities = [
       title: appTitle.trim(),
       eyebrow: appEyebrow.trim(),
       body: appBody.trim(),
-      href: appHref.trim(),
+      href,
       sortOrder: Number(appSortOrder) || 0,
     }
     try {
