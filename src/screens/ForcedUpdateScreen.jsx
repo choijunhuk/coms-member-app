@@ -1,7 +1,8 @@
 import { Download } from 'lucide-react'
+import { DEFAULT_APP_LINKS, normalizeExternalUrl } from '../config/appLinks.js'
 
 export default function ForcedUpdateScreen({ currentVersion, minimumVersion, updateUrl }) {
-  const href = typeof updateUrl === 'string' && updateUrl ? updateUrl : 'https://coms.kw.ac.kr'
+  const href = normalizeExternalUrl(updateUrl, DEFAULT_APP_LINKS.update)
   return (
     <main className="center-screen">
       <section className="login-panel">

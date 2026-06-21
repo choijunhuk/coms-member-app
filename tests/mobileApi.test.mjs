@@ -37,6 +37,8 @@ assert.deepEqual(JSON.parse(calls[2].options.body), {
 })
 assert.equal(DEFAULT_APP_CONFIG.minimumSupportedVersion, '0.1.0')
 assert.equal(DEFAULT_APP_CONFIG.pushEnabled, true)
+assert.equal(DEFAULT_APP_CONFIG.updateUrl, DEFAULT_APP_CONFIG.links.update)
+assert.equal(DEFAULT_APP_CONFIG.links.hub.endsWith('/'), true)
 assert.equal(isRecoverableMobileApiError(Object.assign(new Error('missing'), { status: 404 })), true)
 assert.equal(isRecoverableMobileApiError(Object.assign(new Error('denied'), { status: 403 })), false)
 

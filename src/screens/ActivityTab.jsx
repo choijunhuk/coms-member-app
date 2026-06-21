@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react'
 import { CalendarDays, Eye, ExternalLink, Image, Sparkles, ThumbsUp } from 'lucide-react'
 import {
   categoryLabel,
-  companionServices,
+  companionServicesForLinks,
   formatActivityDate,
   recentActivities,
   schedulesForMonth,
@@ -34,13 +34,15 @@ async function openService(url) {
   window.open(url, '_blank', 'noopener,noreferrer')
 }
 
-export default function ActivityTab({ clubActivities, apps }) {
+export default function ActivityTab({ clubActivities, apps, appLinks }) {
   const now = new Date()
   const [year, setYear] = useState(now.getFullYear())
   const [month, setMonth] = useState(now.getMonth())
   const activities = useMemo(() => recentActivities(clubActivities, 12), [clubActivities])
   const monthSchedules = useMemo(() => schedulesForMonth(clubActivities, year, month), [clubActivities, year, month])
-  const services = useMemo(() => (Array.isArray(apps) && apps.length > 0 ? apps : companionServices), [apps])
+  const services = useMemo(() => (
+    Array.isArray(apps) && apps.length > 0 ? apps : companionServicesForLinks(appLinks)
+  ), [appLinks, apps])
 
   return (
     <div className="stack">

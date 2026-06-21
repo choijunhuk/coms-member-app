@@ -678,7 +678,7 @@ export default function App() {
       <HomeTab notices={notices} posts={posts} files={files} clubActivities={clubActivities} unreadCount={unreadCount} openNotice={openNotice} openPost={openPost} setActiveTab={changeTab} />
     </div>
   )
-  else if (activeTab === 'activity') content = <ActivityTab clubActivities={clubActivities} apps={apps} />
+  else if (activeTab === 'activity') content = <ActivityTab clubActivities={clubActivities} apps={apps} appLinks={appConfig.links} />
   else if (activeTab === 'notices') content = <NoticesTab notices={notices} selected={selectedNotice} loading={noticeLoading} openNotice={openNotice} closeNotice={() => setSelectedNotice(null)} />
   else if (activeTab === 'community') content = <CommunityTab posts={posts} selected={selectedPost} comments={comments} loading={postLoading} openPost={openPost} closePost={() => { setSelectedPost(null); setComments([]) }} createPost={createPost} createCommentForPost={createCommentForPost} editComment={editCommentForPost} removeComment={removeCommentForPost} vote={vote} pollVote={pollVote} currentUser={user} />
   else if (activeTab === 'resources') content = <ResourcesTab files={files} />
@@ -711,7 +711,7 @@ export default function App() {
   )
 
   return (
-    <Shell user={user} activeTab={activeTab} setActiveTab={changeTab} unreadCount={unreadCount} refreshing={refreshing} onRefresh={refreshDashboard} tabBadges={tabBadges} onOpenSettings={() => setShowSettings(true)}>
+    <Shell user={user} activeTab={activeTab} setActiveTab={changeTab} unreadCount={unreadCount} refreshing={refreshing} onRefresh={refreshDashboard} tabBadges={tabBadges} onOpenSettings={() => setShowSettings(true)} appLinks={appConfig.links}>
       <ErrorBoundary label={activeTab}>
         <Suspense fallback={<LoadingScreen label="화면을 준비 중입니다." />}>{body}</Suspense>
       </ErrorBoundary>
