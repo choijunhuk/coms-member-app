@@ -134,6 +134,7 @@ export default function App() {
   const [postLoading, setPostLoading] = useState(false)
   const [comments, setComments] = useState([])
   const [slowSync, setSlowSync] = useState(false)
+  const [accountActionError, setAccountActionError] = useState('')
 
   const restoreSession = useCallback(async () => {
     try {
@@ -579,21 +580,32 @@ export default function App() {
   }, [appConfig.pushEnabled, openRoute, refreshPushPermission, user])
 
   async function handleLogout() {
+    setAccountActionError('')
     try {
       await logoutUser()
-    } finally {
-      setUser(null)
-      setPushStatus('idle')
-      setPushPermission(null)
-      await resetPushRegistration()
-      queryClient.cancelQueries()
-      queryClient.clear()
-      await purgePersistedCache()
+    } catch (error) {
+      reportError(error, { area: 'logout' })
+      setAccountActionError(error?.message || '로그아웃에 실패했습니다. 네트워크 상태를 확인한 뒤 다시 시도해주세요.')
+      throw error
     }
+    setUser(null)
+    setPushStatus('idle')
+    setPushPermission(null)
+    await resetPushRegistration()
+    queryClient.cancelQueries()
+    queryClient.clear()
+    await purgePersistedCache()
   }
 
   async function handleWithdraw() {
-    await withdrawSelf()
+    setAccountActionError('')
+    try {
+      await withdrawSelf()
+    } catch (error) {
+      reportError(error, { area: 'withdraw' })
+      setAccountActionError(error?.message || '회원 탈퇴에 실패했습니다. 계정 상태는 변경되지 않았습니다.')
+      throw error
+    }
     setUser(null)
     setPushStatus('idle')
     await resetPushRegistration()
@@ -655,6 +667,7 @@ export default function App() {
         onWipeDevice={async () => { await handleWipeDevice(); setShowSettings(false) }}
         onWithdraw={async () => { await handleWithdraw(); setShowSettings(false) }}
         onLogout={async () => { await handleLogout(); setShowSettings(false) }}
+        accountActionError={accountActionError}
         onBack={() => setShowSettings(false)}
       />
     )
@@ -702,6 +715,7 @@ export default function App() {
       onLogout={handleLogout}
       onWithdraw={handleWithdraw}
       onWipeDevice={handleWipeDevice}
+      accountActionError={accountActionError}
       onShowPrivacy={() => setShowPrivacy(true)}
       themePreference={themePreference}
       onChangeTheme={applyTheme}
