@@ -7,6 +7,7 @@ import { deleteCommunityPost } from '../services/communityApi.js'
 import { createNotice, updateNotice } from '../services/noticeApi.js'
 import { asArray, formatDate, generationFromStudentId, plainText } from '../utils/format.js'
 import { categoryLabels, isAdminUser, latest, noticeCategoryLabels } from '../utils/helpers.js'
+import { validateHttpUrl } from '../utils/urlValidation.js'
 import { Empty, Info, ListItem, Metric, Section } from '../components/ui.jsx'
 
 const ACTIVITY_CATEGORIES = ['GENERAL', 'SEMINAR', 'STUDY', 'PROJECT', 'MEETING', 'RECRUIT', 'EVENT', 'MT', 'ACHIEVEMENT']
@@ -177,19 +178,10 @@ export default function OperationsTab({ user, notices, posts, clubActivities = [
   async function submitApp(event) {
     event.preventDefault()
     if (!appTitle.trim()) return
-    const href = appHref.trim()
-    if (href) {
-      let safe
-      try {
-        const protocol = new URL(href).protocol
-        safe = protocol === 'http:' || protocol === 'https:'
-      } catch {
-        safe = false
-      }
-      if (!safe) {
-        setError('링크는 http(s) 주소만 등록할 수 있습니다.')
-        return
-      }
+    const hrefValidation = validateHttpUrl(appHref, { allowEmpty: true })
+    if (!hrefValidation.ok) {
+      setError(hrefValidation.message)
+      return
     }
     setSavingApp(true)
     setMessage('')
@@ -198,7 +190,7 @@ export default function OperationsTab({ user, notices, posts, clubActivities = [
       title: appTitle.trim(),
       eyebrow: appEyebrow.trim(),
       body: appBody.trim(),
-      href,
+      href: hrefValidation.url,
       sortOrder: Number(appSortOrder) || 0,
     }
     try {
