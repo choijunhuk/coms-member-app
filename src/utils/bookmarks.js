@@ -1,19 +1,10 @@
-const KEY = 'coms.bookmarks.posts:v1'
+import { readStoredValue, writeStoredValue } from './deviceStorage.js'
 
-function storage() {
-  try {
-    if (typeof window === 'undefined') return null
-    return window.localStorage
-  } catch {
-    return null
-  }
-}
+export const BOOKMARKS_KEY = 'coms.bookmarks.posts:v1'
 
 export function readBookmarks() {
-  const s = storage()
-  if (!s) return []
   try {
-    const raw = s.getItem(KEY)
+    const raw = readStoredValue(BOOKMARKS_KEY)
     if (!raw) return []
     const parsed = JSON.parse(raw)
     return Array.isArray(parsed) ? parsed.map((value) => String(value)) : []
@@ -23,10 +14,8 @@ export function readBookmarks() {
 }
 
 export function writeBookmarks(ids) {
-  const s = storage()
-  if (!s) return
   const normalized = Array.isArray(ids) ? Array.from(new Set(ids.map((value) => String(value)))) : []
-  s.setItem(KEY, JSON.stringify(normalized))
+  writeStoredValue(BOOKMARKS_KEY, JSON.stringify(normalized))
 }
 
 export function isBookmarked(id) {

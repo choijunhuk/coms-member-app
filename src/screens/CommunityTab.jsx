@@ -44,7 +44,7 @@ export default function CommunityTab({ posts, selected, comments, loading, openP
     setReportedAt(Date.now())
   }
 
-  // Derive from localStorage on each render keyed by selected id and the toggle tick.
+  // Derive from device storage on each render keyed by selected id and the toggle tick.
   // Cheaper than wiring an effect, and the tick triggers a refresh after toggleBookmark writes.
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const bookmarked = useMemo(() => Boolean(selected?.id) && isBookmarked(selected.id), [selected?.id, bookmarkTick])

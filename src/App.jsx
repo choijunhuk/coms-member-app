@@ -35,8 +35,11 @@ import { asArray } from './utils/format.js'
 import { isAdminUser, normalizeAppConfig, normalizeHomeData } from './utils/helpers.js'
 import { isVersionBelow } from './utils/version.js'
 import { useNotificationPolling } from './hooks/useNotificationPolling.js'
-import { isNew, readLastSeen, writeLastSeen } from './utils/lastSeen.js'
-import { markOnboarded, readFontScale, readIdleLock, readOnboarded, readTheme, resolveIdleLockMs, resolveTheme, writeTheme } from './utils/preferences.js'
+import { isNew, lastSeenStorageKey, readLastSeen, writeLastSeen } from './utils/lastSeen.js'
+import { markOnboarded, PREFERENCE_STORAGE_KEYS, readFontScale, readIdleLock, readOnboarded, readTheme, resolveIdleLockMs, resolveTheme, writeTheme } from './utils/preferences.js'
+import { BOOKMARKS_KEY } from './utils/bookmarks.js'
+import { RECENT_RESOURCES_KEY } from './utils/resourceHistory.js'
+import { hydrateStoredValues, removeStoredValuesByPrefix } from './utils/deviceStorage.js'
 import { reportError, setUserContext } from './services/observability.js'
 import { purgePersistedCache } from './services/queryClient.js'
 import { registerPushTokenWithRetry } from './utils/pushRegistration.js'
@@ -57,6 +60,13 @@ import SettingsScreen from './screens/SettingsScreen.jsx'
 
 const DEFAULT_IDLE_LOCK_THRESHOLD_MS = 5 * 60 * 1000
 const DASHBOARD_QUERY_KEY = ['member-app', 'dashboard']
+const MEMBER_STORAGE_KEYS = [
+  ...PREFERENCE_STORAGE_KEYS,
+  BOOKMARKS_KEY,
+  RECENT_RESOURCES_KEY,
+  lastSeenStorageKey('notices'),
+  lastSeenStorageKey('posts'),
+]
 
 const NoticesTab = lazy(() => import('./screens/NoticesTab.jsx'))
 const CommunityTab = lazy(() => import('./screens/CommunityTab.jsx'))
@@ -202,6 +212,20 @@ export default function App() {
       cancelled = true
     }
   }, [restoreSession])
+
+  useEffect(() => {
+    let cancelled = false
+    hydrateStoredValues(MEMBER_STORAGE_KEYS).then(() => {
+      if (cancelled) return
+      setThemePreference(readTheme())
+      setOnboardingDismissed(readOnboarded())
+      setLastSeenNotices(readLastSeen('notices'))
+      setLastSeenPosts(readLastSeen('posts'))
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [])
 
   useEffect(() => {
     void setUserContext(user)
@@ -612,14 +636,7 @@ export default function App() {
     queryClient.cancelQueries()
     queryClient.clear()
     await purgePersistedCache()
-    if (typeof window !== 'undefined') {
-      const keys = []
-      for (let i = 0; i < window.localStorage.length; i += 1) {
-        const key = window.localStorage.key(i)
-        if (key && key.startsWith('coms.')) keys.push(key)
-      }
-      keys.forEach((key) => window.localStorage.removeItem(key))
-    }
+    await removeStoredValuesByPrefix('coms.')
   }
 
   async function handleWipeDevice() {
@@ -628,14 +645,7 @@ export default function App() {
     queryClient.cancelQueries()
     queryClient.clear()
     await purgePersistedCache()
-    if (typeof window !== 'undefined') {
-      const keys = []
-      for (let i = 0; i < window.localStorage.length; i += 1) {
-        const key = window.localStorage.key(i)
-        if (key && key.startsWith('coms.')) keys.push(key)
-      }
-      keys.forEach((key) => window.localStorage.removeItem(key))
-    }
+    await removeStoredValuesByPrefix('coms.')
     try {
       await logoutUser()
     } finally {

@@ -1,27 +1,20 @@
-const PREFIX = 'coms.lastSeen:v1:'
+import { readStoredValue, writeStoredValue } from './deviceStorage.js'
 
-function storage() {
-  try {
-    if (typeof window === 'undefined') return null
-    return window.localStorage
-  } catch {
-    return null
-  }
+export const LAST_SEEN_PREFIX = 'coms.lastSeen:v1:'
+
+export function lastSeenStorageKey(key) {
+  return LAST_SEEN_PREFIX + key
 }
 
 export function readLastSeen(key) {
-  const s = storage()
-  if (!s) return 0
-  const raw = s.getItem(PREFIX + key)
+  const raw = readStoredValue(lastSeenStorageKey(key))
   const value = raw ? Number(raw) : 0
   return Number.isFinite(value) ? value : 0
 }
 
 export function writeLastSeen(key, value) {
-  const s = storage()
-  if (!s) return
   const next = Number.isFinite(value) ? value : 0
-  s.setItem(PREFIX + key, String(next))
+  writeStoredValue(lastSeenStorageKey(key), String(next))
 }
 
 export function isNew(createdAt, lastSeen) {

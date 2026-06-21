@@ -58,7 +58,7 @@ export default function ProfileTab({
     [posts, user],
   )
 
-  // Read once per ProfileTab mount/posts change. localStorage is cheap; rendering with stale ids
+  // Read once per ProfileTab mount/posts change. Device storage is mirrored in memory; rendering with stale ids
   // is fine because toggling happens from CommunityTab and writes synchronously.
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const bookmarkSet = useMemo(() => new Set(readBookmarks().map(String)), [posts])
