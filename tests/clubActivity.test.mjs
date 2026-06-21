@@ -2,6 +2,7 @@ import assert from 'node:assert/strict'
 import {
   CLUB_ACTIVITIES_PATH,
   companionServices,
+  companionServicesForLinks,
   createClubActivity,
   listClubActivities,
   nextSchedules,
@@ -34,6 +35,7 @@ assert.equal(calls[1].options.method, 'POST')
 assert.ok(calls[1].options.body instanceof FormData)
 assert.equal(companionServices.length, 5)
 assert.deepEqual(companionServices.map((service) => service.title), ['Food Club', 'TeamMate', 'Game Club', 'KW Mate', 'Daily Coding'])
+assert.deepEqual(companionServicesForLinks({ foodClub: 'https://example.com/food/' }).map((service) => service.href)[0], 'https://example.com/food/')
 
 const records = [
   { id: 1, kind: 'SCHEDULE', title: '이번 주 세미나', eventDate: '2026-06-21' },

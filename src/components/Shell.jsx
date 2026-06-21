@@ -1,12 +1,14 @@
 import { Bell, Grid2X2, RefreshCcw, Settings, UserRound } from 'lucide-react'
 import { APP_SHELL_TABS } from '../config/appScope.js'
+import { DEFAULT_APP_LINKS, normalizeExternalUrl } from '../config/appLinks.js'
 import { isAdminUser } from '../utils/helpers.js'
 import { usePullToRefresh } from '../hooks/usePullToRefresh.js'
 import { hapticLight } from '../services/haptics.js'
 
-export function Shell({ user, activeTab, setActiveTab, unreadCount, onRefresh, refreshing, children, tabBadges = {}, onOpenSettings }) {
+export function Shell({ user, activeTab, setActiveTab, unreadCount, onRefresh, refreshing, children, tabBadges = {}, onOpenSettings, appLinks }) {
   const tabs = APP_SHELL_TABS.filter((tab) => !tab.adminOnly || isAdminUser(user))
   const active = APP_SHELL_TABS.find((tab) => tab.id === activeTab)
+  const hubUrl = normalizeExternalUrl(appLinks?.hub, DEFAULT_APP_LINKS.hub)
 
   const { ref: pullRef, distance, refreshing: pullRefreshing, triggered } = usePullToRefresh(async () => {
     void hapticLight()
@@ -25,7 +27,7 @@ export function Shell({ user, activeTab, setActiveTab, unreadCount, onRefresh, r
           <h1>{active?.label || '회원 앱'}</h1>
         </div>
         <div className="top-actions">
-          <a className="icon-button" href="https://coms.kw.ac.kr/" target="_blank" rel="noreferrer" aria-label="COMS 앱 허브">
+          <a className="icon-button" href={hubUrl} target="_blank" rel="noreferrer" aria-label="COMS 앱 허브">
             <Grid2X2 size={18} aria-hidden="true" />
           </a>
           <button type="button" className="icon-button" onClick={onRefresh} disabled={refreshing} aria-label="새로고침">

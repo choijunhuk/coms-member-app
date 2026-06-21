@@ -35,9 +35,12 @@ import { asArray } from './utils/format.js'
 import { isAdminUser, normalizeAppConfig, normalizeHomeData } from './utils/helpers.js'
 import { isVersionBelow } from './utils/version.js'
 import { useNotificationPolling } from './hooks/useNotificationPolling.js'
-import { isNew, readLastSeen, writeLastSeen } from './utils/lastSeen.js'
-import { markOnboarded, readFontScale, readIdleLock, readOnboarded, readTheme, resolveIdleLockMs, resolveTheme, writeTheme } from './utils/preferences.js'
-import { setUserContext } from './services/observability.js'
+import { isNew, lastSeenStorageKey, readLastSeen, writeLastSeen } from './utils/lastSeen.js'
+import { markOnboarded, PREFERENCE_STORAGE_KEYS, readFontScale, readIdleLock, readOnboarded, readTheme, resolveIdleLockMs, resolveTheme, writeTheme } from './utils/preferences.js'
+import { BOOKMARKS_KEY } from './utils/bookmarks.js'
+import { RECENT_RESOURCES_KEY } from './utils/resourceHistory.js'
+import { hydrateStoredValues, removeStoredValuesByPrefix } from './utils/deviceStorage.js'
+import { reportError, setUserContext } from './services/observability.js'
 import { purgePersistedCache } from './services/queryClient.js'
 import { registerPushTokenWithRetry } from './utils/pushRegistration.js'
 import { pushStatusFromPermission } from './utils/pushPermissionStatus.js'
@@ -57,6 +60,13 @@ import SettingsScreen from './screens/SettingsScreen.jsx'
 
 const DEFAULT_IDLE_LOCK_THRESHOLD_MS = 5 * 60 * 1000
 const DASHBOARD_QUERY_KEY = ['member-app', 'dashboard']
+const MEMBER_STORAGE_KEYS = [
+  ...PREFERENCE_STORAGE_KEYS,
+  BOOKMARKS_KEY,
+  RECENT_RESOURCES_KEY,
+  lastSeenStorageKey('notices'),
+  lastSeenStorageKey('posts'),
+]
 
 const NoticesTab = lazy(() => import('./screens/NoticesTab.jsx'))
 const CommunityTab = lazy(() => import('./screens/CommunityTab.jsx'))
@@ -134,6 +144,7 @@ export default function App() {
   const [postLoading, setPostLoading] = useState(false)
   const [comments, setComments] = useState([])
   const [slowSync, setSlowSync] = useState(false)
+  const [accountActionError, setAccountActionError] = useState('')
 
   const restoreSession = useCallback(async () => {
     try {
@@ -203,6 +214,20 @@ export default function App() {
   }, [restoreSession])
 
   useEffect(() => {
+    let cancelled = false
+    hydrateStoredValues(MEMBER_STORAGE_KEYS).then(() => {
+      if (cancelled) return
+      setThemePreference(readTheme())
+      setOnboardingDismissed(readOnboarded())
+      setLastSeenNotices(readLastSeen('notices'))
+      setLastSeenPosts(readLastSeen('posts'))
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  useEffect(() => {
     void setUserContext(user)
   }, [user])
 
@@ -243,7 +268,10 @@ export default function App() {
     }
     isBiometricAvailable().then((available) => {
       if (!cancelled) setBiometricReady(available)
-    }).catch(() => {})
+    }).catch((error) => {
+      reportError(error, { area: 'biometric-availability' })
+      if (!cancelled) setBiometricReady(false)
+    })
     return () => {
       cancelled = true
     }
@@ -291,11 +319,15 @@ export default function App() {
       if (!last || Date.now() - last < threshold) return
       void isBiometricAvailable().then((available) => {
         if (available) setLocked(true)
+      }).catch((error) => {
+        reportError(error, { area: 'biometric-idle-lock' })
       })
     }).then((remove) => {
       if (mounted) cleanup = remove
       else remove()
-    }).catch(() => {})
+    }).catch((error) => {
+      reportError(error, { area: 'app-state-listener' })
+    })
     return () => {
       mounted = false
       cleanup()
@@ -391,7 +423,9 @@ export default function App() {
     setupDeepLinkListener(openRoute).then((remove) => {
       if (mounted) cleanup = remove
       else remove()
-    }).catch(() => {})
+    }).catch((error) => {
+      reportError(error, { area: 'deep-link-listener' })
+    })
     return () => {
       mounted = false
       cleanup()
@@ -428,7 +462,9 @@ export default function App() {
     }).then((remove) => {
       if (mounted) cleanup = remove
       else remove()
-    }).catch(() => {})
+    }).catch((error) => {
+      reportError(error, { area: 'back-button-listener' })
+    })
     return () => {
       mounted = false
       cleanup()
@@ -561,41 +597,46 @@ export default function App() {
       const permission = await refreshPushPermission()
       if (result.status !== 'requested') setPushStatus(pushStatusFromPermission(permission, result.status))
       else setPushStatus((status) => status === 'registered' ? status : pushStatusFromPermission(permission, 'requested'))
-    } catch {
+    } catch (error) {
+      reportError(error, { area: 'push-registration-request' })
       setPushStatus('error')
     }
   }, [appConfig.pushEnabled, openRoute, refreshPushPermission, user])
 
   async function handleLogout() {
+    setAccountActionError('')
     try {
       await logoutUser()
-    } finally {
-      setUser(null)
-      setPushStatus('idle')
-      setPushPermission(null)
-      await resetPushRegistration()
-      queryClient.cancelQueries()
-      queryClient.clear()
-      await purgePersistedCache()
+    } catch (error) {
+      reportError(error, { area: 'logout' })
+      setAccountActionError(error?.message || '로그아웃에 실패했습니다. 네트워크 상태를 확인한 뒤 다시 시도해주세요.')
+      throw error
     }
+    setUser(null)
+    setPushStatus('idle')
+    setPushPermission(null)
+    await resetPushRegistration()
+    queryClient.cancelQueries()
+    queryClient.clear()
+    await purgePersistedCache()
   }
 
   async function handleWithdraw() {
-    await withdrawSelf()
+    setAccountActionError('')
+    try {
+      await withdrawSelf()
+    } catch (error) {
+      reportError(error, { area: 'withdraw' })
+      setAccountActionError(error?.message || '회원 탈퇴에 실패했습니다. 계정 상태는 변경되지 않았습니다.')
+      throw error
+    }
     setUser(null)
     setPushStatus('idle')
     await resetPushRegistration()
     queryClient.cancelQueries()
     queryClient.clear()
     await purgePersistedCache()
-    if (typeof window !== 'undefined') {
-      const keys = []
-      for (let i = 0; i < window.localStorage.length; i += 1) {
-        const key = window.localStorage.key(i)
-        if (key && key.startsWith('coms.')) keys.push(key)
-      }
-      keys.forEach((key) => window.localStorage.removeItem(key))
-    }
+    await removeStoredValuesByPrefix('coms.')
   }
 
   async function handleWipeDevice() {
@@ -604,14 +645,7 @@ export default function App() {
     queryClient.cancelQueries()
     queryClient.clear()
     await purgePersistedCache()
-    if (typeof window !== 'undefined') {
-      const keys = []
-      for (let i = 0; i < window.localStorage.length; i += 1) {
-        const key = window.localStorage.key(i)
-        if (key && key.startsWith('coms.')) keys.push(key)
-      }
-      keys.forEach((key) => window.localStorage.removeItem(key))
-    }
+    await removeStoredValuesByPrefix('coms.')
     try {
       await logoutUser()
     } finally {
@@ -643,6 +677,7 @@ export default function App() {
         onWipeDevice={async () => { await handleWipeDevice(); setShowSettings(false) }}
         onWithdraw={async () => { await handleWithdraw(); setShowSettings(false) }}
         onLogout={async () => { await handleLogout(); setShowSettings(false) }}
+        accountActionError={accountActionError}
         onBack={() => setShowSettings(false)}
       />
     )
@@ -678,7 +713,7 @@ export default function App() {
       <HomeTab notices={notices} posts={posts} files={files} clubActivities={clubActivities} unreadCount={unreadCount} openNotice={openNotice} openPost={openPost} setActiveTab={changeTab} />
     </div>
   )
-  else if (activeTab === 'activity') content = <ActivityTab clubActivities={clubActivities} apps={apps} />
+  else if (activeTab === 'activity') content = <ActivityTab clubActivities={clubActivities} apps={apps} appLinks={appConfig.links} />
   else if (activeTab === 'notices') content = <NoticesTab notices={notices} selected={selectedNotice} loading={noticeLoading} openNotice={openNotice} closeNotice={() => setSelectedNotice(null)} />
   else if (activeTab === 'community') content = <CommunityTab posts={posts} selected={selectedPost} comments={comments} loading={postLoading} openPost={openPost} closePost={() => { setSelectedPost(null); setComments([]) }} createPost={createPost} createCommentForPost={createCommentForPost} editComment={editCommentForPost} removeComment={removeCommentForPost} vote={vote} pollVote={pollVote} currentUser={user} />
   else if (activeTab === 'resources') content = <ResourcesTab files={files} />
@@ -690,6 +725,7 @@ export default function App() {
       onLogout={handleLogout}
       onWithdraw={handleWithdraw}
       onWipeDevice={handleWipeDevice}
+      accountActionError={accountActionError}
       onShowPrivacy={() => setShowPrivacy(true)}
       themePreference={themePreference}
       onChangeTheme={applyTheme}
@@ -711,7 +747,7 @@ export default function App() {
   )
 
   return (
-    <Shell user={user} activeTab={activeTab} setActiveTab={changeTab} unreadCount={unreadCount} refreshing={refreshing} onRefresh={refreshDashboard} tabBadges={tabBadges} onOpenSettings={() => setShowSettings(true)}>
+    <Shell user={user} activeTab={activeTab} setActiveTab={changeTab} unreadCount={unreadCount} refreshing={refreshing} onRefresh={refreshDashboard} tabBadges={tabBadges} onOpenSettings={() => setShowSettings(true)} appLinks={appConfig.links}>
       <ErrorBoundary label={activeTab}>
         <Suspense fallback={<LoadingScreen label="화면을 준비 중입니다." />}>{body}</Suspense>
       </ErrorBoundary>

@@ -1,19 +1,10 @@
-const KEY = 'coms.resources.recent:v1'
+import { readStoredValue, writeStoredValue } from './deviceStorage.js'
 
-function storage() {
-  try {
-    if (typeof window === 'undefined') return null
-    return window.localStorage
-  } catch {
-    return null
-  }
-}
+export const RECENT_RESOURCES_KEY = 'coms.resources.recent:v1'
 
 export function readRecentResourceIds() {
-  const s = storage()
-  if (!s) return []
   try {
-    const parsed = JSON.parse(s.getItem(KEY) || '[]')
+    const parsed = JSON.parse(readStoredValue(RECENT_RESOURCES_KEY) || '[]')
     return Array.isArray(parsed) ? parsed.map(String) : []
   } catch {
     return []
@@ -22,8 +13,6 @@ export function readRecentResourceIds() {
 
 export function rememberResource(id) {
   if (id == null) return
-  const s = storage()
-  if (!s) return
   const next = [String(id), ...readRecentResourceIds().filter((item) => item !== String(id))].slice(0, 8)
-  s.setItem(KEY, JSON.stringify(next))
+  writeStoredValue(RECENT_RESOURCES_KEY, JSON.stringify(next))
 }

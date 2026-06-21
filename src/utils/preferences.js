@@ -1,3 +1,5 @@
+import { readStoredValue, writeStoredValue } from './deviceStorage.js'
+
 const THEME_KEY = 'coms.theme:v1'
 const PUSH_KEY = 'coms.push.types:v1'
 const ONBOARDING_KEY = 'coms.onboarded:v1'
@@ -5,29 +7,18 @@ const FONT_SCALE_KEY = 'coms.fontScale:v1'
 const HAPTIC_KEY = 'coms.haptic:v1'
 const IDLE_LOCK_KEY = 'coms.idleLock:v1'
 
-function storage() {
-  try {
-    if (typeof window === 'undefined') return null
-    return window.localStorage
-  } catch {
-    return null
-  }
-}
+export const PREFERENCE_STORAGE_KEYS = [THEME_KEY, PUSH_KEY, ONBOARDING_KEY, FONT_SCALE_KEY, HAPTIC_KEY, IDLE_LOCK_KEY]
 
 export const THEME_VALUES = ['system', 'light', 'dark']
 
 export function readTheme() {
-  const s = storage()
-  if (!s) return 'system'
-  const value = s.getItem(THEME_KEY)
+  const value = readStoredValue(THEME_KEY)
   return THEME_VALUES.includes(value) ? value : 'system'
 }
 
 export function writeTheme(value) {
-  const s = storage()
-  if (!s) return
   if (!THEME_VALUES.includes(value)) return
-  s.setItem(THEME_KEY, value)
+  writeStoredValue(THEME_KEY, value)
 }
 
 export function resolveTheme(preference) {
@@ -47,11 +38,9 @@ export const PUSH_TYPES = [
 ]
 
 export function readPushPreferences() {
-  const s = storage()
   const defaults = Object.fromEntries(PUSH_TYPES.map((type) => [type.id, true]))
-  if (!s) return defaults
   try {
-    const raw = s.getItem(PUSH_KEY)
+    const raw = readStoredValue(PUSH_KEY)
     if (!raw) return defaults
     const parsed = JSON.parse(raw)
     return { ...defaults, ...parsed }
@@ -61,21 +50,15 @@ export function readPushPreferences() {
 }
 
 export function writePushPreferences(prefs) {
-  const s = storage()
-  if (!s) return
-  s.setItem(PUSH_KEY, JSON.stringify(prefs))
+  writeStoredValue(PUSH_KEY, JSON.stringify(prefs))
 }
 
 export function readOnboarded() {
-  const s = storage()
-  if (!s) return false
-  return s.getItem(ONBOARDING_KEY) === '1'
+  return readStoredValue(ONBOARDING_KEY) === '1'
 }
 
 export function markOnboarded() {
-  const s = storage()
-  if (!s) return
-  s.setItem(ONBOARDING_KEY, '1')
+  writeStoredValue(ONBOARDING_KEY, '1')
 }
 
 export const FONT_SCALE_VALUES = [
@@ -86,17 +69,13 @@ export const FONT_SCALE_VALUES = [
 ]
 
 export function readFontScale() {
-  const s = storage()
-  if (!s) return 'medium'
-  const value = s.getItem(FONT_SCALE_KEY)
+  const value = readStoredValue(FONT_SCALE_KEY)
   return FONT_SCALE_VALUES.some((item) => item.id === value) ? value : 'medium'
 }
 
 export function writeFontScale(value) {
-  const s = storage()
-  if (!s) return
   if (!FONT_SCALE_VALUES.some((item) => item.id === value)) return
-  s.setItem(FONT_SCALE_KEY, value)
+  writeStoredValue(FONT_SCALE_KEY, value)
 }
 
 export function resolveFontFactor(id) {
@@ -104,16 +83,12 @@ export function resolveFontFactor(id) {
 }
 
 export function readHapticEnabled() {
-  const s = storage()
-  if (!s) return true
-  const raw = s.getItem(HAPTIC_KEY)
+  const raw = readStoredValue(HAPTIC_KEY)
   return raw === null ? true : raw === '1'
 }
 
 export function writeHapticEnabled(value) {
-  const s = storage()
-  if (!s) return
-  s.setItem(HAPTIC_KEY, value ? '1' : '0')
+  writeStoredValue(HAPTIC_KEY, value ? '1' : '0')
 }
 
 export const IDLE_LOCK_VALUES = [
@@ -125,17 +100,13 @@ export const IDLE_LOCK_VALUES = [
 ]
 
 export function readIdleLock() {
-  const s = storage()
-  if (!s) return '5m'
-  const value = s.getItem(IDLE_LOCK_KEY)
+  const value = readStoredValue(IDLE_LOCK_KEY)
   return IDLE_LOCK_VALUES.some((item) => item.id === value) ? value : '5m'
 }
 
 export function writeIdleLock(value) {
-  const s = storage()
-  if (!s) return
   if (!IDLE_LOCK_VALUES.some((item) => item.id === value)) return
-  s.setItem(IDLE_LOCK_KEY, value)
+  writeStoredValue(IDLE_LOCK_KEY, value)
 }
 
 export function resolveIdleLockMs(id) {

@@ -9,7 +9,7 @@
     "build:mobile": "node scripts/build-mobile.mjs",
     "preview": "vite preview",
     "lint": "eslint .",
-    "test": "node tests/appScope.test.mjs && node tests/apiClient.test.mjs && node tests/mobileRoutes.test.mjs && node tests/mobileApi.test.mjs && node tests/iosNativeContract.test.mjs && node tests/clubActivity.test.mjs && node tests/communityTrust.test.mjs && node tests/memberExperience.test.mjs && node tests/mobileUiContract.test.mjs && node tests/adminLight.test.mjs && node tests/postBlocks.test.mjs && node tests/pollDraft.test.mjs && node tests/passwordPolicy.test.mjs && node tests/version.test.mjs && node tests/markdown.test.mjs && node tests/preferences.test.mjs",
+    "test": "node tests/appScope.test.mjs && node tests/apiClient.test.mjs && node tests/mobileRoutes.test.mjs && node tests/mobileApi.test.mjs && node tests/iosNativeContract.test.mjs && node tests/clubActivity.test.mjs && node tests/communityTrust.test.mjs && node tests/memberExperience.test.mjs && node tests/mobileUiContract.test.mjs && node tests/adminLight.test.mjs && node tests/postBlocks.test.mjs && node tests/pollDraft.test.mjs && node tests/passwordPolicy.test.mjs && node tests/version.test.mjs && node tests/markdown.test.mjs && node tests/preferences.test.mjs && node tests/nativeErrorLogging.test.mjs && node tests/accountActions.test.mjs && node tests/deviceStorage.test.mjs && node tests/urlValidation.test.mjs",
     "cap:sync": "npm run build:mobile && npx cap sync",
     "cap:android": "npm run build:mobile && npx cap sync android && npx cap open android",
     "cap:ios": "npm run build:mobile && npx cap sync ios && npx cap open ios"
@@ -20,6 +20,7 @@
     "@capacitor/browser": "^8.0.3",
     "@capacitor/core": "^8.4.0",
     "@capacitor/haptics": "^8.0.2",
+    "@capacitor/preferences": "^8.0.1",
     "@capacitor/push-notifications": "^8.1.1",
     "@capacitor/share": "^8.0.1",
     "@sentry/react": "^10.57.0",

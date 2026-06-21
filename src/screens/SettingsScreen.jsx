@@ -28,6 +28,7 @@ export default function SettingsScreen({
   onWipeDevice,
   onWithdraw,
   onLogout,
+  accountActionError = '',
   onBack,
 }) {
   const [fontScale, setFontScale] = useState(() => readFontScale())
@@ -150,7 +151,17 @@ export default function SettingsScreen({
         </section>
 
         <section className="panel">
-          <button type="button" className="button danger" onClick={onLogout}><LogOut size={16} aria-hidden="true" /> 로그아웃</button>
+          <button
+            type="button"
+            className="button danger"
+            disabled={busy === 'logout'}
+            onClick={async () => {
+              setBusy('logout')
+              try { await onLogout?.() } catch { /* App owns the visible accountActionError. */ } finally { setBusy('') }
+            }}
+          >
+            <LogOut size={16} aria-hidden="true" /> {busy === 'logout' ? '로그아웃 중...' : '로그아웃'}
+          </button>
           <button
             type="button"
             className="button danger"
@@ -159,11 +170,12 @@ export default function SettingsScreen({
             onClick={async () => {
               if (typeof window !== 'undefined' && !window.confirm('정말로 회원에서 탈퇴할까요? 작성한 글과 댓글도 함께 삭제되며 되돌릴 수 없습니다.')) return
               setBusy('withdraw')
-              try { await onWithdraw?.() } finally { setBusy('') }
+              try { await onWithdraw?.() } catch { /* App owns the visible accountActionError. */ } finally { setBusy('') }
             }}
           >
             <UserX size={16} aria-hidden="true" /> 회원 탈퇴
           </button>
+          {accountActionError && <p className="form-error">{accountActionError}</p>}
         </section>
       </section>
     </main>

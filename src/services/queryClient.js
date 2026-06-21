@@ -1,5 +1,5 @@
 import { QueryClient } from '@tanstack/react-query'
-import { createSyncStoragePersister } from '@tanstack/query-sync-storage-persister'
+import { readStoredValueAsync, removeStoredValueAsync, writeStoredValueAsync } from '../utils/deviceStorage.js'
 
 export const QUERY_CACHE_STORAGE_KEY = 'coms-member-app-query-cache:v1'
 
@@ -18,23 +18,18 @@ export const queryClient = new QueryClient({
   },
 })
 
-function safeStorage() {
-  try {
-    if (typeof window === 'undefined') return null
-    const probe = '__coms-probe__'
-    window.localStorage.setItem(probe, probe)
-    window.localStorage.removeItem(probe)
-    return window.localStorage
-  } catch {
-    return null
-  }
+export const queryPersister = {
+  persistClient: async (client) => {
+    await writeStoredValueAsync(QUERY_CACHE_STORAGE_KEY, JSON.stringify(client))
+  },
+  restoreClient: async () => {
+    const raw = await readStoredValueAsync(QUERY_CACHE_STORAGE_KEY)
+    return raw ? JSON.parse(raw) : undefined
+  },
+  removeClient: async () => {
+    await removeStoredValueAsync(QUERY_CACHE_STORAGE_KEY)
+  },
 }
-
-export const queryPersister = (() => {
-  const storage = safeStorage()
-  if (!storage) return null
-  return createSyncStoragePersister({ storage, key: QUERY_CACHE_STORAGE_KEY })
-})()
 
 export async function purgePersistedCache() {
   try {
@@ -45,9 +40,7 @@ export async function purgePersistedCache() {
     // ignore — fallthrough to direct storage wipe
   }
   try {
-    if (typeof window !== 'undefined') {
-      window.localStorage.removeItem(QUERY_CACHE_STORAGE_KEY)
-    }
+    await removeStoredValueAsync(QUERY_CACHE_STORAGE_KEY)
   } catch {
     // storage unavailable — nothing to wipe
   }

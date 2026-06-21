@@ -31,6 +31,7 @@ export default function ProfileTab({
   onLogout,
   onWithdraw,
   onWipeDevice,
+  accountActionError = '',
   onShowPrivacy,
   themePreference = 'system',
   onChangeTheme,
@@ -57,7 +58,7 @@ export default function ProfileTab({
     [posts, user],
   )
 
-  // Read once per ProfileTab mount/posts change. localStorage is cheap; rendering with stale ids
+  // Read once per ProfileTab mount/posts change. Device storage is mirrored in memory; rendering with stale ids
   // is fine because toggling happens from CommunityTab and writes synchronously.
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const bookmarkSet = useMemo(() => new Set(readBookmarks().map(String)), [posts])
@@ -219,10 +220,27 @@ export default function ProfileTab({
           >
             <UserX size={16} aria-hidden="true" /> 회원 탈퇴
           </button>
-          {withdrawError && <p className="form-error">{withdrawError}</p>}
+          {(withdrawError || accountActionError) && <p className="form-error">{withdrawError || accountActionError}</p>}
         </div>
       </section>
-      <button type="button" className="button danger" onClick={onLogout}><LogOut size={17} />로그아웃</button>
+      <button
+        type="button"
+        className="button danger"
+        disabled={busyAction === 'logout'}
+        onClick={async () => {
+          setBusyAction('logout')
+          setWithdrawError('')
+          try {
+            await onLogout?.()
+          } catch (err) {
+            setWithdrawError(err?.message || '로그아웃에 실패했습니다.')
+          } finally {
+            setBusyAction('')
+          }
+        }}
+      >
+        <LogOut size={17} />{busyAction === 'logout' ? '로그아웃 중...' : '로그아웃'}
+      </button>
     </div>
   )
 }

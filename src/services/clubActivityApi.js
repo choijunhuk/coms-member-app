@@ -1,4 +1,5 @@
 import { request } from './apiClient.js'
+import { DEFAULT_APP_LINKS, normalizeAppLinks } from '../config/appLinks.js'
 import { ActivityCategory } from '../contract/enums.js'
 import { enumLabels } from '../contract/labels.js'
 
@@ -17,38 +18,43 @@ const ACTIVITY_CATEGORY_LABELS = enumLabels(ActivityCategory, {
   [ActivityCategory.ACHIEVEMENT]: '성과',
 })
 
-export const companionServices = [
+export function companionServicesForLinks(links = DEFAULT_APP_LINKS) {
+  const normalized = normalizeAppLinks({ links })
+  return [
   {
     title: 'Food Club',
     eyebrow: 'Meal loop',
     body: '부원들과 밥 약속과 맛집 후보를 모읍니다.',
-    href: 'https://coms.kw.ac.kr/foodclub/',
+    href: normalized.foodClub,
   },
   {
     title: 'TeamMate',
     eyebrow: 'Team randomizer',
     body: '스터디와 프로젝트 팀을 조건에 맞춰 나눕니다.',
-    href: 'https://coms.kw.ac.kr/team-randomizer/',
+    href: normalized.teamMate,
   },
   {
     title: 'Game Club',
     eyebrow: 'Playground',
     body: '동아리 안에서 함께 즐길 작은 게임 공간입니다.',
-    href: 'https://coms.kw.ac.kr/gameclub/',
+    href: normalized.gameClub,
   },
   {
     title: 'KW Mate',
     eyebrow: 'Campus utility',
     body: '광운대 생활 연결과 정보를 빠르게 찾습니다.',
-    href: 'https://kwmate.com/',
+    href: normalized.kwMate,
   },
   {
     title: 'Daily Coding',
     eyebrow: 'Practice',
     body: '매일 코딩 문제와 학습 루틴을 이어갑니다.',
-    href: 'https://dailycoding-final.com/',
+    href: normalized.dailyCoding,
   },
-]
+  ]
+}
+
+export const companionServices = companionServicesForLinks()
 
 export function listClubActivities() {
   return request(CLUB_ACTIVITIES_PATH)

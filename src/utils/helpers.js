@@ -1,5 +1,6 @@
 import { apiUrl } from '../services/apiClient.js'
 import { DEFAULT_APP_CONFIG } from '../services/mobileApi.js'
+import { normalizeAppLinks, normalizeExternalUrl } from '../config/appLinks.js'
 import { asArray } from './format.js'
 import { ArchiveCategory, CommunityCategory, NoticeCategory } from '../contract/enums.js'
 import { enumLabels } from '../contract/labels.js'
@@ -79,5 +80,11 @@ export function normalizeHomeData(data) {
 }
 
 export function normalizeAppConfig(data) {
-  return { ...DEFAULT_APP_CONFIG, ...(data || {}) }
+  const merged = { ...DEFAULT_APP_CONFIG, ...(data || {}) }
+  const links = normalizeAppLinks(merged)
+  return {
+    ...merged,
+    links,
+    updateUrl: normalizeExternalUrl(merged.updateUrl, links.update),
+  }
 }
