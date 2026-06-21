@@ -41,6 +41,12 @@ export async function captureError(error, context = {}) {
   }
 }
 
+export function reportError(error, context = {}) {
+  const label = context.label || context.area || 'Recoverable app error'
+  console.warn(label, error)
+  void captureError(error, context)
+}
+
 export async function setUserContext(user) {
   if (!initialized) return
   try {

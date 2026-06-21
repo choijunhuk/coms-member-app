@@ -1,6 +1,7 @@
 import { Capacitor } from '@capacitor/core'
 import { routeFromNotification, routeFromUrl } from '../utils/mobileRoutes.js'
 import { bundleVersion } from '../utils/version.js'
+import { reportError } from './observability.js'
 
 export function isNativeRuntime() {
   return Capacitor.isNativePlatform()
@@ -16,7 +17,8 @@ export async function readAppVersion() {
     const { App } = await import('@capacitor/app')
     const info = await App.getInfo()
     return info?.version || bundleVersion()
-  } catch {
+  } catch (err) {
+    reportError(err, { area: 'native-app-version' })
     return bundleVersion()
   }
 }
@@ -74,7 +76,7 @@ export async function readPushPermissionState() {
     if (result?.receive === 'denied') return 'denied'
     return 'prompt'
   } catch (err) {
-    console.warn('Push permission probe failed', err)
+    reportError(err, { area: 'push-permission-probe' })
     return 'unavailable'
   }
 }
@@ -88,7 +90,7 @@ export async function resetPushRegistration() {
     const { PushNotifications } = await import('@capacitor/push-notifications')
     await PushNotifications.removeAllListeners()
   } catch (err) {
-    console.warn('Push reset failed', err)
+    reportError(err, { area: 'push-reset' })
   } finally {
     pushListenersBound = false
   }
@@ -106,7 +108,7 @@ export async function requestPushRegistration({ onToken, onRoute, pushEnabled = 
   try {
     ({ PushNotifications } = await import('@capacitor/push-notifications'))
   } catch (err) {
-    console.warn('Push plugin import failed', err)
+    reportError(err, { area: 'push-plugin-import' })
     return { status: 'unavailable' }
   }
 
@@ -114,7 +116,7 @@ export async function requestPushRegistration({ onToken, onRoute, pushEnabled = 
   try {
     permission = await PushNotifications.requestPermissions()
   } catch (err) {
-    console.warn('Push permission request failed', err)
+    reportError(err, { area: 'push-permission-request' })
     return { status: 'error' }
   }
   if (permission.receive !== 'granted') return { status: 'denied' }
@@ -134,23 +136,23 @@ export async function requestPushRegistration({ onToken, onRoute, pushEnabled = 
     try {
       await PushNotifications.addListener('registration', (token) => {
         pushRegistrationErrorReason = null
-        try { pushHandlers.onToken?.(token?.value) } catch (err) { console.warn('Push token handler failed', err) }
+        try { pushHandlers.onToken?.(token?.value) } catch (err) { reportError(err, { area: 'push-token-handler' }) }
       })
       await PushNotifications.addListener('registrationError', (error) => {
         pushRegistrationErrorReason = error?.error || error?.message || 'registration-failed'
-        console.warn('Push registration failed', error)
+        reportError(error, { area: 'push-registration' })
       })
       await PushNotifications.addListener('pushNotificationActionPerformed', (event) => {
         try {
           const route = routeFromNotification(event?.notification)
           if (route) pushHandlers.onRoute?.(route)
         } catch (err) {
-          console.warn('Push action handler failed', err)
+          reportError(err, { area: 'push-action-handler' })
         }
       })
       pushListenersBound = true
     } catch (err) {
-      console.warn('Push listener bind failed', err)
+      reportError(err, { area: 'push-listener-bind' })
       return { status: 'error' }
     }
   }
@@ -158,7 +160,7 @@ export async function requestPushRegistration({ onToken, onRoute, pushEnabled = 
   try {
     await PushNotifications.register()
   } catch (err) {
-    console.warn('Push register call failed', err)
+    reportError(err, { area: 'push-register-call' })
     return { status: 'server-unavailable' }
   }
   if (pushRegistrationErrorReason) return { status: 'server-unavailable' }

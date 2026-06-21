@@ -37,7 +37,7 @@ import { isVersionBelow } from './utils/version.js'
 import { useNotificationPolling } from './hooks/useNotificationPolling.js'
 import { isNew, readLastSeen, writeLastSeen } from './utils/lastSeen.js'
 import { markOnboarded, readFontScale, readIdleLock, readOnboarded, readTheme, resolveIdleLockMs, resolveTheme, writeTheme } from './utils/preferences.js'
-import { setUserContext } from './services/observability.js'
+import { reportError, setUserContext } from './services/observability.js'
 import { purgePersistedCache } from './services/queryClient.js'
 import { registerPushTokenWithRetry } from './utils/pushRegistration.js'
 import { pushStatusFromPermission } from './utils/pushPermissionStatus.js'
@@ -243,7 +243,10 @@ export default function App() {
     }
     isBiometricAvailable().then((available) => {
       if (!cancelled) setBiometricReady(available)
-    }).catch(() => {})
+    }).catch((error) => {
+      reportError(error, { area: 'biometric-availability' })
+      if (!cancelled) setBiometricReady(false)
+    })
     return () => {
       cancelled = true
     }
@@ -291,11 +294,15 @@ export default function App() {
       if (!last || Date.now() - last < threshold) return
       void isBiometricAvailable().then((available) => {
         if (available) setLocked(true)
+      }).catch((error) => {
+        reportError(error, { area: 'biometric-idle-lock' })
       })
     }).then((remove) => {
       if (mounted) cleanup = remove
       else remove()
-    }).catch(() => {})
+    }).catch((error) => {
+      reportError(error, { area: 'app-state-listener' })
+    })
     return () => {
       mounted = false
       cleanup()
@@ -391,7 +398,9 @@ export default function App() {
     setupDeepLinkListener(openRoute).then((remove) => {
       if (mounted) cleanup = remove
       else remove()
-    }).catch(() => {})
+    }).catch((error) => {
+      reportError(error, { area: 'deep-link-listener' })
+    })
     return () => {
       mounted = false
       cleanup()
@@ -428,7 +437,9 @@ export default function App() {
     }).then((remove) => {
       if (mounted) cleanup = remove
       else remove()
-    }).catch(() => {})
+    }).catch((error) => {
+      reportError(error, { area: 'back-button-listener' })
+    })
     return () => {
       mounted = false
       cleanup()
@@ -561,7 +572,8 @@ export default function App() {
       const permission = await refreshPushPermission()
       if (result.status !== 'requested') setPushStatus(pushStatusFromPermission(permission, result.status))
       else setPushStatus((status) => status === 'registered' ? status : pushStatusFromPermission(permission, 'requested'))
-    } catch {
+    } catch (error) {
+      reportError(error, { area: 'push-registration-request' })
       setPushStatus('error')
     }
   }, [appConfig.pushEnabled, openRoute, refreshPushPermission, user])
