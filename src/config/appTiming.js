@@ -1,0 +1,2 @@
+export const DEFAULT_IDLE_LOCK_THRESHOLD_MS = 5 * 60 * 1000
+export const SLOW_SYNC_NOTICE_DELAY_MS = 4500

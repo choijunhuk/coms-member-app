@@ -1,4 +1,4 @@
-import { Suspense, lazy, useCallback, useEffect, useRef, useState } from 'react'
+import { Suspense, lazy, useCallback, useEffect, useMemo, useRef } from 'react'
 import { ShieldCheck } from 'lucide-react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { getCurrentUser, logoutUser, withdrawSelf } from './services/authApi.js'
@@ -44,6 +44,8 @@ import { reportError, setUserContext } from './services/observability.js'
 import { purgePersistedCache } from './services/queryClient.js'
 import { registerPushTokenWithRetry } from './utils/pushRegistration.js'
 import { pushStatusFromPermission } from './utils/pushPermissionStatus.js'
+import { DEFAULT_IDLE_LOCK_THRESHOLD_MS, SLOW_SYNC_NOTICE_DELAY_MS } from './config/appTiming.js'
+import { useAppState } from './hooks/useAppState.js'
 import { hapticLight, hapticSuccess } from './services/haptics.js'
 import { AppConfigBanner, LoadingScreen } from './components/ui.jsx'
 import { Shell } from './components/Shell.jsx'
@@ -58,7 +60,6 @@ import BiometricLockScreen from './screens/BiometricLockScreen.jsx'
 import PrivacyPolicyScreen from './screens/PrivacyPolicyScreen.jsx'
 import SettingsScreen from './screens/SettingsScreen.jsx'
 
-const DEFAULT_IDLE_LOCK_THRESHOLD_MS = 5 * 60 * 1000
 const DASHBOARD_QUERY_KEY = ['member-app', 'dashboard']
 const MEMBER_STORAGE_KEYS = [
   ...PREFERENCE_STORAGE_KEYS,
@@ -123,28 +124,51 @@ async function fetchDashboard() {
 
 export default function App() {
   const queryClient = useQueryClient()
-  const [user, setUser] = useState(null)
-  const [authLoading, setAuthLoading] = useState(true)
-  const [appVersion, setAppVersion] = useState(null)
-  const [locked, setLocked] = useState(false)
+  const {
+    user,
+    setUser,
+    authLoading,
+    setAuthLoading,
+    appVersion,
+    setAppVersion,
+    locked,
+    setLocked,
+    activeTab,
+    setActiveTab,
+    pushStatus,
+    setPushStatus,
+    pushPermission,
+    setPushPermission,
+    lastSeenNotices,
+    setLastSeenNotices,
+    lastSeenPosts,
+    setLastSeenPosts,
+    themePreference,
+    setThemePreference,
+    onboardingDismissed,
+    setOnboardingDismissed,
+    biometricReady,
+    setBiometricReady,
+    showPrivacy,
+    setShowPrivacy,
+    showSettings,
+    setShowSettings,
+    selectedNotice,
+    setSelectedNotice,
+    noticeLoading,
+    setNoticeLoading,
+    selectedPost,
+    setSelectedPost,
+    postLoading,
+    setPostLoading,
+    comments,
+    setComments,
+    slowSync,
+    setSlowSync,
+    accountActionError,
+    setAccountActionError,
+  } = useAppState()
   const lastBackgroundedRef = useRef(null)
-  const [activeTab, setActiveTab] = useState('home')
-  const [pushStatus, setPushStatus] = useState('idle')
-  const [pushPermission, setPushPermission] = useState(null)
-  const [lastSeenNotices, setLastSeenNotices] = useState(() => readLastSeen('notices'))
-  const [lastSeenPosts, setLastSeenPosts] = useState(() => readLastSeen('posts'))
-  const [themePreference, setThemePreference] = useState(() => readTheme())
-  const [onboardingDismissed, setOnboardingDismissed] = useState(() => readOnboarded())
-  const [biometricReady, setBiometricReady] = useState(false)
-  const [showPrivacy, setShowPrivacy] = useState(false)
-  const [showSettings, setShowSettings] = useState(false)
-  const [selectedNotice, setSelectedNotice] = useState(null)
-  const [noticeLoading, setNoticeLoading] = useState(false)
-  const [selectedPost, setSelectedPost] = useState(null)
-  const [postLoading, setPostLoading] = useState(false)
-  const [comments, setComments] = useState([])
-  const [slowSync, setSlowSync] = useState(false)
-  const [accountActionError, setAccountActionError] = useState('')
 
   const restoreSession = useCallback(async () => {
     try {
@@ -159,7 +183,7 @@ export default function App() {
     } finally {
       setAuthLoading(false)
     }
-  }, [queryClient])
+  }, [queryClient, setAuthLoading, setPushPermission, setUser])
 
   const dashboardQuery = useQuery({
     queryKey: DASHBOARD_QUERY_KEY,
@@ -184,9 +208,9 @@ export default function App() {
   useEffect(() => {
     const timer = window.setTimeout(() => {
       setSlowSync(Boolean(dashboardQuery.isFetching))
-    }, dashboardQuery.isFetching ? 4500 : 0)
+    }, dashboardQuery.isFetching ? SLOW_SYNC_NOTICE_DELAY_MS : 0)
     return () => window.clearTimeout(timer)
-  }, [dashboardQuery.isFetching])
+  }, [dashboardQuery.isFetching, setSlowSync])
 
   const refreshDashboard = useCallback(() => {
     void queryClient.invalidateQueries({ queryKey: DASHBOARD_QUERY_KEY })
@@ -225,7 +249,7 @@ export default function App() {
     return () => {
       cancelled = true
     }
-  }, [])
+  }, [setLastSeenNotices, setLastSeenPosts, setOnboardingDismissed, setThemePreference])
 
   useEffect(() => {
     void setUserContext(user)
@@ -254,7 +278,7 @@ export default function App() {
   const applyTheme = useCallback((next) => {
     setThemePreference(next)
     writeTheme(next)
-  }, [])
+  }, [setThemePreference])
 
   useEffect(() => {
     let cancelled = false
@@ -275,19 +299,19 @@ export default function App() {
     return () => {
       cancelled = true
     }
-  }, [user])
+  }, [setBiometricReady, user])
 
   const dismissOnboarding = useCallback(() => {
     markOnboarded()
     setOnboardingDismissed(true)
-  }, [])
+  }, [setOnboardingDismissed])
 
   const refreshPushPermission = useCallback(async () => {
     const permission = await readPushPermissionState()
     setPushPermission(permission)
     setPushStatus((status) => pushStatusFromPermission(permission, status))
     return permission
-  }, [])
+  }, [setPushPermission, setPushStatus])
 
   useEffect(() => {
     if (!user) return undefined
@@ -300,7 +324,7 @@ export default function App() {
     return () => {
       cancelled = true
     }
-  }, [user])
+  }, [setPushPermission, setPushStatus, user])
 
   useEffect(() => {
     if (!user) return undefined
@@ -332,7 +356,7 @@ export default function App() {
       mounted = false
       cleanup()
     }
-  }, [refreshPushPermission, user])
+  }, [refreshPushPermission, setLocked, user])
 
   useEffect(() => {
     let cancelled = false
@@ -344,7 +368,7 @@ export default function App() {
     return () => {
       cancelled = true
     }
-  }, [])
+  }, [setAppVersion])
 
   const changeTab = useCallback((tabId) => {
     const nextTab = tabId === 'operations' && !isAdminUser(user) ? 'home' : tabId
@@ -368,10 +392,16 @@ export default function App() {
         writeLastSeen('posts', latestTs)
       }
     }
-  }, [user, notices, posts, lastSeenNotices, lastSeenPosts])
+  }, [lastSeenNotices, lastSeenPosts, notices, posts, setActiveTab, setComments, setLastSeenNotices, setLastSeenPosts, setSelectedNotice, setSelectedPost, user])
 
-  const newNoticesCount = notices.reduce((acc, item) => acc + (isNew(item?.createdAt, lastSeenNotices) ? 1 : 0), 0)
-  const newPostsCount = posts.reduce((acc, item) => acc + (isNew(item?.createdAt, lastSeenPosts) ? 1 : 0), 0)
+  const newNoticesCount = useMemo(
+    () => notices.reduce((acc, item) => acc + (isNew(item?.createdAt, lastSeenNotices) ? 1 : 0), 0),
+    [notices, lastSeenNotices],
+  )
+  const newPostsCount = useMemo(
+    () => posts.reduce((acc, item) => acc + (isNew(item?.createdAt, lastSeenPosts) ? 1 : 0), 0),
+    [posts, lastSeenPosts],
+  )
 
   const tabBadges = {
     notices: newNoticesCount,
@@ -388,7 +418,7 @@ export default function App() {
     } finally {
       setNoticeLoading(false)
     }
-  }, [changeTab])
+  }, [changeTab, setNoticeLoading, setSelectedNotice])
 
   const openPost = useCallback(async (id) => {
     changeTab('community')
@@ -402,7 +432,7 @@ export default function App() {
     } finally {
       setPostLoading(false)
     }
-  }, [changeTab])
+  }, [changeTab, setComments, setPostLoading, setSelectedPost])
 
   const openRoute = useCallback((route) => {
     if (route?.noticeId) {
@@ -469,7 +499,7 @@ export default function App() {
       mounted = false
       cleanup()
     }
-  }, [activeTab, selectedNotice, selectedPost, showPrivacy, showSettings, user])
+  }, [activeTab, selectedNotice, selectedPost, setActiveTab, setComments, setSelectedNotice, setSelectedPost, setShowPrivacy, setShowSettings, showPrivacy, showSettings, user])
 
   const createPostMutation = useMutation({
     mutationFn: async ({ payload, images }) => {
@@ -601,7 +631,7 @@ export default function App() {
       reportError(error, { area: 'push-registration-request' })
       setPushStatus('error')
     }
-  }, [appConfig.pushEnabled, openRoute, refreshPushPermission, user])
+  }, [appConfig.pushEnabled, openRoute, refreshPushPermission, setPushStatus, user])
 
   async function handleLogout() {
     setAccountActionError('')
