@@ -9,7 +9,9 @@
     "build:mobile": "node scripts/build-mobile.mjs",
     "preview": "vite preview",
     "lint": "eslint .",
-    "test": "node tests/appScope.test.mjs && node tests/apiClient.test.mjs && node tests/mobileRoutes.test.mjs && node tests/mobileApi.test.mjs && node tests/iosNativeContract.test.mjs && node tests/clubActivity.test.mjs && node tests/communityTrust.test.mjs && node tests/memberExperience.test.mjs && node tests/mobileUiContract.test.mjs && node tests/adminLight.test.mjs && node tests/postBlocks.test.mjs && node tests/pollDraft.test.mjs && node tests/passwordPolicy.test.mjs && node tests/version.test.mjs && node tests/markdown.test.mjs && node tests/preferences.test.mjs && node tests/nativeErrorLogging.test.mjs && node tests/accountActions.test.mjs && node tests/deviceStorage.test.mjs && node tests/urlValidation.test.mjs && node tests/responseSchemas.test.mjs",
+    "test": "npm run test:contracts && npm run test:components",
+    "test:contracts": "node tests/appScope.test.mjs && node tests/apiClient.test.mjs && node tests/mobileRoutes.test.mjs && node tests/mobileApi.test.mjs && node tests/iosNativeContract.test.mjs && node tests/clubActivity.test.mjs && node tests/communityTrust.test.mjs && node tests/memberExperience.test.mjs && node tests/mobileUiContract.test.mjs && node tests/adminLight.test.mjs && node tests/postBlocks.test.mjs && node tests/pollDraft.test.mjs && node tests/passwordPolicy.test.mjs && node tests/version.test.mjs && node tests/markdown.test.mjs && node tests/preferences.test.mjs && node tests/nativeErrorLogging.test.mjs && node tests/accountActions.test.mjs && node tests/deviceStorage.test.mjs && node tests/urlValidation.test.mjs && node tests/responseSchemas.test.mjs",
+    "test:components": "vitest run --config vitest.config.js",
     "cap:sync": "npm run build:mobile && npx cap sync",
     "cap:android": "npm run build:mobile && npx cap sync android && npx cap open android",
     "cap:ios": "npm run build:mobile && npx cap sync ios && npx cap open ios"
@@ -40,11 +42,15 @@
     "@capacitor/ios": "^8.4.0",
     "@eslint/js": "^10.0.1",
     "@sentry/vite-plugin": "^5.3.0",
+    "@testing-library/dom": "^10.4.1",
+    "@testing-library/react": "^16.3.2",
     "@vitejs/plugin-react": "^6.0.1",
     "eslint": "^10.3.0",
     "eslint-plugin-react-hooks": "^7.1.1",
     "eslint-plugin-react-refresh": "^0.5.2",
     "globals": "^17.6.0",
-    "vite": "^8.0.12"
+    "jsdom": "^29.1.1",
+    "vite": "^8.0.12",
+    "vitest": "^4.1.9"
   }
 }
