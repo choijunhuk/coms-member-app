@@ -46,6 +46,13 @@ import { registerPushTokenWithRetry } from './utils/pushRegistration.js'
 import { pushStatusFromPermission } from './utils/pushPermissionStatus.js'
 import { DEFAULT_IDLE_LOCK_THRESHOLD_MS, SLOW_SYNC_NOTICE_DELAY_MS } from './config/appTiming.js'
 import { useAppState } from './hooks/useAppState.js'
+import {
+  COMMUNITY_POST_QUEUE_KEY,
+  enqueuePendingCommunityPost,
+  readPendingCommunityPosts,
+  removePendingCommunityPost,
+  shouldQueueCommunityPostError,
+} from './utils/communityPostQueue.js'
 import { hapticLight, hapticSuccess } from './services/haptics.js'
 import { AppConfigBanner, LoadingScreen } from './components/ui.jsx'
 import { Shell } from './components/Shell.jsx'
@@ -65,6 +72,7 @@ const MEMBER_STORAGE_KEYS = [
   ...PREFERENCE_STORAGE_KEYS,
   BOOKMARKS_KEY,
   RECENT_RESOURCES_KEY,
+  COMMUNITY_POST_QUEUE_KEY,
   lastSeenStorageKey('notices'),
   lastSeenStorageKey('posts'),
 ]
@@ -167,8 +175,11 @@ export default function App() {
     setSlowSync,
     accountActionError,
     setAccountActionError,
+    pendingCommunityPosts,
+    setPendingCommunityPosts,
   } = useAppState()
   const lastBackgroundedRef = useRef(null)
+  const pendingPostFlushRef = useRef(false)
 
   const restoreSession = useCallback(async () => {
     try {
@@ -216,6 +227,34 @@ export default function App() {
     void queryClient.invalidateQueries({ queryKey: DASHBOARD_QUERY_KEY })
   }, [queryClient])
 
+  const flushPendingCommunityPosts = useCallback(async () => {
+    if (!user || pendingPostFlushRef.current) return
+    pendingPostFlushRef.current = true
+    let published = 0
+    try {
+      const queue = await readPendingCommunityPosts()
+      setPendingCommunityPosts(queue)
+      for (const item of queue) {
+        try {
+          await createCommunityPost(item.payload)
+          published += 1
+          const next = await removePendingCommunityPost(item.id)
+          setPendingCommunityPosts(next)
+        } catch (error) {
+          if (shouldQueueCommunityPostError(error)) return
+          reportError(error, { area: 'community-post-offline-flush', pendingId: item.id })
+          return
+        }
+      }
+      if (published > 0) {
+        void hapticSuccess()
+        refreshDashboard()
+      }
+    } finally {
+      pendingPostFlushRef.current = false
+    }
+  }, [refreshDashboard, setPendingCommunityPosts, user])
+
   // Without FCM we still want users to see new notifications while the app is
   // foregrounded — poll every 30s and skip when the document is hidden.
   useNotificationPolling({ enabled: Boolean(user), refresh: refreshDashboard })
@@ -245,11 +284,23 @@ export default function App() {
       setOnboardingDismissed(readOnboarded())
       setLastSeenNotices(readLastSeen('notices'))
       setLastSeenPosts(readLastSeen('posts'))
+      void readPendingCommunityPosts().then((queue) => {
+        if (!cancelled) setPendingCommunityPosts(queue)
+      })
     })
     return () => {
       cancelled = true
     }
-  }, [setLastSeenNotices, setLastSeenPosts, setOnboardingDismissed, setThemePreference])
+  }, [setLastSeenNotices, setLastSeenPosts, setOnboardingDismissed, setPendingCommunityPosts, setThemePreference])
+
+  useEffect(() => {
+    if (!user || pendingCommunityPosts.length === 0) return undefined
+    if (typeof window === 'undefined') return undefined
+    if (navigator.onLine !== false) void flushPendingCommunityPosts()
+    const onOnline = () => { void flushPendingCommunityPosts() }
+    window.addEventListener('online', onOnline)
+    return () => window.removeEventListener('online', onOnline)
+  }, [flushPendingCommunityPosts, pendingCommunityPosts.length, user])
 
   useEffect(() => {
     void setUserContext(user)
@@ -691,8 +742,20 @@ export default function App() {
   }
 
   const createPost = useCallback(async (input) => {
-    await createPostMutation.mutateAsync(input)
-  }, [createPostMutation])
+    try {
+      await createPostMutation.mutateAsync(input)
+      return { queued: false }
+    } catch (error) {
+      if (!shouldQueueCommunityPostError(error)) throw error
+      if (Array.isArray(input?.images) && input.images.length > 0) {
+        throw new Error('오프라인 상태에서는 이미지 첨부 글을 자동 임시 저장할 수 없습니다. 연결 후 이미지를 다시 첨부해 등록해주세요.', { cause: error })
+      }
+      const queue = await enqueuePendingCommunityPost(input.payload)
+      setPendingCommunityPosts(queue)
+      void hapticLight()
+      return { queued: true }
+    }
+  }, [createPostMutation, setPendingCommunityPosts])
 
 
   if (appVersion && isVersionBelow(appVersion, appConfig.minimumSupportedVersion)) {
@@ -752,7 +815,7 @@ export default function App() {
   )
   else if (activeTab === 'activity') content = <ActivityTab clubActivities={clubActivities} apps={apps} appLinks={appConfig.links} />
   else if (activeTab === 'notices') content = <NoticesTab notices={notices} selected={selectedNotice} loading={noticeLoading} openNotice={openNotice} closeNotice={() => setSelectedNotice(null)} />
-  else if (activeTab === 'community') content = <CommunityTab posts={posts} selected={selectedPost} comments={comments} loading={postLoading} openPost={openPost} closePost={() => { setSelectedPost(null); setComments([]) }} createPost={createPost} createCommentForPost={createCommentForPost} editComment={editCommentForPost} removeComment={removeCommentForPost} vote={vote} pollVote={pollVote} currentUser={user} />
+  else if (activeTab === 'community') content = <CommunityTab posts={posts} selected={selectedPost} comments={comments} loading={postLoading} openPost={openPost} closePost={() => { setSelectedPost(null); setComments([]) }} createPost={createPost} createCommentForPost={createCommentForPost} editComment={editCommentForPost} removeComment={removeCommentForPost} vote={vote} pollVote={pollVote} currentUser={user} pendingPosts={pendingCommunityPosts} retryPendingPosts={flushPendingCommunityPosts} />
   else if (activeTab === 'resources') content = <ResourcesTab files={files} />
   else if (activeTab === 'notifications') content = <NotificationsTab notifications={notifications} unreadCount={unreadCount} pushStatus={pushStatus} pushPermission={pushPermission} refreshPushPermission={refreshPushPermission} appConfig={appConfig} enablePush={enablePush} onOpenPushSettings={openPushSettings} markRead={markRead} markAllRead={markAllRead} openRoute={openRoute} />
   else if (activeTab === 'operations') content = <OperationsTab user={user} notices={notices} posts={posts} clubActivities={clubActivities} apps={apps} loadDashboard={refreshDashboard} />

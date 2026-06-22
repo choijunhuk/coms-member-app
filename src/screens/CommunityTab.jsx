@@ -24,7 +24,7 @@ function matchesQuery(post, query) {
   return haystack.includes(query)
 }
 
-export default function CommunityTab({ posts, selected, comments, loading, openPost, closePost, createPost, createCommentForPost, vote, pollVote, editComment, removeComment, currentUser }) {
+export default function CommunityTab({ posts, selected, comments, loading, openPost, closePost, createPost, createCommentForPost, vote, pollVote, editComment, removeComment, currentUser, pendingPosts = [], retryPendingPosts }) {
   const [writing, setWriting] = useState(false)
   const [comment, setComment] = useState('')
   const [query, setQuery] = useState('')
@@ -197,10 +197,12 @@ export default function CommunityTab({ posts, selected, comments, loading, openP
     createPost={createPost}
     openPost={openPost}
     currentUser={currentUser}
+    pendingPosts={pendingPosts}
+    retryPendingPosts={retryPendingPosts}
   />
 }
 
-function CommunityListView({ posts, filtered, query, setQuery, category, setCategory, writing, setWriting, createPost, openPost, currentUser }) {
+function CommunityListView({ posts, filtered, query, setQuery, category, setCategory, writing, setWriting, createPost, openPost, currentUser, pendingPosts, retryPendingPosts }) {
   const availableCategories = useMemo(() => {
     const set = new Set()
     for (const post of posts) if (post?.category) set.add(post.category)
@@ -212,6 +214,12 @@ function CommunityListView({ posts, filtered, query, setQuery, category, setCate
   return (
     <div className="stack">
       <button type="button" className="button primary" onClick={() => setWriting((value) => !value)}><Plus size={17} />글 작성</button>
+      {pendingPosts.length > 0 && (
+        <div className="offline-banner" role="status">
+          임시 저장된 커뮤니티 글 {pendingPosts.length}개가 연결 복구를 기다리고 있습니다.
+          <button type="button" className="link-button" onClick={retryPendingPosts}>지금 재시도</button>
+        </div>
+      )}
       {writing && <Composer currentUser={currentUser} onSubmit={async (input) => { await createPost(input); setWriting(false) }} />}
       <div className="search-row"><Search size={17} /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="제목·본문·작성자 검색" /></div>
       {availableCategories.length > 2 && (
