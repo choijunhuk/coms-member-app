@@ -1,4 +1,5 @@
-import { useMemo, useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
+import { List } from 'react-window'
 import { AlertTriangle, Bookmark, BookmarkCheck, CornerDownRight, Eye, Plus, Search, Send, Share2, ThumbsDown, ThumbsUp, Trash2, Pencil, Check, X } from 'lucide-react'
 import { asArray, formatDate } from '../utils/format.js'
 import { categoryLabels, latest, postImage } from '../utils/helpers.js'
@@ -8,11 +9,16 @@ import { hapticLight, hapticSuccess } from '../services/haptics.js'
 import { isBookmarked, toggleBookmark } from '../utils/bookmarks.js'
 import { Detail, Empty, ListItem, LoadingScreen, Section } from '../components/ui.jsx'
 import EmojiText from '../components/EmojiText.jsx'
-import { useInfiniteList } from '../hooks/useInfiniteList.js'
 import Composer from './community/Composer.jsx'
 import PostContent from './community/PostContent.jsx'
 import ReportDialog from './community/ReportDialog.jsx'
 import { reportCommunityPost } from '../services/communityApi.js'
+
+// Estimated height for a community list item (title + meta + body).
+// react-window needs a stable row height; this covers the typical rendered size.
+const COMMUNITY_ITEM_HEIGHT = 80
+// Minimum number of items required before virtual scroll activates.
+const VIRTUAL_THRESHOLD = 20
 
 const MAX_THREAD_DEPTH = 3
 
@@ -209,7 +215,31 @@ function CommunityListView({ posts, filtered, query, setQuery, category, setCate
     return ['ALL', ...set]
   }, [posts])
 
-  const { visible, hasMore, sentinelRef } = useInfiniteList(filtered)
+  const useVirtual = filtered.length >= VIRTUAL_THRESHOLD
+
+  // rowComponent receives { index, style } from react-window plus rowProps spread.
+  // Keep existing ListItem markup unchanged; only wrap in the absolute-positioned div.
+  const PostRow = useCallback(({ index, style }) => {
+    const post = filtered[index]
+    return (
+      <div style={style}>
+        <ListItem
+          title={post.title}
+          meta={`${categoryLabels[post.category] || '자유'} · 댓글 ${post.commentCount || 0}`}
+          body={postPreviewText(post)}
+          image={postImage(post)}
+          onClick={() => openPost(post.id)}
+        />
+      </div>
+    )
+  }, [filtered, openPost])
+
+  // Approximate list height: fill viewport minus topbar (~3.5rem), tabbar (~4.5rem),
+  // search row, category bar, section header, and some padding (~9rem total overhead).
+  const listHeight =
+    typeof window !== 'undefined'
+      ? Math.max(200, window.innerHeight - 144 - (writing ? 260 : 0))
+      : 400
 
   return (
     <div className="stack">
@@ -232,9 +262,28 @@ function CommunityListView({ posts, filtered, query, setQuery, category, setCate
         </div>
       )}
       <Section title={`커뮤니티${query || category !== 'ALL' ? ` · ${filtered.length}건` : ''}`}>
-        {visible.map((post) => <ListItem key={post.id} title={post.title} meta={`${categoryLabels[post.category] || '자유'} · 댓글 ${post.commentCount || 0}`} body={postPreviewText(post)} image={postImage(post)} onClick={() => openPost(post.id)} />)}
-        {hasMore && <div ref={sentinelRef} className="infinite-sentinel" aria-hidden="true" />}
         {filtered.length === 0 && <Empty text={query || category !== 'ALL' ? '검색 결과가 없습니다.' : '커뮤니티 글이 없습니다.'} />}
+        {useVirtual ? (
+          <List
+            data-inner-scroll=""
+            rowComponent={PostRow}
+            rowCount={filtered.length}
+            rowHeight={COMMUNITY_ITEM_HEIGHT}
+            rowProps={{}}
+            style={{ height: listHeight }}
+          />
+        ) : (
+          filtered.map((post) => (
+            <ListItem
+              key={post.id}
+              title={post.title}
+              meta={`${categoryLabels[post.category] || '자유'} · 댓글 ${post.commentCount || 0}`}
+              body={postPreviewText(post)}
+              image={postImage(post)}
+              onClick={() => openPost(post.id)}
+            />
+          ))
+        )}
       </Section>
     </div>
   )
