@@ -14,7 +14,8 @@ export function usePullToRefresh(onRefresh, { enabled = true } = {}) {
     if (!node || !enabled) return undefined
 
     function onTouchStart(event) {
-      if (node.scrollTop > 0 || refreshing) return
+      const innerScroll = node.querySelector('[data-inner-scroll]')
+      if (node.scrollTop > 0 || (innerScroll && innerScroll.scrollTop > 0) || refreshing) return
       startYRef.current = event.touches?.[0]?.clientY ?? null
     }
 
