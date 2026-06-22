@@ -1,5 +1,6 @@
 import { request } from './apiClient.js'
 import { DEFAULT_APP_LINKS } from '../config/appLinks.js'
+import { AppConfigSchema, MobileHomeSchema, parseApiResponse } from './responseSchemas.js'
 
 export const MOBILE_HOME_PATH = '/api/mobile/v1/home'
 export const APP_CONFIG_PATH = '/api/mobile/v1/app-config'
@@ -18,12 +19,14 @@ export function isRecoverableMobileApiError(error) {
   return error?.status === 404 || error?.status === 501
 }
 
-export function getMobileHome() {
-  return request(MOBILE_HOME_PATH)
+export async function getMobileHome() {
+  const data = await request(MOBILE_HOME_PATH)
+  return parseApiResponse(MobileHomeSchema, data, '모바일 홈')
 }
 
-export function getAppConfig() {
-  return request(APP_CONFIG_PATH)
+export async function getAppConfig() {
+  const data = await request(APP_CONFIG_PATH)
+  return parseApiResponse(AppConfigSchema, data, '앱 설정')
 }
 
 export function registerPushToken(payload) {
