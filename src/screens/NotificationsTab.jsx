@@ -5,6 +5,7 @@ import { latest } from '../utils/helpers.js'
 import { routeFromNotification } from '../utils/mobileRoutes.js'
 import { isNativeRuntime } from '../services/nativeBridge.js'
 import { pushPermissionActionLabel } from '../utils/pushPermissionStatus.js'
+import { reportError } from '../services/observability.js'
 import { Empty, ListItem, Section } from '../components/ui.jsx'
 
 const STATUS_BADGE = {
@@ -51,7 +52,9 @@ export default function NotificationsTab({ notifications, unreadCount, pushStatu
   const items = latest(notifications, 'createdAt')
 
   useEffect(() => {
-    Promise.resolve(refreshPushPermission?.()).catch(() => {})
+    Promise.resolve(refreshPushPermission?.()).catch((err) => {
+      reportError(err, { area: 'refresh-push-permission' })
+    })
   }, [pushStatus, refreshPushPermission])
 
   async function openNotification(item) {
