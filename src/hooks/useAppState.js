@@ -24,6 +24,7 @@ export function useAppState() {
   const [comments, setComments] = useState([])
   const [slowSync, setSlowSync] = useState(false)
   const [accountActionError, setAccountActionError] = useState('')
+  const [pendingCommunityPosts, setPendingCommunityPosts] = useState([])
 
   return {
     user,
@@ -68,5 +69,7 @@ export function useAppState() {
     setSlowSync,
     accountActionError,
     setAccountActionError,
+    pendingCommunityPosts,
+    setPendingCommunityPosts,
   }
 }
