@@ -342,7 +342,7 @@ export default function App() {
       if (threshold === null) return
       if (!last || Date.now() - last < threshold) return
       void isBiometricAvailable().then((available) => {
-        if (available) setLocked(true)
+        if (mounted && available) setLocked(true)
       }).catch((error) => {
         reportError(error, { area: 'biometric-idle-lock' })
       })
