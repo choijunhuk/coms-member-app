@@ -1,4 +1,5 @@
 import { request, requestNoContent } from './apiClient.js'
+import { CurrentUserSchema, parseApiResponse } from './responseSchemas.js'
 
 export function loginUser(payload) {
   return request('/api/auth/login', {
@@ -7,8 +8,9 @@ export function loginUser(payload) {
   })
 }
 
-export function getCurrentUser() {
-  return request('/api/auth/me')
+export async function getCurrentUser() {
+  const data = await request('/api/auth/me')
+  return parseApiResponse(CurrentUserSchema, data, '현재 사용자')
 }
 
 export function logoutUser() {

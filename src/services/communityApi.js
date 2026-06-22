@@ -1,11 +1,14 @@
 import { request } from './apiClient.js'
+import { CommunityPostListSchema, CommunityPostSchema, parseApiResponse } from './responseSchemas.js'
 
-export function listCommunityPosts() {
-  return request('/api/community/posts')
+export async function listCommunityPosts() {
+  const data = await request('/api/community/posts')
+  return parseApiResponse(CommunityPostListSchema, data, '커뮤니티 글 목록')
 }
 
-export function getCommunityPost(id) {
-  return request(`/api/community/posts/${id}`)
+export async function getCommunityPost(id) {
+  const data = await request(`/api/community/posts/${id}`)
+  return parseApiResponse(CommunityPostSchema, data, '커뮤니티 글')
 }
 
 export function createCommunityPost(payload) {
