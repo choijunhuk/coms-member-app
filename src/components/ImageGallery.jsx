@@ -51,7 +51,7 @@ export default function ImageGallery({ post }) {
       <div className={images.length > 1 ? 'image-gallery image-gallery-multi' : 'image-gallery'}>
         {images.map((src, index) => (
           <button key={src} type="button" className="image-gallery-thumb" onClick={() => setActiveIndex(index)} aria-label={`이미지 ${index + 1} 크게 보기`}>
-            <img src={src} alt="" loading="lazy" />
+            <img src={src} alt="" loading="lazy" decoding="async" />
           </button>
         ))}
       </div>

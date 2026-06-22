@@ -167,7 +167,7 @@ export default function Composer({ onSubmit, currentUser }) {
         <div className="image-preview-grid">
           {previews.map((src, index) => (
             <div className="image-preview" key={src}>
-              <img src={src} alt="" />
+              <img src={src} alt="" loading="lazy" decoding="async" />
               <button type="button" className="icon-button" onClick={() => removeImage(index)} aria-label="이미지 제거"><X size={14} /></button>
             </div>
           ))}

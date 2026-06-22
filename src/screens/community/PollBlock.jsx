@@ -25,7 +25,7 @@ export default function PollBlock({ block, result, pollVote }) {
             >
               <span className="poll-progress" style={{ width: `${row.percent}%` }} aria-hidden="true" />
               <span className="poll-label">
-                {row.imageUrl && <img src={row.imageUrl} alt="" loading="lazy" />}
+                {row.imageUrl && <img src={row.imageUrl} alt="" loading="lazy" decoding="async" />}
                 <span>{row.label}</span>
                 {row.selected && <b>내 선택</b>}
                 {row.leading && <b>최다</b>}

@@ -78,7 +78,7 @@ export default function PostContent({ post, pollVote }) {
           const galleryIndex = blockImageIndex[index]
           return (
             <button type="button" key={index} className="image-thumb-button" onClick={() => setActiveIndex(galleryIndex)} aria-label={`이미지 ${galleryIndex + 1} 크게 보기`}>
-              <img className="post-image" src={src} alt={block.name || '이미지'} loading="lazy" />
+              <img className="post-image" src={src} alt={block.name || '이미지'} loading="lazy" decoding="async" />
             </button>
           )
         }
@@ -97,7 +97,7 @@ export default function PostContent({ post, pollVote }) {
             const galleryIndex = blockImageIndex[index]
             return (
               <button type="button" key={index} className="image-thumb-button" onClick={() => setActiveIndex(galleryIndex)} aria-label={`이미지 ${galleryIndex + 1} 크게 보기`}>
-                <img className="post-image" src={src} alt={block.title || '외부 이미지'} loading="lazy" />
+                <img className="post-image" src={src} alt={block.title || '외부 이미지'} loading="lazy" decoding="async" />
               </button>
             )
           }
