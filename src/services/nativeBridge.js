@@ -11,6 +11,25 @@ export function nativePlatform() {
   return Capacitor.getPlatform()
 }
 
+const ANDROID_NOTIFICATION_SETTINGS_INTENT = 'intent://settings/#Intent;action=android.settings.APP_NOTIFICATION_SETTINGS;S.android.provider.extra.APP_PACKAGE=kr.ac.kw.coms.memberapp;end'
+
+export function openNotificationSettings() {
+  if (typeof window === 'undefined' || !isNativeRuntime()) return false
+  try {
+    if (nativePlatform() === 'ios') {
+      window.location.href = 'app-settings:'
+      return true
+    }
+    if (nativePlatform() === 'android') {
+      window.location.href = ANDROID_NOTIFICATION_SETTINGS_INTENT
+      return true
+    }
+  } catch (err) {
+    reportError(err, { area: 'open-notification-settings' })
+  }
+  return false
+}
+
 export async function readAppVersion() {
   if (!isNativeRuntime()) return bundleVersion()
   try {

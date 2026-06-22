@@ -1,5 +1,5 @@
 import { useEffect } from 'react'
-import { Check, ExternalLink, Settings as SettingsIcon, ShieldOff, Smartphone } from 'lucide-react'
+import { Check, ExternalLink, RefreshCw, Settings as SettingsIcon, ShieldOff, Smartphone } from 'lucide-react'
 import { formatDate } from '../utils/format.js'
 import { latest } from '../utils/helpers.js'
 import { routeFromNotification } from '../utils/mobileRoutes.js'
@@ -47,7 +47,7 @@ async function openExternal(url) {
   }
 }
 
-export default function NotificationsTab({ notifications, unreadCount, pushStatus, pushPermission, refreshPushPermission, appConfig, enablePush, markRead, markAllRead, openRoute }) {
+export default function NotificationsTab({ notifications, unreadCount, pushStatus, pushPermission, refreshPushPermission, appConfig, enablePush, onOpenPushSettings, markRead, markAllRead, openRoute }) {
   const items = latest(notifications, 'createdAt')
 
   useEffect(() => {
@@ -70,13 +70,15 @@ export default function NotificationsTab({ notifications, unreadCount, pushStatu
   const pushMessage = PUSH_STATUS_LABEL[pushStatus] || '푸시 상태를 확인할 수 없습니다.'
   const denied = permission === 'denied'
   const granted = permission === 'granted'
+  const retryable = appConfig.pushEnabled && (pushStatus === 'error' || pushStatus === 'server-unavailable')
+  const requestDisabled = !appConfig.pushEnabled || pushStatus === 'requesting' || denied || granted || retryable
 
   return (
     <div className="stack">
       <section className="panel">
         <div className="section-title">
           <h2>푸시 알림</h2>
-          <button type="button" onClick={enablePush} disabled={!appConfig.pushEnabled || pushStatus === 'requesting' || denied || granted}>
+          <button type="button" onClick={enablePush} disabled={requestDisabled}>
             <Smartphone size={15} aria-hidden="true" /> {pushPermissionActionLabel(permission, appConfig.pushEnabled)}
           </button>
         </div>
@@ -89,6 +91,20 @@ export default function NotificationsTab({ notifications, unreadCount, pushStatu
           </div>
         )}
         <p className="muted">{appConfig.pushEnabled ? pushMessage : '현재 앱 설정에서 푸시 알림이 비활성화되어 있습니다.'}</p>
+        {(retryable || denied) && (
+          <div className="button-row" style={{ marginTop: '0.75rem' }}>
+            {retryable && (
+              <button type="button" className="button secondary compact" onClick={enablePush}>
+                <RefreshCw size={15} aria-hidden="true" /> 재시도
+              </button>
+            )}
+            {denied && (
+              <button type="button" className="button secondary compact" onClick={onOpenPushSettings}>
+                <SettingsIcon size={15} aria-hidden="true" /> 설정 열기
+              </button>
+            )}
+          </div>
+        )}
         <p className="muted" style={{ marginTop: '0.4rem' }}>알림 종류·잠금·테마는 설정에서 바꿀 수 있습니다.</p>
       </section>
       <Section title={`알림 ${unreadCount > 0 ? `· 안 읽음 ${unreadCount}` : ''}`} action={items.length ? '모두 읽음' : ''} onAction={markAllRead}>

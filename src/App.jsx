@@ -27,7 +27,7 @@ import {
   isRecoverableMobileApiError,
   registerPushToken,
 } from './services/mobileApi.js'
-import { nativePlatform, readAppVersion, readPushPermissionState, requestPushRegistration, resetPushRegistration, setupAppStateListener, setupBackButtonListener, setupDeepLinkListener } from './services/nativeBridge.js'
+import { nativePlatform, openNotificationSettings, readAppVersion, readPushPermissionState, requestPushRegistration, resetPushRegistration, setupAppStateListener, setupBackButtonListener, setupDeepLinkListener } from './services/nativeBridge.js'
 import { isBiometricAvailable } from './services/biometric.js'
 import { getNotice, listNotices } from './services/noticeApi.js'
 import { getNotificationSummary, listNotifications, markAllNotificationsRead, markNotificationRead } from './services/notificationApi.js'
@@ -633,6 +633,13 @@ export default function App() {
     }
   }, [appConfig.pushEnabled, openRoute, refreshPushPermission, setPushStatus, user])
 
+  const openPushSettings = useCallback(() => {
+    const opened = openNotificationSettings()
+    if (!opened && typeof window !== 'undefined') {
+      window.alert('기기 설정 앱에서 COMS 알림 권한을 직접 허용해주세요.')
+    }
+  }, [])
+
   async function handleLogout() {
     setAccountActionError('')
     try {
@@ -747,7 +754,7 @@ export default function App() {
   else if (activeTab === 'notices') content = <NoticesTab notices={notices} selected={selectedNotice} loading={noticeLoading} openNotice={openNotice} closeNotice={() => setSelectedNotice(null)} />
   else if (activeTab === 'community') content = <CommunityTab posts={posts} selected={selectedPost} comments={comments} loading={postLoading} openPost={openPost} closePost={() => { setSelectedPost(null); setComments([]) }} createPost={createPost} createCommentForPost={createCommentForPost} editComment={editCommentForPost} removeComment={removeCommentForPost} vote={vote} pollVote={pollVote} currentUser={user} />
   else if (activeTab === 'resources') content = <ResourcesTab files={files} />
-  else if (activeTab === 'notifications') content = <NotificationsTab notifications={notifications} unreadCount={unreadCount} pushStatus={pushStatus} pushPermission={pushPermission} refreshPushPermission={refreshPushPermission} appConfig={appConfig} enablePush={enablePush} markRead={markRead} markAllRead={markAllRead} openRoute={openRoute} />
+  else if (activeTab === 'notifications') content = <NotificationsTab notifications={notifications} unreadCount={unreadCount} pushStatus={pushStatus} pushPermission={pushPermission} refreshPushPermission={refreshPushPermission} appConfig={appConfig} enablePush={enablePush} onOpenPushSettings={openPushSettings} markRead={markRead} markAllRead={markAllRead} openRoute={openRoute} />
   else if (activeTab === 'operations') content = <OperationsTab user={user} notices={notices} posts={posts} clubActivities={clubActivities} apps={apps} loadDashboard={refreshDashboard} />
   else content = (
     <ProfileTab

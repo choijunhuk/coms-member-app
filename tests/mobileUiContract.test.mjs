@@ -16,6 +16,17 @@ assert.equal(pushPermissionActionLabel('prompt', true), '켜기')
 assert.equal(pushPermissionActionLabel('granted', false), '비활성')
 
 const css = readFileSync('src/styles.css', 'utf8')
+const appSource = readFileSync('src/App.jsx', 'utf8')
+const nativeBridgeSource = readFileSync('src/services/nativeBridge.js', 'utf8')
+const notificationsSource = readFileSync('src/screens/NotificationsTab.jsx', 'utf8')
+
+assert.match(appSource, /onOpenPushSettings=\{openPushSettings\}/)
+assert.match(nativeBridgeSource, /app-settings:/)
+assert.match(nativeBridgeSource, /android\.settings\.APP_NOTIFICATION_SETTINGS/)
+assert.match(notificationsSource, /pushStatus === 'error' \|\| pushStatus === 'server-unavailable'/)
+assert.match(notificationsSource, /> 재시도/)
+assert.match(notificationsSource, /> 설정 열기/)
+
 assert.match(css, /\.tab\s*\{[^}]*min-height:\s*3\.85rem/s)
 assert.match(css, /\.tab-icon\s*\{[^}]*width:\s*1\.55rem/s)
 assert.match(css, /\.tab-icon svg\s*\{[^}]*width:\s*1\.15rem/s)
