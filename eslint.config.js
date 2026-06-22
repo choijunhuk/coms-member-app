@@ -13,6 +13,14 @@ export default defineConfig([
     },
   },
   {
+    files: ['tests/**/*.jsx'],
+    extends: [js.configs.recommended],
+    languageOptions: {
+      globals: { ...globals.browser, ...globals.node },
+      parserOptions: { ecmaFeatures: { jsx: true } },
+    },
+  },
+  {
     files: ['src/**/*.{js,jsx}'],
     extends: [
       js.configs.recommended,
