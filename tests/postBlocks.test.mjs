@@ -5,7 +5,7 @@ import {
   pollOptionLabel,
   pollTotals,
   postPreviewText,
-} from '../src/utils/postBlocks.js'
+} from '../src/utils/postBlocks.ts'
 
 const blockPost = {
   content: JSON.stringify([

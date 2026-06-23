@@ -1,6 +1,6 @@
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, describe, expect, test, vi } from 'vitest'
-import CommunityTab from '../../src/screens/CommunityTab.jsx'
+import CommunityTab from '../../src/screens/CommunityTab.tsx'
 
 afterEach(cleanup)
 

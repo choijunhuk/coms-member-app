@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 
-const appSource = readFileSync('src/App.jsx', 'utf8')
+const appSource = readFileSync('src/App.tsx', 'utf8')
 
 assert.match(
   appSource,

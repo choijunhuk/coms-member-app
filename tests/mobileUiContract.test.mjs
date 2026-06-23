@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs'
 import {
   pushPermissionActionLabel,
   pushStatusFromPermission,
-} from '../src/utils/pushPermissionStatus.js'
+} from '../src/utils/pushPermissionStatus.ts'
 
 assert.equal(pushStatusFromPermission('granted', 'idle'), 'server-unavailable')
 assert.equal(pushStatusFromPermission('granted', 'registered'), 'registered')
@@ -16,13 +16,13 @@ assert.equal(pushPermissionActionLabel('prompt', true), '켜기')
 assert.equal(pushPermissionActionLabel('granted', false), '비활성')
 
 const css = readFileSync('src/styles.css', 'utf8')
-const appSource = readFileSync('src/App.jsx', 'utf8')
-const nativeBridgeSource = readFileSync('src/services/nativeBridge.js', 'utf8')
-const notificationsSource = readFileSync('src/screens/NotificationsTab.jsx', 'utf8')
-const postContentSource = readFileSync('src/screens/community/PostContent.jsx', 'utf8')
-const imageGallerySource = readFileSync('src/components/ImageGallery.jsx', 'utf8')
-const composerSource = readFileSync('src/screens/community/Composer.jsx', 'utf8')
-const pollBlockSource = readFileSync('src/screens/community/PollBlock.jsx', 'utf8')
+const appSource = readFileSync('src/App.tsx', 'utf8')
+const nativeBridgeSource = readFileSync('src/services/nativeBridge.ts', 'utf8')
+const notificationsSource = readFileSync('src/screens/NotificationsTab.tsx', 'utf8')
+const postContentSource = readFileSync('src/screens/community/PostContent.tsx', 'utf8')
+const imageGallerySource = readFileSync('src/components/ImageGallery.tsx', 'utf8')
+const composerSource = readFileSync('src/screens/community/Composer.tsx', 'utf8')
+const pollBlockSource = readFileSync('src/screens/community/PollBlock.tsx', 'utf8')
 
 assert.match(appSource, /onOpenPushSettings=\{openPushSettings\}/)
 assert.match(nativeBridgeSource, /app-settings:/)

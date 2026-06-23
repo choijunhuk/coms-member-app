@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import { renderMarkdownToHtml } from '../src/utils/markdown.js'
+import { renderMarkdownToHtml } from '../src/utils/markdown.ts'
 
 assert.equal(renderMarkdownToHtml('plain'), 'plain')
 assert.equal(renderMarkdownToHtml('**bold**'), '<strong>bold</strong>')

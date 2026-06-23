@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import {
   appealDeletedCommunityPost,
   listMyDeletedCommunityPosts,
-} from '../src/services/communityApi.js'
+} from '../src/services/communityApi.ts'
 
 const calls = []
 globalThis.fetch = async (url, options = {}) => {

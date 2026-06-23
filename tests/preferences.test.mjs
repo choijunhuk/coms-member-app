@@ -11,7 +11,7 @@ globalThis.window = {
   matchMedia: () => ({ matches: false }),
 }
 
-const { PUSH_TYPES, readOnboarded, markOnboarded, readPushPreferences, readTheme, resolveTheme, writePushPreferences, writeTheme } = await import('../src/utils/preferences.js')
+const { PUSH_TYPES, readOnboarded, markOnboarded, readPushPreferences, readTheme, resolveTheme, writePushPreferences, writeTheme } = await import('../src/utils/preferences.ts')
 
 assert.equal(readTheme(), 'system')
 writeTheme('dark')

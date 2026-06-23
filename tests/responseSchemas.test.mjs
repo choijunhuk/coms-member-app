@@ -5,7 +5,7 @@ import {
   CurrentUserSchema,
   MobileHomeSchema,
   parseApiResponse,
-} from '../src/services/responseSchemas.js'
+} from '../src/services/responseSchemas.ts'
 
 const posts = parseApiResponse(CommunityPostListSchema, [
   { id: 1, title: '정상 글', category: 'GENERAL', extra: 'preserved' },

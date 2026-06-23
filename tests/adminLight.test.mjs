@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
-import { listAuditLogs, listEligibleMembers, listMembers } from '../src/services/adminApi.js'
-import { deleteCommunityPost } from '../src/services/communityApi.js'
-import { createNotice, updateNotice } from '../src/services/noticeApi.js'
+import { listAuditLogs, listEligibleMembers, listMembers } from '../src/services/adminApi.ts'
+import { deleteCommunityPost } from '../src/services/communityApi.ts'
+import { createNotice, updateNotice } from '../src/services/noticeApi.ts'
 
 const calls = []
 globalThis.fetch = async (url, options = {}) => {

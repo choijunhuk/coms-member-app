@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 
-import { validateHttpUrl } from '../src/utils/urlValidation.js'
+import { validateHttpUrl } from '../src/utils/urlValidation.ts'
 
 assert.deepEqual(validateHttpUrl('', { allowEmpty: true }), { ok: true, url: '' })
 assert.equal(validateHttpUrl('https://coms.kw.ac.kr/PRDoctor/').ok, true)

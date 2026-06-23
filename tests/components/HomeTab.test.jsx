@@ -1,6 +1,6 @@
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, test, vi } from 'vitest'
-import HomeTab from '../../src/screens/HomeTab.jsx'
+import HomeTab from '../../src/screens/HomeTab.tsx'
 
 afterEach(cleanup)
 

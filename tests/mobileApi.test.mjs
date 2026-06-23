@@ -8,7 +8,7 @@ import {
   getMobileHome,
   isRecoverableMobileApiError,
   registerPushToken,
-} from '../src/services/mobileApi.js'
+} from '../src/services/mobileApi.ts'
 
 const calls = []
 globalThis.fetch = async (url, options = {}) => {

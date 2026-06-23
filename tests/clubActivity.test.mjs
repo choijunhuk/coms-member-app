@@ -8,7 +8,7 @@ import {
   nextSchedules,
   recentActivities,
   schedulesForMonth,
-} from '../src/services/clubActivityApi.js'
+} from '../src/services/clubActivityApi.ts'
 
 const calls = []
 globalThis.fetch = async (url, options = {}) => {

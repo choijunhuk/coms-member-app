@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import { compareVersion, isVersionBelow, parseVersion } from '../src/utils/version.js'
+import { compareVersion, isVersionBelow, parseVersion } from '../src/utils/version.ts'
 
 assert.deepEqual(parseVersion('1.2.3'), [1, 2, 3])
 assert.deepEqual(parseVersion('1.2'), [1, 2, 0])
