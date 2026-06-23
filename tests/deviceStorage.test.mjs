@@ -17,7 +17,7 @@ const {
   removeStoredValuesByPrefix,
   writeStoredValue,
   writeStoredValueAsync,
-} = await import('../src/utils/deviceStorage.js')
+} = await import('../src/utils/deviceStorage.ts')
 
 writeStoredValue('coms.example', 'one')
 assert.equal(readStoredValue('coms.example'), 'one')

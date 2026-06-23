@@ -1,10 +1,10 @@
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 
-const appSource = readFileSync('src/App.jsx', 'utf8')
-const appStateSource = readFileSync('src/hooks/useAppState.js', 'utf8')
-const settingsSource = readFileSync('src/screens/SettingsScreen.jsx', 'utf8')
-const profileSource = readFileSync('src/screens/ProfileTab.jsx', 'utf8')
+const appSource = readFileSync('src/App.tsx', 'utf8')
+const appStateSource = readFileSync('src/hooks/useAppState.ts', 'utf8')
+const settingsSource = readFileSync('src/screens/SettingsScreen.tsx', 'utf8')
+const profileSource = readFileSync('src/screens/ProfileTab.tsx', 'utf8')
 
 assert.match(appStateSource, /const \[accountActionError, setAccountActionError\]/)
 assert.match(appSource, /accountActionError,[\s\S]*setAccountActionError,[\s\S]*= useAppState\(\)/)

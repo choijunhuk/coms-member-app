@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import { passwordPolicyMessage, validPassword } from '../src/utils/passwordPolicy.js'
+import { passwordPolicyMessage, validPassword } from '../src/utils/passwordPolicy.ts'
 
 assert.equal(validPassword('Coms123!'), true)
 assert.equal(validPassword('short1!'), false)

@@ -6,7 +6,7 @@ import {
   removePendingCommunityPost,
   shouldQueueCommunityPostError,
   writePendingCommunityPosts,
-} from '../src/utils/communityPostQueue.js'
+} from '../src/utils/communityPostQueue.ts'
 
 function createLocalStorage() {
   const store = new Map()

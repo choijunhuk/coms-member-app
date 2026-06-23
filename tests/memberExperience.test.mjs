@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
-import { networkBannerMessage } from '../src/utils/networkStatus.js'
-import { pollResultRows, pollSummaryText } from '../src/utils/pollResults.js'
-import { registerPushTokenWithRetry } from '../src/utils/pushRegistration.js'
+import { networkBannerMessage } from '../src/utils/networkStatus.ts'
+import { pollResultRows, pollSummaryText } from '../src/utils/pollResults.ts'
+import { registerPushTokenWithRetry } from '../src/utils/pushRegistration.ts'
 
 const rows = pollResultRows(
   {

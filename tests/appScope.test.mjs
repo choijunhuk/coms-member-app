@@ -6,7 +6,7 @@ import {
   WEB_ONLY_FEATURES,
   getAppTabIds,
   isWebOnlyFeature,
-} from '../src/config/appScope.js'
+} from '../src/config/appScope.ts'
 
 assert.deepEqual(getAppTabIds(), ['home', 'activity', 'notices', 'community', 'resources', 'notifications', 'operations', 'profile'])
 assert.equal(APP_SHELL_TABS.length, 8)
@@ -47,7 +47,7 @@ assert.equal(isWebOnlyFeature('admin-console'), true)
 assert.equal(isWebOnlyFeature('operator-light'), false)
 assert.equal(isWebOnlyFeature('community'), false)
 
-const appSource = readFileSync('src/App.jsx', 'utf8')
+const appSource = readFileSync('src/App.tsx', 'utf8')
 for (const forbidden of ['RecruitApply', 'RecruitNotice', 'Signup', 'AdminConsole', 'FullAdminPanel']) {
   assert.equal(appSource.includes(forbidden), false, `app must not include ${forbidden}`)
 }

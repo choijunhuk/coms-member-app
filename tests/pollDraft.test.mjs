@@ -3,7 +3,7 @@ import {
   buildComposerContent,
   createEmptyPollDraft,
   pollDraftStatus,
-} from '../src/utils/pollDraft.js'
+} from '../src/utils/pollDraft.ts'
 
 const empty = createEmptyPollDraft()
 assert.equal(empty.enabled, false)

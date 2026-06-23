@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import { routeFromNotification, routeFromUrl } from '../src/utils/mobileRoutes.js'
+import { routeFromNotification, routeFromUrl } from '../src/utils/mobileRoutes.ts'
 
 assert.deepEqual(routeFromUrl('coms-member-app://notices/42'), { tab: 'notices', noticeId: '42' })
 assert.deepEqual(routeFromUrl('coms-member-app://community/7'), { tab: 'community', postId: '7' })
