@@ -2,6 +2,7 @@ import assert from 'node:assert/strict'
 import {
   COMMUNITY_POST_QUEUE_KEY,
   enqueuePendingCommunityPost,
+  resolvePendingCommunityPostFlushFailure,
   readPendingCommunityPosts,
   removePendingCommunityPost,
   shouldQueueCommunityPostError,
@@ -69,5 +70,10 @@ Object.defineProperty(globalThis, 'navigator', {
   configurable: true,
 })
 assert.equal(shouldQueueCommunityPostError({ status: 500 }), false)
+
+queue = await enqueuePendingCommunityPost(payload)
+const rejected = await resolvePendingCommunityPostFlushFailure(queue[0], { status: 400 })
+assert.equal(rejected.action, 'discarded')
+assert.deepEqual(await readPendingCommunityPosts(), [])
 
 console.log('offline community queue contract passed')

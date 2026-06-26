@@ -3,5 +3,5 @@
     <string name="app_name">COMS Member</string>
     <string name="title_activity_main">COMS Member</string>
     <string name="package_name">kr.ac.kw.coms.memberapp</string>
-    <string name="custom_url_scheme">kr.ac.kw.coms.memberapp</string>
+    <string name="custom_url_scheme">coms-member-app</string>
 </resources>

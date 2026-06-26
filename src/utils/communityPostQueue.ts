@@ -63,6 +63,20 @@ export async function removePendingCommunityPost(id) {
   return writePendingCommunityPosts(queue.filter((item) => item.id !== id))
 }
 
+export async function resolvePendingCommunityPostFlushFailure(item, error) {
+  if (shouldQueueCommunityPostError(error)) {
+    return {
+      action: 'retry-later',
+      queue: await readPendingCommunityPosts(),
+    }
+  }
+
+  return {
+    action: 'discarded',
+    queue: await removePendingCommunityPost(item.id),
+  }
+}
+
 export function shouldQueueCommunityPostError(error) {
   if (typeof navigator !== 'undefined' && navigator.onLine === false) return true
   return error?.status === 0 || error?.code === 'REQUEST_TIMEOUT' || error?.name === 'TypeError'

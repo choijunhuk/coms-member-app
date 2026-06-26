@@ -3,6 +3,7 @@ import { routeFromNotification, routeFromUrl } from '../src/utils/mobileRoutes.t
 
 assert.deepEqual(routeFromUrl('coms-member-app://notices/42'), { tab: 'notices', noticeId: '42' })
 assert.deepEqual(routeFromUrl('coms-member-app://community/7'), { tab: 'community', postId: '7' })
+assert.equal(routeFromUrl('coms://notices/42'), null)
 assert.deepEqual(routeFromUrl('https://coms.kw.ac.kr/notices/4?from=push'), { tab: 'notices', noticeId: '4' })
 assert.deepEqual(routeFromUrl('https://coms.kw.ac.kr/community/18'), { tab: 'community', postId: '18' })
 assert.deepEqual(routeFromUrl('https://coms.kw.ac.kr/notifications'), { tab: 'notifications' })

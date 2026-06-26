@@ -11,5 +11,6 @@ assert.match(appDelegate, /\.capacitorDidFailToRegisterForRemoteNotifications/)
 
 assert.match(infoPlist, /CFBundleDisplayName[\s\S]*COMS Member/)
 assert.match(infoPlist, /CFBundleURLSchemes[\s\S]*coms-member-app/)
+assert.match(infoPlist, /NSFaceIDUsageDescription[\s\S]*COMS/)
 
 console.log('ios native contract passed')

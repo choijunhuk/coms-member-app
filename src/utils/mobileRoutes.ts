@@ -1,5 +1,5 @@
 const TRUSTED_WEB_HOSTS = new Set(['coms.kw.ac.kr', 'www.coms.kw.ac.kr'])
-const TRUSTED_SCHEMES = new Set(['coms-member-app:', 'coms:'])
+const TRUSTED_SCHEMES = new Set(['coms-member-app:'])
 
 function normalizeSegments(url) {
   if (TRUSTED_SCHEMES.has(url.protocol)) {
