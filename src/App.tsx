@@ -1,4 +1,4 @@
-import { Suspense, lazy, useCallback, useEffect, useMemo, useRef } from 'react'
+import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { ShieldCheck } from 'lucide-react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { getCurrentUser, logoutUser, withdrawSelf } from './services/authApi'
@@ -43,6 +43,7 @@ import { hydrateStoredValues, removeStoredValuesByPrefix } from './utils/deviceS
 import { reportError, setUserContext } from './services/observability'
 import { purgePersistedCache } from './services/queryClient'
 import { registerPushTokenWithRetry } from './utils/pushRegistration'
+import { getInstallationDeviceId } from './utils/installationDeviceId'
 import { pushStatusFromPermission } from './utils/pushPermissionStatus'
 import { DEFAULT_IDLE_LOCK_THRESHOLD_MS, SLOW_SYNC_NOTICE_DELAY_MS } from './config/appTiming'
 import { useAppState } from './hooks/useAppState'
@@ -51,6 +52,7 @@ import {
   enqueuePendingCommunityPost,
   readPendingCommunityPosts,
   removePendingCommunityPost,
+  resolvePendingCommunityPostFlushFailure,
   shouldQueueCommunityPostError,
 } from './utils/communityPostQueue'
 import { hapticLight, hapticSuccess } from './services/haptics'
@@ -180,6 +182,7 @@ export default function App() {
   } = useAppState()
   const lastBackgroundedRef = useRef(null)
   const pendingPostFlushRef = useRef(false)
+  const [queueWarning, setQueueWarning] = useState('')
 
   const restoreSession = useCallback(async () => {
     try {
@@ -232,6 +235,7 @@ export default function App() {
     pendingPostFlushRef.current = true
     let published = 0
     try {
+      setQueueWarning('')
       const queue = await readPendingCommunityPosts()
       setPendingCommunityPosts(queue)
       for (const item of queue) {
@@ -241,9 +245,11 @@ export default function App() {
           const next = await removePendingCommunityPost(item.id)
           setPendingCommunityPosts(next)
         } catch (error) {
-          if (shouldQueueCommunityPostError(error)) return
+          const result = await resolvePendingCommunityPostFlushFailure(item, error)
+          setPendingCommunityPosts(result.queue)
+          if (result.action === 'retry-later') return
           reportError(error, { area: 'community-post-offline-flush', pendingId: item.id })
-          return
+          setQueueWarning('임시 저장된 글 1개가 서버에서 거부되어 큐에서 제외되었습니다. 내용을 확인해 다시 작성해주세요.')
         }
       }
       if (published > 0) {
@@ -665,7 +671,7 @@ export default function App() {
               payload: {
                 token,
                 platform: nativePlatform(),
-                deviceId: String(user?.studentId || user?.id || 'member'),
+                deviceId: await getInstallationDeviceId(),
               },
               isRecoverable: isRecoverableMobileApiError,
             })
@@ -682,7 +688,7 @@ export default function App() {
       reportError(error, { area: 'push-registration-request' })
       setPushStatus('error')
     }
-  }, [appConfig.pushEnabled, openRoute, refreshPushPermission, setPushStatus, user])
+  }, [appConfig.pushEnabled, openRoute, refreshPushPermission, setPushStatus])
 
   const openPushSettings = useCallback(() => {
     const opened = openNotificationSettings()
@@ -841,6 +847,7 @@ export default function App() {
   const body = (
     <div className="stack">
         <OfflineBanner slow={slowSync} />
+      {queueWarning && <p className="form-error" role="status">{queueWarning}</p>}
       {appConfig.maintenanceMessage && <AppConfigBanner appConfig={appConfig} />}
       {content}
     </div>
