@@ -35,6 +35,8 @@ export default function ProfileTab({
   themePreference = 'system',
   onChangeTheme,
   posts = [],
+  bookmarkedPosts = [],
+  bookmarkedPostsLoading = false,
   deletedPosts = [],
   deletedPostsLoading = false,
   appealDeletedPost,
@@ -57,12 +59,9 @@ export default function ProfileTab({
     [posts, user],
   )
 
-  // Each post carries a server-side `bookmarked` flag; filter the cached dashboard posts so the
-  // scrap list stays in sync with the toggle in the community tab without an extra fetch.
-  const bookmarkedPosts = useMemo(
-    () => latest(posts.filter((post) => post.bookmarked), 'createdAt'),
-    [posts],
-  )
+  // 내 스크랩 is backed by the dedicated bookmarked-posts endpoint (passed in via props),
+  // so it shows every bookmark — not just the ones inside the loaded dashboard window.
+  const scrapPosts = latest(bookmarkedPosts, 'createdAt')
 
   async function submit(event) {
     event.preventDefault()
@@ -143,7 +142,8 @@ export default function ProfileTab({
         {!deletedPostsLoading && deletedPosts.length === 0 && <Empty text="삭제된 내 글이 없습니다." />}
       </Section>
       <Section title={<><Bookmark size={14} aria-hidden="true" /> 내 스크랩</>}>
-        {bookmarkedPosts.map((post) => (
+        {bookmarkedPostsLoading && scrapPosts.length === 0 && <Empty text="스크랩한 글을 불러오는 중입니다." />}
+        {scrapPosts.map((post) => (
           <ListItem
             key={post.id}
             title={post.title}
@@ -152,7 +152,7 @@ export default function ProfileTab({
             onClick={() => openPost?.(post.id)}
           />
         ))}
-        {bookmarkedPosts.length === 0 && <Empty text="아직 스크랩한 글이 없습니다. 글 상세나 목록에서 스크랩 버튼을 눌러보세요." />}
+        {!bookmarkedPostsLoading && scrapPosts.length === 0 && <Empty text="스크랩한 글이 없습니다." />}
       </Section>
       <section className="panel">
         <div className="section-title">

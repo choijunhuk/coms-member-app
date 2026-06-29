@@ -13,6 +13,7 @@ import {
   deleteComment,
   getCommunityPost,
   appealDeletedCommunityPost,
+  listBookmarkedPosts,
   listMyDeletedCommunityPosts,
   listComments,
   listCommunityPosts,
@@ -220,6 +221,16 @@ export default function App() {
     queryKey: ['member-app', 'deleted-community-posts'],
     queryFn: listMyDeletedCommunityPosts,
     enabled: Boolean(user),
+    placeholderData: (previous) => previous,
+  })
+
+  // Bookmarks live across the whole board, not just the loaded dashboard window, so the
+  // 내 스크랩 list must come from the dedicated endpoint. Only fetch once the profile tab
+  // is opened to avoid an extra request on app boot.
+  const bookmarkedPostsQuery = useQuery({
+    queryKey: ['member-app', 'bookmarked-posts'],
+    queryFn: listBookmarkedPosts,
+    enabled: Boolean(user) && activeTab === 'profile',
     placeholderData: (previous) => previous,
   })
 
@@ -675,6 +686,8 @@ export default function App() {
       posts: prev.posts.map((post) => String(post.id) === String(postId) ? { ...post, bookmarked } : post),
     }))
     setSelectedPost((prev) => (prev && String(prev.id) === String(postId) ? { ...prev, bookmarked } : prev))
+    // The dedicated 내 스크랩 list is sourced from its own endpoint, so refresh it to reflect the toggle.
+    void queryClient.invalidateQueries({ queryKey: ['member-app', 'bookmarked-posts'] })
   }
 
   async function pollVote(pollId, optionIndex) {
@@ -883,6 +896,8 @@ export default function App() {
       themePreference={themePreference}
       onChangeTheme={applyTheme}
       posts={posts}
+      bookmarkedPosts={asArray(bookmarkedPostsQuery.data)}
+      bookmarkedPostsLoading={bookmarkedPostsQuery.isLoading}
       deletedPosts={asArray(deletedPostsQuery.data)}
       deletedPostsLoading={deletedPostsQuery.isLoading}
       appealDeletedPost={(id, message) => appealDeletedPostMutation.mutateAsync({ id, message })}
