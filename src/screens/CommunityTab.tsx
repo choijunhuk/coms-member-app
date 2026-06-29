@@ -1,5 +1,6 @@
-import { useCallback, useMemo, useState } from 'react'
-import { List } from 'react-window'
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import { List, useDynamicRowHeight } from 'react-window'
+import type { DynamicRowHeight, RowComponentProps } from 'react-window'
 import { AlertTriangle, Bookmark, BookmarkCheck, CornerDownRight, Eye, Plus, Search, Send, Share2, ThumbsDown, ThumbsUp, Trash2, Pencil, Check, X } from 'lucide-react'
 import { asArray, formatDate } from '../utils/format'
 import { categoryLabels, latest, postImage } from '../utils/helpers'
@@ -21,6 +22,8 @@ const COMMUNITY_ITEM_HEIGHT = 80
 const VIRTUAL_THRESHOLD = 20
 
 const MAX_THREAD_DEPTH = 3
+
+type PostRowExtra = { observeRow: DynamicRowHeight['observeRowElements'] }
 
 const ORIGIN = (typeof window !== 'undefined' && window.location?.origin) || 'https://coms.kw.ac.kr'
 
@@ -217,12 +220,15 @@ function CommunityListView({ posts, filtered, query, setQuery, category, setCate
 
   const useVirtual = filtered.length >= VIRTUAL_THRESHOLD
 
-  // rowComponent receives { index, style } from react-window plus rowProps spread.
-  // Keep existing ListItem markup unchanged; only wrap in the absolute-positioned div.
-  const PostRow = useCallback(({ index, style }: any) => {
+  const dynamicRowHeight = useDynamicRowHeight({ defaultRowHeight: COMMUNITY_ITEM_HEIGHT })
+
+  // rowComponent receives { index, style, observeRow } from react-window.
+  // The ref callback uses the React 19 cleanup-return pattern so react-window's
+  // ResizeObserver starts/stops tracking each row element automatically.
+  const PostRow = useCallback(({ index, style, observeRow }: RowComponentProps<PostRowExtra>) => {
     const post = filtered[index]
     return (
-      <div style={style}>
+      <div style={style} ref={(el: HTMLDivElement | null) => { if (el) return observeRow([el]) }}>
         <ListItem
           title={post.title}
           meta={`${categoryLabels[post.category] || '자유'} · 댓글 ${post.commentCount || 0}`}
@@ -234,12 +240,21 @@ function CommunityListView({ posts, filtered, query, setQuery, category, setCate
     )
   }, [filtered, openPost])
 
-  // Approximate list height: fill viewport minus topbar (~3.5rem), tabbar (~4.5rem),
-  // search row, category bar, section header, and some padding (~9rem total overhead).
-  const listHeight =
-    typeof window !== 'undefined'
-      ? Math.max(200, window.innerHeight - 144 - (writing ? 260 : 0))
-      : 400
+  // Recompute list height on resize/rotation so the List fills the viewport correctly.
+  // Approximate: viewport minus topbar (~3.5rem), tabbar (~4.5rem), and other chrome (~9rem total = 144px).
+  const [viewportHeight, setViewportHeight] = useState(
+    () => (typeof window !== 'undefined' ? window.innerHeight : 600),
+  )
+  useEffect(() => {
+    function onResize() { setViewportHeight(window.innerHeight) }
+    window.addEventListener('resize', onResize)
+    window.addEventListener('orientationchange', onResize)
+    return () => {
+      window.removeEventListener('resize', onResize)
+      window.removeEventListener('orientationchange', onResize)
+    }
+  }, [])
+  const listHeight = Math.max(200, viewportHeight - 144 - (writing ? 260 : 0))
 
   return (
     <div className="stack">
@@ -268,8 +283,8 @@ function CommunityListView({ posts, filtered, query, setQuery, category, setCate
             data-inner-scroll=""
             rowComponent={PostRow}
             rowCount={filtered.length}
-            rowHeight={COMMUNITY_ITEM_HEIGHT}
-            rowProps={{}}
+            rowHeight={dynamicRowHeight}
+            rowProps={{ observeRow: dynamicRowHeight.observeRowElements }}
             style={{ height: listHeight }}
           />
         ) : (

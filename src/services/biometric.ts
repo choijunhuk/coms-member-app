@@ -29,7 +29,11 @@ export async function isBiometricAvailable() {
 
 export async function verifyBiometric({ reason = '재인증이 필요합니다.' } = {}) {
   const plugin = await loadPlugin()
-  if (!plugin) return { ok: true, reason: 'unavailable' }
+  // Fail CLOSED: if the plugin can't load we must not silently grant access,
+  // otherwise a plugin failure would bypass a lock the user enabled. Devices
+  // without usable biometric hardware are never sent to the lock screen — App
+  // only locks when isBiometricAvailable() is true — so this stays safe.
+  if (!plugin) return { ok: false, reason: 'unavailable' }
   try {
     await plugin.authenticate({
       reason,

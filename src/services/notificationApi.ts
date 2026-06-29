@@ -1,11 +1,14 @@
 import { request } from './apiClient'
+import { NotificationListSchema, NotificationSummarySchema, parseApiResponse } from './responseSchemas'
 
-export function getNotificationSummary() {
-  return request('/api/notifications/summary')
+export async function getNotificationSummary() {
+  const data = await request('/api/notifications/summary')
+  return parseApiResponse(NotificationSummarySchema, data, '알림 요약')
 }
 
-export function listNotifications() {
-  return request('/api/notifications')
+export async function listNotifications() {
+  const data = await request('/api/notifications')
+  return parseApiResponse(NotificationListSchema, data, '알림 목록')
 }
 
 export function markNotificationRead(id) {

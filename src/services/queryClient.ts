@@ -18,9 +18,34 @@ export const queryClient = new QueryClient({
   },
 })
 
+// Query keys whose cached data contains user PII and must never be written to disk.
+// The dashboard query (notices, files, etc.) is kept for offline use.
+const PII_QUERY_KEYS: ReadonlyArray<ReadonlyArray<string>> = [
+  ['member-app', 'deleted-community-posts'],
+]
+
+function shouldExcludeFromPersistence(queryKey: unknown): boolean {
+  if (!Array.isArray(queryKey)) return false
+  return PII_QUERY_KEYS.some(
+    (piiKey) =>
+      piiKey.length <= queryKey.length &&
+      piiKey.every((segment, i) => segment === queryKey[i]),
+  )
+}
+
 export const queryPersister = {
   persistClient: async (client) => {
-    await writeStoredValueAsync(QUERY_CACHE_STORAGE_KEY, JSON.stringify(client))
+    // Strip PII queries before writing; the persisted shape is otherwise identical.
+    const safeClient = {
+      ...client,
+      clientState: {
+        ...client.clientState,
+        queries: client.clientState.queries.filter(
+          (q) => !shouldExcludeFromPersistence(q.queryKey),
+        ),
+      },
+    }
+    await writeStoredValueAsync(QUERY_CACHE_STORAGE_KEY, JSON.stringify(safeClient))
   },
   restoreClient: async () => {
     const raw = await readStoredValueAsync(QUERY_CACHE_STORAGE_KEY)
