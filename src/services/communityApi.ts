@@ -61,6 +61,17 @@ export function voteCommunityPost(id, value) {
   })
 }
 
+export function toggleCommunityPostBookmark(id) {
+  return request(`/api/community/posts/${id}/bookmark`, {
+    method: 'POST',
+  })
+}
+
+export async function listBookmarkedPosts() {
+  const data = await request('/api/community/posts/bookmarked/me')
+  return parseApiResponse(CommunityPostListSchema, data, '스크랩한 글 목록')
+}
+
 export function voteCommunityPoll(id, pollId, optionIndex) {
   return request(`/api/community/posts/${id}/poll-votes`, {
     method: 'POST',

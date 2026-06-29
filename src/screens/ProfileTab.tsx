@@ -4,7 +4,6 @@ import { changePassword } from '../services/authApi'
 import { formatDate, generationFromStudentId, preview } from '../utils/format'
 import { passwordPolicyMessage, validPassword } from '../utils/passwordPolicy'
 import { categoryLabels, latest } from '../utils/helpers'
-import { readBookmarks } from '../utils/bookmarks'
 import { postPreviewText } from '../utils/postBlocks'
 import { Empty, Info, ListItem, Section } from '../components/ui'
 
@@ -58,13 +57,11 @@ export default function ProfileTab({
     [posts, user],
   )
 
-  // Read once per ProfileTab mount/posts change. Device storage is mirrored in memory; rendering with stale ids
-  // is fine because toggling happens from CommunityTab and writes synchronously.
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  const bookmarkSet = useMemo(() => new Set(readBookmarks().map(String)), [posts])
+  // Each post carries a server-side `bookmarked` flag; filter the cached dashboard posts so the
+  // scrap list stays in sync with the toggle in the community tab without an extra fetch.
   const bookmarkedPosts = useMemo(
-    () => latest(posts.filter((post) => bookmarkSet.has(String(post.id))), 'createdAt'),
-    [posts, bookmarkSet],
+    () => latest(posts.filter((post) => post.bookmarked), 'createdAt'),
+    [posts],
   )
 
   async function submit(event) {
@@ -145,7 +142,7 @@ export default function ProfileTab({
         })}
         {!deletedPostsLoading && deletedPosts.length === 0 && <Empty text="삭제된 내 글이 없습니다." />}
       </Section>
-      <Section title={<><Bookmark size={14} aria-hidden="true" /> 북마크</>}>
+      <Section title={<><Bookmark size={14} aria-hidden="true" /> 내 스크랩</>}>
         {bookmarkedPosts.map((post) => (
           <ListItem
             key={post.id}
@@ -155,7 +152,7 @@ export default function ProfileTab({
             onClick={() => openPost?.(post.id)}
           />
         ))}
-        {bookmarkedPosts.length === 0 && <Empty text="아직 북마크한 글이 없습니다. 글 상세에서 별표로 추가하세요." />}
+        {bookmarkedPosts.length === 0 && <Empty text="아직 스크랩한 글이 없습니다. 글 상세나 목록에서 스크랩 버튼을 눌러보세요." />}
       </Section>
       <section className="panel">
         <div className="section-title">

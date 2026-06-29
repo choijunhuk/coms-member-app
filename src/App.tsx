@@ -16,6 +16,7 @@ import {
   listMyDeletedCommunityPosts,
   listComments,
   listCommunityPosts,
+  toggleCommunityPostBookmark,
   updateComment,
   voteCommunityPoll,
   voteCommunityPost,
@@ -610,6 +611,11 @@ export default function App() {
     onSuccess: () => { void hapticLight() },
   })
 
+  const bookmarkMutation = useMutation({
+    mutationFn: ({ postId }: any) => toggleCommunityPostBookmark(postId),
+    onSuccess: () => { void hapticLight() },
+  })
+
   const pollVoteMutation = useMutation({
     mutationFn: ({ postId, pollId, optionIndex }: any) => voteCommunityPoll(postId, pollId, optionIndex),
     onSuccess: () => { void hapticLight() },
@@ -658,6 +664,17 @@ export default function App() {
     if (!selectedPost?.id) return
     await voteMutation.mutateAsync({ postId: selectedPost.id, value })
     await openPost(selectedPost.id)
+  }
+
+  async function toggleBookmark(postId) {
+    if (!postId) return
+    const result = await bookmarkMutation.mutateAsync({ postId })
+    const bookmarked = Boolean(result?.bookmarked)
+    patchDashboard((prev) => ({
+      ...prev,
+      posts: prev.posts.map((post) => String(post.id) === String(postId) ? { ...post, bookmarked } : post),
+    }))
+    setSelectedPost((prev) => (prev && String(prev.id) === String(postId) ? { ...prev, bookmarked } : prev))
   }
 
   async function pollVote(pollId, optionIndex) {
@@ -851,7 +868,7 @@ export default function App() {
   )
   else if (activeTab === 'activity') content = <ActivityTab clubActivities={clubActivities} apps={apps} appLinks={appConfig.links} />
   else if (activeTab === 'notices') content = <NoticesTab notices={notices} selected={selectedNotice} loading={noticeLoading} openNotice={openNotice} closeNotice={() => setSelectedNotice(null)} />
-  else if (activeTab === 'community') content = <CommunityTab posts={posts} selected={selectedPost} comments={comments} loading={postLoading} openPost={openPost} closePost={() => { setSelectedPost(null); setComments([]) }} createPost={createPost} createCommentForPost={createCommentForPost} editComment={editCommentForPost} removeComment={removeCommentForPost} vote={vote} pollVote={pollVote} currentUser={user} pendingPosts={pendingCommunityPosts} retryPendingPosts={flushPendingCommunityPosts} />
+  else if (activeTab === 'community') content = <CommunityTab posts={posts} selected={selectedPost} comments={comments} loading={postLoading} openPost={openPost} closePost={() => { setSelectedPost(null); setComments([]) }} createPost={createPost} createCommentForPost={createCommentForPost} editComment={editCommentForPost} removeComment={removeCommentForPost} vote={vote} pollVote={pollVote} toggleBookmark={toggleBookmark} currentUser={user} pendingPosts={pendingCommunityPosts} retryPendingPosts={flushPendingCommunityPosts} />
   else if (activeTab === 'resources') content = <ResourcesTab files={files} />
   else if (activeTab === 'notifications') content = <NotificationsTab notifications={notifications} unreadCount={unreadCount} pushStatus={pushStatus} pushPermission={pushPermission} refreshPushPermission={refreshPushPermission} appConfig={appConfig} enablePush={enablePush} onOpenPushSettings={openPushSettings} markRead={markRead} markAllRead={markAllRead} openRoute={openRoute} />
   else if (activeTab === 'operations') content = <OperationsTab user={user} notices={notices} posts={posts} clubActivities={clubActivities} apps={apps} loadDashboard={refreshDashboard} />
