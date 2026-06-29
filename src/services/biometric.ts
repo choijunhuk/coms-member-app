@@ -1,14 +1,20 @@
 import { isNativeRuntime } from './nativeBridge'
 
-let pluginPromise = null
+// Minimal surface of the @aparajita/capacitor-biometric-auth plugin we rely on.
+type BiometricPlugin = {
+  checkBiometry(): Promise<{ isAvailable?: boolean }>
+  authenticate(options: { reason?: string; cancelTitle?: string; allowDeviceCredential?: boolean }): Promise<void>
+}
 
-async function loadPlugin() {
+let pluginPromise: Promise<BiometricPlugin | null> | null = null
+
+async function loadPlugin(): Promise<BiometricPlugin | null> {
   if (!isNativeRuntime()) return null
   if (pluginPromise) return pluginPromise
   pluginPromise = (async () => {
     try {
-      const mod: any = await import('@aparajita/capacitor-biometric-auth')
-      return mod?.BiometricAuth || mod?.default || null
+      const mod = await import('@aparajita/capacitor-biometric-auth') as Record<string, unknown>
+      return (mod?.BiometricAuth || mod?.default || null) as BiometricPlugin | null
     } catch {
       return null
     }

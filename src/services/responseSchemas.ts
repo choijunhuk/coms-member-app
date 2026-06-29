@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import { CommunityCategory, MemberRole } from '../contract/enums'
+import type { ApiError } from './apiClient'
 
 const idValue = z.union([z.number(), z.string()]).nullish()
 const numericValue = z.union([z.number(), z.string()]).nullish()
@@ -44,6 +45,12 @@ export const CommunityPostSchema = z.looseObject({
   title: z.string().nullish(),
   category: CommunityCategorySchema.nullish(),
   bookmarked: z.boolean().nullish(),
+  content: z.string().nullish(),
+  createdAt: z.string().nullish(),
+  commentCount: numericValue,
+  viewCount: numericValue,
+  upvotes: numericValue,
+  downvotes: numericValue,
 })
 
 export const CommunityPostListSchema = z.array(CommunityPostSchema)
@@ -149,7 +156,7 @@ export function parseApiResponse(schema, data, label) {
   const result = schema.safeParse(data)
   if (result.success) return result.data
 
-  const error: any = new Error(`${label} 응답 형식이 올바르지 않습니다.`)
+  const error: ApiError = new Error(`${label} 응답 형식이 올바르지 않습니다.`)
   error.code = 'INVALID_API_RESPONSE'
   error.status = 0
   error.cause = result.error

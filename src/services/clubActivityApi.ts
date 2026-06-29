@@ -19,7 +19,7 @@ const ACTIVITY_CATEGORY_LABELS = enumLabels(ActivityCategory, {
   [ActivityCategory.ACHIEVEMENT]: '성과',
 })
 
-export function companionServicesForLinks(links = DEFAULT_APP_LINKS) {
+export function companionServicesForLinks(links: Record<string, string> = DEFAULT_APP_LINKS) {
   const normalized = normalizeAppLinks({ links })
   return [
   {
@@ -62,7 +62,16 @@ export async function listClubActivities() {
   return parseApiResponse(ClubActivityListSchema, data, '활동/일정 목록')
 }
 
-export async function createClubActivity({ kind, category, title, description, eventDate, image }: any) {
+type CreateClubActivityInput = {
+  kind: string
+  category: string
+  title: string
+  description?: string
+  eventDate: string
+  image?: Blob | null
+}
+
+export async function createClubActivity({ kind, category, title, description, eventDate, image }: CreateClubActivityInput) {
   const form = new FormData()
   form.append('kind', kind)
   form.append('category', category)

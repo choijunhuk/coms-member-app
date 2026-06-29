@@ -17,7 +17,14 @@ function parseQueue(value) {
   }
 }
 
-function normalizePayload(payload: any = {}) {
+type CommunityPostPayload = {
+  title?: string
+  content?: string
+  category?: string
+  anonymousName?: string
+}
+
+function normalizePayload(payload: CommunityPostPayload = {}) {
   return {
     title: String(payload.title || '').trim(),
     content: String(payload.content || '').trim(),

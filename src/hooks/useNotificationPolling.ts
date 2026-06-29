@@ -2,7 +2,13 @@ import { useEffect, useRef } from 'react'
 
 const DEFAULT_INTERVAL_MS = 30_000
 
-export function useNotificationPolling({ enabled, refresh, intervalMs = DEFAULT_INTERVAL_MS }: any) {
+type NotificationPollingOptions = {
+  enabled?: boolean
+  refresh?: () => void
+  intervalMs?: number
+}
+
+export function useNotificationPolling({ enabled, refresh, intervalMs = DEFAULT_INTERVAL_MS }: NotificationPollingOptions) {
   const refreshRef = useRef(refresh)
 
   useEffect(() => {

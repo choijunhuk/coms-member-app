@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Loader2, LockKeyhole } from 'lucide-react'
 import { loginUser } from '../services/authApi'
 
-export default function LoginScreen({ onLogin }: any) {
+export default function LoginScreen({ onLogin }: { onLogin: () => void | Promise<void> }) {
   const [identifier, setIdentifier] = useState('')
   const [password, setPassword] = useState('')
   const [rememberMe, setRememberMe] = useState(true)

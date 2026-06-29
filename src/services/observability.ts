@@ -11,7 +11,7 @@ function pickEnvironment() {
   return import.meta.env.VITE_SENTRY_ENV || import.meta.env.MODE || 'production'
 }
 
-export async function initObservability({ release }: any = {}) {
+export async function initObservability({ release }: { release?: string } = {}) {
   if (initialized) return
   const dsn = pickDsn()
   if (!dsn) return
@@ -31,7 +31,9 @@ export async function initObservability({ release }: any = {}) {
   }
 }
 
-export async function captureError(error, context: any = {}) {
+type ErrorContext = Record<string, unknown> & { label?: string; area?: string }
+
+export async function captureError(error, context: ErrorContext = {}) {
   if (!initialized) return
   try {
     const Sentry = await import('@sentry/react')
@@ -41,7 +43,7 @@ export async function captureError(error, context: any = {}) {
   }
 }
 
-export function reportError(error, context: any = {}) {
+export function reportError(error, context: ErrorContext = {}) {
   const label = context.label || context.area || 'Recoverable app error'
   console.warn(label, error)
   void captureError(error, context)

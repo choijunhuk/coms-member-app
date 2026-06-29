@@ -159,7 +159,7 @@ export default function ProfileTab({
           <h2>테마</h2>
         </div>
         <div className="segments">
-          {THEME_OPTIONS.map(({ id, label, icon: Icon }: any) => (
+          {THEME_OPTIONS.map(({ id, label, icon: Icon }) => (
             <button
               key={id}
               type="button"

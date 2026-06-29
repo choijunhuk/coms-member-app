@@ -7,15 +7,17 @@ import { isNativeRuntime } from '../services/nativeBridge'
 import { pushPermissionActionLabel } from '../utils/pushPermissionStatus'
 import { reportError } from '../services/observability'
 import { Empty, ListItem, Section } from '../components/ui'
+import type { LucideIcon } from 'lucide-react'
+import type { AppConfig, NotificationItem } from '../contract/types'
 
-const STATUS_BADGE = {
+const STATUS_BADGE: Record<string, { label: string; className: string; icon: LucideIcon }> = {
   granted: { label: '허용됨', className: 'badge-success', icon: Check },
   denied: { label: '거부됨', className: 'badge-danger', icon: ShieldOff },
   prompt: { label: '미설정', className: 'badge-warn', icon: SettingsIcon },
   unavailable: { label: '미지원', className: 'badge-muted', icon: ShieldOff },
 }
 
-const PUSH_STATUS_LABEL = {
+const PUSH_STATUS_LABEL: Record<string, string> = {
   idle: '아래 "켜기"를 누르면 알림 권한을 요청합니다.',
   requesting: '기기 푸시 권한을 요청하는 중입니다.',
   requested: '권한 요청을 보냈습니다. 시스템 다이얼로그에서 응답을 기다리세요.',
@@ -34,7 +36,7 @@ async function openExternal(url) {
   if (!url) return
   try {
     if (isNativeRuntime()) {
-      const mod: any = await import('@capacitor/browser').catch(() => ({}))
+      const mod = await import('@capacitor/browser').catch(() => ({})) as { Browser?: { open?: (options: { url: string }) => Promise<void> } }
       if (mod?.Browser?.open) {
         await mod.Browser.open({ url })
         return
@@ -48,7 +50,21 @@ async function openExternal(url) {
   }
 }
 
-export default function NotificationsTab({ notifications, unreadCount, pushStatus, pushPermission, refreshPushPermission, appConfig, enablePush, onOpenPushSettings, markRead, markAllRead, openRoute }: any) {
+type NotificationsTabProps = {
+  notifications: NotificationItem[]
+  unreadCount: number
+  pushStatus: string
+  pushPermission?: string | null
+  refreshPushPermission?: () => void | Promise<unknown>
+  appConfig: AppConfig
+  enablePush?: () => void
+  onOpenPushSettings?: () => void
+  markRead: (id: unknown) => void | Promise<void>
+  markAllRead: () => void | Promise<void>
+  openRoute: (route: unknown) => void
+}
+
+export default function NotificationsTab({ notifications, unreadCount, pushStatus, pushPermission, refreshPushPermission, appConfig, enablePush, onOpenPushSettings, markRead, markAllRead, openRoute }: NotificationsTabProps) {
   const items = latest(notifications, 'createdAt')
 
   useEffect(() => {

@@ -1,7 +1,10 @@
 import { asArray } from '../../utils/format'
 import { pollResultRows, pollSummaryText } from '../../utils/pollResults'
 
-export default function PollBlock({ block, result, pollVote }: any) {
+type PollBlockData = { pollId?: string; question?: string; [key: string]: unknown }
+type PollResult = { closed?: boolean; myOption?: number | null; [key: string]: unknown }
+
+export default function PollBlock({ block, result, pollVote }: { block: PollBlockData; result?: PollResult; pollVote: (pollId: unknown, optionIndex: number) => void }) {
   const closed = Boolean(result?.closed)
   const voted = result?.myOption !== null && result?.myOption !== undefined
   const disabled = closed || voted

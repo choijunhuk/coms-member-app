@@ -5,12 +5,13 @@ import { asArray, formatDate } from '../utils/format'
 import { fileCategoryLabels, latest } from '../utils/helpers'
 import { readRecentResourceIds, rememberResource } from '../utils/resourceHistory'
 import { Empty, ListItem, Section } from '../components/ui'
+import type { ArchiveFile } from '../contract/types'
 
-export default function ResourcesTab({ files }: any) {
+export default function ResourcesTab({ files }: { files: ArchiveFile[] }) {
   const [query, setQuery] = useState('')
   const [category, setCategory] = useState('ALL')
-  const [voteState, setVoteState] = useState({})
-  const [recentIds, setRecentIds] = useState(() => readRecentResourceIds())
+  const [voteState, setVoteState] = useState<Record<string, ArchiveFile>>({})
+  const [recentIds, setRecentIds] = useState<string[]>(() => readRecentResourceIds())
   const categories = useMemo(() => ['ALL', ...new Set(asArray(files).map((file) => file.category || 'GENERAL'))], [files])
   const recentFiles = useMemo(() => {
     const byId = new Map(asArray(files).map((file) => [String(file.id), file]))

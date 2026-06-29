@@ -1,7 +1,15 @@
 import { BellRing, Check, Fingerprint, Sparkles, X } from 'lucide-react'
 import { pushPermissionActionLabel } from '../utils/pushPermissionStatus'
 
-export default function OnboardingCard({ pushEnabled, pushPermission, biometricAvailable, onEnablePush, onDismiss }: any) {
+type OnboardingCardProps = {
+  pushEnabled?: boolean
+  pushPermission?: string | null
+  biometricAvailable?: boolean
+  onEnablePush?: () => void
+  onDismiss?: () => void
+}
+
+export default function OnboardingCard({ pushEnabled, pushPermission, biometricAvailable, onEnablePush, onDismiss }: OnboardingCardProps) {
   const pushGranted = pushPermission === 'granted'
   const pushDenied = pushPermission === 'denied'
   const pushCopy = pushGranted

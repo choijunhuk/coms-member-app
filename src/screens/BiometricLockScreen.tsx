@@ -4,7 +4,7 @@ import { verifyBiometric } from '../services/biometric'
 
 const MAX_ATTEMPTS = 3
 
-export default function BiometricLockScreen({ onUnlock, onLogout }: any) {
+export default function BiometricLockScreen({ onUnlock, onLogout }: { onUnlock: () => void; onLogout: () => void }) {
   const [attempts, setAttempts] = useState(0)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')

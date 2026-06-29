@@ -9,8 +9,11 @@
  * which Vite runs during `npm run build`, the test suite runs on import, and
  * the app runs at startup. That turns silent enum drift into a loud failure.
  */
-export function enumLabels(enumObject: any, labelMap: any) {
-  const missing = Object.values(enumObject).filter((value: any) => !(value in labelMap))
+export function enumLabels(
+  enumObject: Record<string, string>,
+  labelMap: Record<string, string>,
+): Record<string, string> {
+  const missing = Object.values(enumObject).filter((value) => !(value in labelMap))
   if (missing.length > 0) {
     throw new Error(
       `enum label drift: missing labels for [${missing.join(', ')}]. ` +

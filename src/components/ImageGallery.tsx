@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { ChevronLeft, ChevronRight, X } from 'lucide-react'
 import { mediaSrc } from '../utils/helpers'
+import type { CommunityPost } from '../contract/types'
 
 function uniqueImageUrls(post) {
   const set = new Set()
@@ -18,9 +19,9 @@ function uniqueImageUrls(post) {
   return out
 }
 
-export default function ImageGallery({ post }: any) {
+export default function ImageGallery({ post }: { post?: CommunityPost }) {
   const images = uniqueImageUrls(post)
-  const [activeIndex, setActiveIndex] = useState(null)
+  const [activeIndex, setActiveIndex] = useState<number | null>(null)
 
   useEffect(() => {
     if (activeIndex === null) return undefined

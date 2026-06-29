@@ -1,5 +1,11 @@
 const MAX_OPTIONS = 10
 
+export type PollDraft = {
+  enabled?: boolean
+  question?: string
+  options?: string[]
+}
+
 export function createEmptyPollDraft() {
   return {
     enabled: false,
@@ -33,7 +39,7 @@ export function buildPollBlock(poll, idSeed = '') {
   }
 }
 
-export function buildComposerContent({ text, poll, idSeed = '' }: any) {
+export function buildComposerContent({ text, poll, idSeed = '' }: { text?: string; poll?: PollDraft; idSeed?: string }) {
   const normalizedText = String(text || '').trim()
   if (!poll?.enabled) return normalizedText
   const pollBlock = buildPollBlock(poll, idSeed)
