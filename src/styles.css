@@ -606,6 +606,25 @@ p {
   transform: scale(0.99);
 }
 
+.post-list-row {
+  position: relative;
+}
+
+.post-list-row .list-item {
+  padding-right: 3.2rem;
+}
+
+.post-list-bookmark {
+  position: absolute;
+  top: 0.6rem;
+  right: 0.6rem;
+}
+
+.post-list-bookmark[aria-pressed='true'] {
+  color: var(--app-accent);
+  border-color: var(--app-accent);
+}
+
 .item-title {
   display: flex;
   align-items: center;

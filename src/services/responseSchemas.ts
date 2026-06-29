@@ -43,6 +43,7 @@ export const CommunityPostSchema = z.looseObject({
   id: idValue,
   title: z.string().nullish(),
   category: CommunityCategorySchema.nullish(),
+  bookmarked: z.boolean().nullish(),
 })
 
 export const CommunityPostListSchema = z.array(CommunityPostSchema)

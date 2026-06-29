@@ -59,6 +59,16 @@ describe('CommunityTab', () => {
     expect(openPost).toHaveBeenCalledWith(11)
   })
 
+  test('toggles a scrap from a post list row', () => {
+    const toggleBookmark = vi.fn()
+    renderCommunity({ toggleBookmark })
+
+    fireEvent.click(screen.getByRole('button', { name: '질문' }))
+    const list = screen.getByRole('heading', { name: '커뮤니티 · 1건' }).closest('section')
+    fireEvent.click(within(list).getByRole('button', { name: '스크랩' }))
+    expect(toggleBookmark).toHaveBeenCalledWith(11)
+  })
+
   test('submits a community-style post from the composer', async () => {
     const createPost = vi.fn().mockResolvedValue(undefined)
     renderCommunity({ createPost })

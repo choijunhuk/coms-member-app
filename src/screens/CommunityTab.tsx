@@ -7,7 +7,6 @@ import { categoryLabels, latest, postImage } from '../utils/helpers'
 import { postPreviewText } from '../utils/postBlocks'
 import { sharePost } from '../services/nativeShare'
 import { hapticLight, hapticSuccess } from '../services/haptics'
-import { isBookmarked, toggleBookmark } from '../utils/bookmarks'
 import { Detail, Empty, ListItem, LoadingScreen, Section } from '../components/ui'
 import EmojiText from '../components/EmojiText'
 import Composer from './community/Composer'
@@ -33,7 +32,35 @@ function matchesQuery(post, query) {
   return haystack.includes(query)
 }
 
-export default function CommunityTab({ posts, selected, comments, loading, openPost, closePost, createPost, createCommentForPost, vote, pollVote, editComment, removeComment, currentUser, pendingPosts = [], retryPendingPosts }: any) {
+// Wraps the shared ListItem (itself a button) with a sibling scrap toggle, since
+// an interactive control can't be nested inside another button.
+function PostListItem({ post, openPost, toggleBookmark }: any) {
+  const bookmarked = Boolean(post.bookmarked)
+  return (
+    <div className="post-list-row">
+      <ListItem
+        title={post.title}
+        meta={`${categoryLabels[post.category] || '자유'} · 댓글 ${post.commentCount || 0}`}
+        body={postPreviewText(post)}
+        image={postImage(post)}
+        onClick={() => openPost(post.id)}
+      />
+      {toggleBookmark && (
+        <button
+          type="button"
+          className="icon-button post-list-bookmark"
+          aria-label={bookmarked ? '스크랩 취소' : '스크랩'}
+          aria-pressed={bookmarked}
+          onClick={() => { void hapticLight(); void toggleBookmark(post.id) }}
+        >
+          {bookmarked ? <BookmarkCheck size={16} /> : <Bookmark size={16} />}
+        </button>
+      )}
+    </div>
+  )
+}
+
+export default function CommunityTab({ posts, selected, comments, loading, openPost, closePost, createPost, createCommentForPost, vote, pollVote, toggleBookmark, editComment, removeComment, currentUser, pendingPosts = [], retryPendingPosts }: any) {
   const [writing, setWriting] = useState(false)
   const [comment, setComment] = useState('')
   const [query, setQuery] = useState('')
@@ -42,7 +69,6 @@ export default function CommunityTab({ posts, selected, comments, loading, openP
   const [editingContent, setEditingContent] = useState('')
   const [replyingToId, setReplyingToId] = useState(null)
   const [replyContent, setReplyContent] = useState('')
-  const [bookmarkTick, setBookmarkTick] = useState(0)
   const [reporting, setReporting] = useState(false)
   const [reportedAt, setReportedAt] = useState(null)
 
@@ -53,16 +79,13 @@ export default function CommunityTab({ posts, selected, comments, loading, openP
     setReportedAt(Date.now())
   }
 
-  // Derive from device storage on each render keyed by selected id and the toggle tick.
-  // Cheaper than wiring an effect, and the tick triggers a refresh after toggleBookmark writes.
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  const bookmarked = useMemo(() => Boolean(selected?.id) && isBookmarked(selected.id), [selected?.id, bookmarkTick])
+  // The backend marks each post with a `bookmarked` flag; toggleBookmark flips it server-side
+  // and the parent patches the cached post, so we read straight from the selected post.
+  const bookmarked = Boolean(selected?.bookmarked)
 
-  function onToggleBookmark() {
+  async function onToggleBookmark() {
     if (!selected?.id) return
-    void hapticLight()
-    toggleBookmark(selected.id)
-    setBookmarkTick((tick) => tick + 1)
+    await toggleBookmark?.(selected.id)
   }
 
   async function submitComment(event) {
@@ -133,9 +156,9 @@ export default function CommunityTab({ posts, selected, comments, loading, openP
               <button className="button secondary" onClick={() => vote(1)}><ThumbsUp size={16} />추천</button>
               <button className="button secondary" onClick={() => vote(-1)}><ThumbsDown size={16} />비추천</button>
               <button className="button secondary" onClick={shareSelected}><Share2 size={16} />공유</button>
-              <button className="button secondary" onClick={onToggleBookmark}>
+              <button className="button secondary" onClick={onToggleBookmark} aria-label={bookmarked ? '스크랩 취소' : '스크랩'} aria-pressed={bookmarked}>
                 {bookmarked ? <BookmarkCheck size={16} /> : <Bookmark size={16} />}
-                {bookmarked ? '북마크됨' : '북마크'}
+                {bookmarked ? '스크랩됨' : '스크랩'}
               </button>
               <button className="button secondary" onClick={() => setReporting(true)} disabled={Boolean(reportedAt)}>
                 <AlertTriangle size={16} /> {reportedAt ? '신고됨' : '신고'}
@@ -205,13 +228,14 @@ export default function CommunityTab({ posts, selected, comments, loading, openP
     setWriting={setWriting}
     createPost={createPost}
     openPost={openPost}
+    toggleBookmark={toggleBookmark}
     currentUser={currentUser}
     pendingPosts={pendingPosts}
     retryPendingPosts={retryPendingPosts}
   />
 }
 
-function CommunityListView({ posts, filtered, query, setQuery, category, setCategory, writing, setWriting, createPost, openPost, currentUser, pendingPosts, retryPendingPosts }: any) {
+function CommunityListView({ posts, filtered, query, setQuery, category, setCategory, writing, setWriting, createPost, openPost, toggleBookmark, currentUser, pendingPosts, retryPendingPosts }: any) {
   const availableCategories = useMemo(() => {
     const set = new Set()
     for (const post of posts) if (post?.category) set.add(post.category)
@@ -229,16 +253,10 @@ function CommunityListView({ posts, filtered, query, setQuery, category, setCate
     const post = filtered[index]
     return (
       <div style={style} ref={(el: HTMLDivElement | null) => { if (el) return observeRow([el]) }}>
-        <ListItem
-          title={post.title}
-          meta={`${categoryLabels[post.category] || '자유'} · 댓글 ${post.commentCount || 0}`}
-          body={postPreviewText(post)}
-          image={postImage(post)}
-          onClick={() => openPost(post.id)}
-        />
+        <PostListItem post={post} openPost={openPost} toggleBookmark={toggleBookmark} />
       </div>
     )
-  }, [filtered, openPost])
+  }, [filtered, openPost, toggleBookmark])
 
   // Recompute list height on resize/rotation so the List fills the viewport correctly.
   // Approximate: viewport minus topbar (~3.5rem), tabbar (~4.5rem), and other chrome (~9rem total = 144px).
@@ -289,14 +307,7 @@ function CommunityListView({ posts, filtered, query, setQuery, category, setCate
           />
         ) : (
           filtered.map((post) => (
-            <ListItem
-              key={post.id}
-              title={post.title}
-              meta={`${categoryLabels[post.category] || '자유'} · 댓글 ${post.commentCount || 0}`}
-              body={postPreviewText(post)}
-              image={postImage(post)}
-              onClick={() => openPost(post.id)}
-            />
+            <PostListItem key={post.id} post={post} openPost={openPost} toggleBookmark={toggleBookmark} />
           ))
         )}
       </Section>
