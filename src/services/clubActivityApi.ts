@@ -2,6 +2,7 @@ import { request } from './apiClient'
 import { DEFAULT_APP_LINKS, normalizeAppLinks } from '../config/appLinks'
 import { ActivityCategory } from '../contract/enums'
 import { enumLabels } from '../contract/labels'
+import { ClubActivityListSchema, parseApiResponse } from './responseSchemas'
 
 export const CLUB_ACTIVITIES_PATH = '/api/club-activities'
 
@@ -56,8 +57,9 @@ export function companionServicesForLinks(links = DEFAULT_APP_LINKS) {
 
 export const companionServices = companionServicesForLinks()
 
-export function listClubActivities() {
-  return request(CLUB_ACTIVITIES_PATH)
+export async function listClubActivities() {
+  const data = await request(CLUB_ACTIVITIES_PATH)
+  return parseApiResponse(ClubActivityListSchema, data, '활동/일정 목록')
 }
 
 export async function createClubActivity({ kind, category, title, description, eventDate, image }: any) {

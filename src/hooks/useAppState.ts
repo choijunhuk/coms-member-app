@@ -1,12 +1,21 @@
 import { useState } from 'react'
 import { readLastSeen } from '../utils/lastSeen'
-import { readOnboarded, readTheme } from '../utils/preferences'
+import { readIdleLock, readOnboarded, readTheme, resolveIdleLockMs } from '../utils/preferences'
+import { isNativeRuntime } from '../services/nativeBridge'
+
+// Boot LOCKED when the user enabled idle-lock so cached PII never renders before
+// biometric re-auth. Native only (no biometric on web) and only when idle-lock is
+// on; users who disabled it are never locked. The optimistic value is reconciled
+// in App once preferences and biometric availability resolve.
+function shouldLockOnBoot() {
+  return isNativeRuntime() && resolveIdleLockMs(readIdleLock()) !== null
+}
 
 export function useAppState() {
   const [user, setUser] = useState(null)
   const [authLoading, setAuthLoading] = useState(true)
   const [appVersion, setAppVersion] = useState(null)
-  const [locked, setLocked] = useState(false)
+  const [locked, setLocked] = useState(shouldLockOnBoot)
   const [activeTab, setActiveTab] = useState('home')
   const [pushStatus, setPushStatus] = useState('idle')
   const [pushPermission, setPushPermission] = useState(null)

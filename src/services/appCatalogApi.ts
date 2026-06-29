@@ -1,13 +1,15 @@
 import { request } from './apiClient'
 import { companionServices } from './clubActivityApi'
+import { AppListSchema, parseApiResponse } from './responseSchemas'
 
 export const APPS_PATH = '/api/apps'
 
 // Fallback used when the catalog is empty so the COMS Apps section still renders.
 export const fallbackApps = companionServices
 
-export function listApps() {
-  return request(APPS_PATH)
+export async function listApps() {
+  const data = await request(APPS_PATH)
+  return parseApiResponse(AppListSchema, data, '앱 목록')
 }
 
 export function createApp(payload) {

@@ -1,11 +1,14 @@
 import { request } from './apiClient'
+import { NoticeListSchema, NoticeSchema, parseApiResponse } from './responseSchemas'
 
-export function listNotices() {
-  return request('/api/notices')
+export async function listNotices() {
+  const data = await request('/api/notices')
+  return parseApiResponse(NoticeListSchema, data, '공지 목록')
 }
 
-export function getNotice(id) {
-  return request(`/api/notices/${id}`)
+export async function getNotice(id) {
+  const data = await request(`/api/notices/${id}`)
+  return parseApiResponse(NoticeSchema, data, '공지')
 }
 
 export function createNotice(payload) {

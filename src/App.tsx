@@ -95,6 +95,7 @@ const EMPTY_DASHBOARD = {
   apps: [],
   notifications: [],
   unreadCount: 0,
+  partialError: false,
 }
 
 async function fetchDashboard() {
@@ -102,19 +103,26 @@ async function fetchDashboard() {
   // can show every entry, not just the small "recent" slice the mobile home aggregate
   // returns. Mobile home is still consulted in parallel for unreadCount and the
   // pre-shaped notifications block, but we prefer the full lists when they arrive.
+  // Keep the per-request fallback so partial data still renders, but flag when any
+  // of these fail so the UI can surface a non-blocking warning instead of silently
+  // showing empty tabs during a backend outage.
+  let partialError = false
+  const onError = (fallback) => () => {
+    partialError = true
+    return fallback
+  }
   const [configData, mobileHome, noticeData, postData, fileData, clubActivityData, appData, notificationData, notificationList] = await Promise.all([
-    getAppConfig().catch(() => DEFAULT_APP_CONFIG),
-    getMobileHome().catch((err) => {
-      if (isRecoverableMobileApiError(err)) return null
-      return null
-    }),
-    listNotices().catch(() => []),
-    listCommunityPosts().catch(() => []),
-    listFiles().catch(() => []),
-    listClubActivities().catch(() => []),
-    listApps().catch(() => []),
-    getNotificationSummary().catch(() => ({ unreadCount: 0 })),
-    listNotifications().catch(() => []),
+    getAppConfig().catch(onError(DEFAULT_APP_CONFIG)),
+    // Mobile home is a supplementary aggregate and may be absent on some backends,
+    // so its failure is tolerated quietly and does not flag a partial error.
+    getMobileHome().catch(() => null),
+    listNotices().catch(onError([])),
+    listCommunityPosts().catch(onError([])),
+    listFiles().catch(onError([])),
+    listClubActivities().catch(onError([])),
+    listApps().catch(onError([])),
+    getNotificationSummary().catch(onError({ unreadCount: 0 })),
+    listNotifications().catch(onError([])),
   ])
 
   const appConfig = normalizeAppConfig(configData)
@@ -129,6 +137,7 @@ async function fetchDashboard() {
     apps: asArray(appData),
     notifications: asArray(notificationList),
     unreadCount: Number(home?.unreadCount ?? notificationData?.unreadCount ?? 0),
+    partialError,
   }
 }
 
@@ -216,6 +225,7 @@ export default function App() {
   const dashboard = dashboardQuery.data ?? EMPTY_DASHBOARD
   const { appConfig, notices, posts, files, clubActivities, apps, notifications, unreadCount } = dashboard
   const dashboardLoading = dashboardQuery.isLoading && !dashboardQuery.data
+  const dashboardPartialError = Boolean(dashboard.partialError)
   const dashboardError = dashboardQuery.error?.message || ''
   const refreshing = dashboardQuery.isFetching && !dashboardLoading
 
@@ -357,6 +367,26 @@ export default function App() {
       cancelled = true
     }
   }, [setBiometricReady, user])
+
+  // Reconcile the optimistic boot lock once preferences and biometric availability
+  // resolve. The app boots locked (see useAppState) so cached PII never flashes,
+  // but we must release the lock for users who disabled idle-lock or whose device
+  // has no usable biometric — otherwise they would be trapped now that
+  // verifyBiometric fails closed. Legitimate idle locks keep biometric available,
+  // so this never clears them.
+  useEffect(() => {
+    if (!user || !locked) return undefined
+    let cancelled = false
+    Promise.all([isBiometricAvailable(), hydrateStoredValues(PREFERENCE_STORAGE_KEYS)]).then(([available]) => {
+      if (cancelled) return
+      if (!available || resolveIdleLockMs(readIdleLock()) === null) setLocked(false)
+    }).catch((error) => {
+      reportError(error, { area: 'biometric-boot-lock' })
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [locked, setLocked, user])
 
   const dismissOnboarding = useCallback(() => {
     markOnboarded()
@@ -847,6 +877,7 @@ export default function App() {
   const body = (
     <div className="stack">
         <OfflineBanner slow={slowSync} />
+      {dashboardPartialError && <p className="form-error" role="status">일부 정보를 불러오지 못했습니다. 당겨서 새로고침하면 다시 시도합니다.</p>}
       {queueWarning && <p className="form-error" role="status">{queueWarning}</p>}
       {appConfig.maintenanceMessage && <AppConfigBanner appConfig={appConfig} />}
       {content}
