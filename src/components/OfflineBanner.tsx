@@ -7,7 +7,7 @@ function readOnlineState() {
   return navigator.onLine !== false
 }
 
-export default function OfflineBanner({ slow = false }: any) {
+export default function OfflineBanner({ slow = false }: { slow?: boolean }) {
   const [online, setOnline] = useState(readOnlineState())
 
   useEffect(() => {

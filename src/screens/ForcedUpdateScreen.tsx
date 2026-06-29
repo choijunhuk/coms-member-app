@@ -1,7 +1,7 @@
 import { Download } from 'lucide-react'
 import { DEFAULT_APP_LINKS, normalizeExternalUrl } from '../config/appLinks'
 
-export default function ForcedUpdateScreen({ currentVersion, minimumVersion, updateUrl }: any) {
+export default function ForcedUpdateScreen({ currentVersion, minimumVersion, updateUrl }: { currentVersion?: string | null; minimumVersion?: string | null; updateUrl?: string | null }) {
   const href = normalizeExternalUrl(updateUrl, DEFAULT_APP_LINKS.update)
   return (
     <main className="center-screen">

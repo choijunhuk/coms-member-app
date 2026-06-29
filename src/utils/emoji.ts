@@ -3,15 +3,19 @@
 // glyph. Falls back to the original string when twemoji is not available
 // (Node, no-network installs, etc.).
 
-let twemojiPromise = null
+type TwemojiParse = (input: string, options?: Record<string, unknown>) => string
 
-async function loadTwemoji() {
+let twemojiPromise: Promise<TwemojiParse | null> | null = null
+
+async function loadTwemoji(): Promise<TwemojiParse | null> {
   if (twemojiPromise) return twemojiPromise
   twemojiPromise = (async () => {
     try {
-      const mod: any = await import('twemoji')
+      const mod = await import('twemoji') as Record<string, unknown>
       const parser = mod?.default || mod?.parse
-      return typeof parser === 'function' ? parser : parser?.parse || null
+      if (typeof parser === 'function') return parser as TwemojiParse
+      const nested = (parser as Record<string, unknown> | undefined)?.parse
+      return typeof nested === 'function' ? (nested as TwemojiParse) : null
     } catch {
       return null
     }
@@ -41,7 +45,7 @@ export async function emojify(htmlOrText) {
 // the dynamic import; until it resolves the raw text is returned. After the
 // import lands every subsequent call hits the cached parser, so user-visible
 // renders catch up on re-render.
-let parser = null
+let parser: TwemojiParse | null = null
 loadTwemoji().then((fn) => {
   parser = fn
 })

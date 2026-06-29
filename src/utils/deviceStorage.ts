@@ -23,9 +23,9 @@ export function readStoredValue(key) {
   return localStorageFallback()?.getItem(key) ?? null
 }
 
-export async function hydrateStoredValues(keys: any) {
+export async function hydrateStoredValues(keys: Iterable<string>) {
   if (!shouldUseNativePreferences()) return
-  await Promise.all([...new Set<any>(keys)].map(async (key: any) => {
+  await Promise.all([...new Set<string>(keys)].map(async (key) => {
     if (hydratedKeys.has(key)) return
     try {
       const { value } = await Preferences.get({ key })

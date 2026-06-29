@@ -8,6 +8,7 @@ import {
   schedulesForMonth,
 } from '../services/clubActivityApi'
 import { Empty, ListItem, Section } from '../components/ui'
+import type { AppItem, AppLinks, ClubActivity } from '../contract/types'
 
 const MONTHS = Array.from({ length: 12 }, (_, index) => ({ value: index, label: `${index + 1}월` }))
 
@@ -23,7 +24,7 @@ function isSafeHttpUrl(url) {
 async function openService(url) {
   if (!url || !isSafeHttpUrl(url)) return
   try {
-    const mod: any = await import('@capacitor/browser').catch(() => ({}))
+    const mod = await import('@capacitor/browser').catch(() => ({})) as { Browser?: { open?: (options: { url: string }) => Promise<void> } }
     if (mod?.Browser?.open) {
       await mod.Browser.open({ url })
       return
@@ -34,13 +35,27 @@ async function openService(url) {
   window.open(url, '_blank', 'noopener,noreferrer')
 }
 
-export default function ActivityTab({ clubActivities, apps, appLinks }: any) {
+type ServiceCard = {
+  id?: AppItem['id']
+  title?: string | null
+  eyebrow?: string | null
+  body?: string | null
+  href?: string | null
+}
+
+type ActivityTabProps = {
+  clubActivities: ClubActivity[]
+  apps?: AppItem[]
+  appLinks?: AppLinks
+}
+
+export default function ActivityTab({ clubActivities, apps, appLinks }: ActivityTabProps) {
   const now = new Date()
   const [year, setYear] = useState(now.getFullYear())
   const [month, setMonth] = useState(now.getMonth())
   const activities = useMemo(() => recentActivities(clubActivities, 12), [clubActivities])
   const monthSchedules = useMemo(() => schedulesForMonth(clubActivities, year, month), [clubActivities, year, month])
-  const services = useMemo(() => (
+  const services = useMemo<ServiceCard[]>(() => (
     Array.isArray(apps) && apps.length > 0 ? apps : companionServicesForLinks(appLinks)
   ), [appLinks, apps])
 

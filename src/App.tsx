@@ -590,7 +590,7 @@ export default function App() {
   }, [activeTab, selectedNotice, selectedPost, setActiveTab, setComments, setSelectedNotice, setSelectedPost, setShowPrivacy, setShowSettings, showPrivacy, showSettings, user])
 
   const createPostMutation = useMutation({
-    mutationFn: async ({ payload, images }: any) => {
+    mutationFn: async ({ payload, images }: { payload: unknown; images?: unknown[] }) => {
       const list = Array.isArray(images) ? images : []
       if (list.length === 0) return createCommunityPost(payload)
       const created = await createCommunityPostWithImage(payload, list[0])
@@ -607,22 +607,22 @@ export default function App() {
   })
 
   const voteMutation = useMutation({
-    mutationFn: ({ postId, value }: any) => voteCommunityPost(postId, value),
+    mutationFn: ({ postId, value }: { postId: unknown; value: number }) => voteCommunityPost(postId, value),
     onSuccess: () => { void hapticLight() },
   })
 
   const bookmarkMutation = useMutation({
-    mutationFn: ({ postId }: any) => toggleCommunityPostBookmark(postId),
+    mutationFn: ({ postId }: { postId: unknown }) => toggleCommunityPostBookmark(postId),
     onSuccess: () => { void hapticLight() },
   })
 
   const pollVoteMutation = useMutation({
-    mutationFn: ({ postId, pollId, optionIndex }: any) => voteCommunityPoll(postId, pollId, optionIndex),
+    mutationFn: ({ postId, pollId, optionIndex }: { postId: unknown; pollId: unknown; optionIndex: number }) => voteCommunityPoll(postId, pollId, optionIndex),
     onSuccess: () => { void hapticLight() },
   })
 
   const appealDeletedPostMutation = useMutation({
-    mutationFn: ({ id, message }: any) => appealDeletedCommunityPost(id, message),
+    mutationFn: ({ id, message }: { id: unknown; message: string }) => appealDeletedCommunityPost(id, message),
     onSuccess: (appeal) => {
       queryClient.setQueryData(['member-app', 'deleted-community-posts'], (prev) => asArray(prev).map((item) => (
         item.id === appeal.deletedPostId

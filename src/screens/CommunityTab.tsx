@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState, type Dispatch, type SetStateAction } from 'react'
 import { List, useDynamicRowHeight } from 'react-window'
 import type { DynamicRowHeight, RowComponentProps } from 'react-window'
 import { AlertTriangle, Bookmark, BookmarkCheck, CornerDownRight, Eye, Plus, Search, Send, Share2, ThumbsDown, ThumbsUp, Trash2, Pencil, Check, X } from 'lucide-react'
@@ -13,6 +13,7 @@ import Composer from './community/Composer'
 import PostContent from './community/PostContent'
 import ReportDialog from './community/ReportDialog'
 import { reportCommunityPost } from '../services/communityApi'
+import type { CommunityPost, CurrentUser } from '../contract/types'
 
 // Estimated height for a community list item (title + meta + body).
 // react-window needs a stable row height; this covers the typical rendered size.
@@ -34,7 +35,13 @@ function matchesQuery(post, query) {
 
 // Wraps the shared ListItem (itself a button) with a sibling scrap toggle, since
 // an interactive control can't be nested inside another button.
-function PostListItem({ post, openPost, toggleBookmark }: any) {
+type PostListItemProps = {
+  post: CommunityPost
+  openPost: (id: unknown) => void
+  toggleBookmark?: (id: unknown) => void | Promise<void>
+}
+
+function PostListItem({ post, openPost, toggleBookmark }: PostListItemProps) {
   const bookmarked = Boolean(post.bookmarked)
   return (
     <div className="post-list-row">
@@ -60,17 +67,51 @@ function PostListItem({ post, openPost, toggleBookmark }: any) {
   )
 }
 
-export default function CommunityTab({ posts, selected, comments, loading, openPost, closePost, createPost, createCommentForPost, vote, pollVote, toggleBookmark, editComment, removeComment, currentUser, pendingPosts = [], retryPendingPosts }: any) {
+type CommunityComment = {
+  id?: unknown
+  content?: string
+  depth?: number
+  edited?: boolean
+  authorDisplayName?: string
+  authorName?: string
+  authorStudentId?: unknown
+  authorId?: unknown
+  createdAt?: string
+  [key: string]: unknown
+}
+
+type PendingPost = { id?: unknown; payload?: unknown; [key: string]: unknown }
+
+type CommunityTabProps = {
+  posts: CommunityPost[]
+  selected?: CommunityPost | null
+  comments: CommunityComment[]
+  loading?: boolean
+  openPost: (id: unknown) => void
+  closePost: () => void
+  createPost: (input: unknown) => unknown
+  createCommentForPost: (content: string, parentCommentId?: unknown) => void | Promise<void>
+  vote: (value: number) => void | Promise<void>
+  pollVote: (pollId: unknown, optionIndex: number) => void
+  toggleBookmark?: (id: unknown) => void | Promise<void>
+  editComment?: (id: unknown, content: string) => void | Promise<void>
+  removeComment?: (id: unknown) => void | Promise<void>
+  currentUser?: CurrentUser | null
+  pendingPosts?: PendingPost[]
+  retryPendingPosts?: () => void | Promise<void>
+}
+
+export default function CommunityTab({ posts, selected, comments, loading, openPost, closePost, createPost, createCommentForPost, vote, pollVote, toggleBookmark, editComment, removeComment, currentUser, pendingPosts = [], retryPendingPosts }: CommunityTabProps) {
   const [writing, setWriting] = useState(false)
   const [comment, setComment] = useState('')
   const [query, setQuery] = useState('')
   const [category, setCategory] = useState('ALL')
-  const [editingCommentId, setEditingCommentId] = useState(null)
+  const [editingCommentId, setEditingCommentId] = useState<unknown>(null)
   const [editingContent, setEditingContent] = useState('')
-  const [replyingToId, setReplyingToId] = useState(null)
+  const [replyingToId, setReplyingToId] = useState<unknown>(null)
   const [replyContent, setReplyContent] = useState('')
   const [reporting, setReporting] = useState(false)
-  const [reportedAt, setReportedAt] = useState(null)
+  const [reportedAt, setReportedAt] = useState<number | null>(null)
 
   async function submitReport(reason, detail) {
     if (!selected?.id) return
@@ -235,9 +276,26 @@ export default function CommunityTab({ posts, selected, comments, loading, openP
   />
 }
 
-function CommunityListView({ posts, filtered, query, setQuery, category, setCategory, writing, setWriting, createPost, openPost, toggleBookmark, currentUser, pendingPosts, retryPendingPosts }: any) {
+type CommunityListViewProps = {
+  posts: CommunityPost[]
+  filtered: CommunityPost[]
+  query: string
+  setQuery: (value: string) => void
+  category: string
+  setCategory: (value: string) => void
+  writing: boolean
+  setWriting: Dispatch<SetStateAction<boolean>>
+  createPost: (input: unknown) => unknown
+  openPost: (id: unknown) => void
+  toggleBookmark?: (id: unknown) => void | Promise<void>
+  currentUser?: CurrentUser | null
+  pendingPosts: PendingPost[]
+  retryPendingPosts?: () => void | Promise<void>
+}
+
+function CommunityListView({ posts, filtered, query, setQuery, category, setCategory, writing, setWriting, createPost, openPost, toggleBookmark, currentUser, pendingPosts, retryPendingPosts }: CommunityListViewProps) {
   const availableCategories = useMemo(() => {
-    const set = new Set()
+    const set = new Set<string>()
     for (const post of posts) if (post?.category) set.add(post.category)
     return ['ALL', ...set]
   }, [posts])
@@ -287,7 +345,7 @@ function CommunityListView({ posts, filtered, query, setQuery, category, setCate
       <div className="search-row"><Search size={17} /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="제목·본문·작성자 검색" /></div>
       {availableCategories.length > 2 && (
         <div className="segments">
-          {availableCategories.map((value: any) => (
+          {availableCategories.map((value) => (
             <button key={value} type="button" className={category === value ? 'active' : ''} onClick={() => setCategory(value)}>
               {value === 'ALL' ? '전체' : (categoryLabels[value] || value)}
             </button>

@@ -1,9 +1,12 @@
-import { Component } from 'react'
+import { Component, type ReactNode } from 'react'
 import { AlertCircle, RotateCw } from 'lucide-react'
 import { captureError } from '../services/observability'
 
-export default class ErrorBoundary extends Component<any, any> {
-  constructor(props: any) {
+type ErrorBoundaryProps = { label?: string; children?: ReactNode }
+type ErrorBoundaryState = { error: Error | null }
+
+export default class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
+  constructor(props: ErrorBoundaryProps) {
     super(props)
     this.state = { error: null }
   }

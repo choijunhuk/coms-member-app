@@ -1,4 +1,5 @@
-const viteEnv: any = typeof import.meta !== 'undefined' && import.meta.env ? import.meta.env : {}
+const viteEnv: Record<string, string | undefined> =
+  typeof import.meta !== 'undefined' && import.meta.env ? import.meta.env : {}
 
 function normalizeRootUrl(value, fallback) {
   const candidate = normalizeExternalUrl(value, fallback)
@@ -38,7 +39,13 @@ export const DEFAULT_APP_LINKS = Object.freeze({
   dailyCoding: normalizeExternalUrl(viteEnv.VITE_DAILY_CODING_URL, 'https://dailycoding-final.com/'),
 })
 
-export function normalizeAppLinks(data: any = {}) {
+type AppLinksSource = {
+  links?: Record<string, unknown> | null
+  appLinks?: Record<string, unknown> | null
+  externalLinks?: Record<string, unknown> | null
+}
+
+export function normalizeAppLinks(data: AppLinksSource = {}) {
   const raw = data?.links || data?.appLinks || data?.externalLinks || {}
   return Object.fromEntries(
     Object.entries(DEFAULT_APP_LINKS).map(([key, fallback]) => [

@@ -1,6 +1,12 @@
 const DEFAULT_API_BASE_URL = ''
 export const DEFAULT_REQUEST_TIMEOUT_MS = 30_000
-const viteEnv: any = typeof import.meta !== 'undefined' && import.meta.env ? import.meta.env : {}
+const viteEnv: Record<string, string | undefined> =
+  typeof import.meta !== 'undefined' && import.meta.env ? import.meta.env : {}
+
+// Error subtype used across the API layer: the thrown Error is augmented with an
+// HTTP-ish status and an optional machine-readable code so callers can branch
+// (e.g. 401/403 refresh handling, recoverable-error detection).
+export type ApiError = Error & { status?: number; code?: string; cause?: unknown }
 
 export function normalizeApiBaseUrl(value) {
   const trimmed = String(value || '').replace(/\/+$/, '')
@@ -23,13 +29,15 @@ export function apiUrl(path, baseUrl = API_BASE_URL) {
 }
 
 export function createRequestTimeoutError(timeoutMs = DEFAULT_REQUEST_TIMEOUT_MS) {
-  const error: any = new Error(`요청 시간이 초과되었습니다. 네트워크 상태를 확인한 뒤 다시 시도해주세요. (${Math.round(timeoutMs / 1000)}초)`)
+  const error: ApiError = new Error(`요청 시간이 초과되었습니다. 네트워크 상태를 확인한 뒤 다시 시도해주세요. (${Math.round(timeoutMs / 1000)}초)`)
   error.status = 0
   error.code = 'REQUEST_TIMEOUT'
   return error
 }
 
-async function fetchWithTimeout(url, options: any = {}) {
+type RequestOptions = RequestInit & { timeoutMs?: number }
+
+async function fetchWithTimeout(url, options: RequestOptions = {}) {
   const { timeoutMs = DEFAULT_REQUEST_TIMEOUT_MS, signal: externalSignal, ...fetchOptions } = options
   const controller = new AbortController()
   const timeoutId = setTimeout(() => {
@@ -74,7 +82,7 @@ async function refreshSession() {
   return response.ok
 }
 
-export async function request(path, options: any = {}) {
+export async function request(path, options: RequestOptions = {}) {
   const isFormData = options.body instanceof FormData
   const headers = isFormData ? options.headers : { 'Content-Type': 'application/json', ...options.headers }
   const fetchOnce = () => fetchWithTimeout(apiUrl(path), { credentials: 'include', ...options, headers })
@@ -86,7 +94,7 @@ export async function request(path, options: any = {}) {
   }
 
   if (!response.ok) {
-    const error: any = new Error(await parseError(response))
+    const error: ApiError = new Error(await parseError(response))
     error.status = response.status
     throw error
   }
@@ -94,6 +102,6 @@ export async function request(path, options: any = {}) {
   return response.json().catch(() => null)
 }
 
-export async function requestNoContent(path, options: any = {}) {
+export async function requestNoContent(path, options: RequestOptions = {}) {
   await request(path, options)
 }

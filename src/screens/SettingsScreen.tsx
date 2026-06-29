@@ -71,7 +71,7 @@ export default function SettingsScreen({
           <div className="section-title"><h2><Sun size={14} aria-hidden="true" /> 화면</h2></div>
           <p className="muted">테마</p>
           <div className="segments">
-            {THEME_OPTIONS.map(({ id, label, icon: Icon }: any) => (
+            {THEME_OPTIONS.map(({ id, label, icon: Icon }) => (
               <button key={id} type="button" className={themePreference === id ? 'active' : ''} onClick={() => onChangeTheme?.(id)}>
                 <Icon size={14} aria-hidden="true" /> {label}
               </button>

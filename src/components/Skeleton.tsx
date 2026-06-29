@@ -1,8 +1,8 @@
-export function SkeletonLine({ width = '100%', height = 14 }: any) {
+export function SkeletonLine({ width = '100%', height = 14 }: { width?: number | string; height?: number | string }) {
   return <span className="skeleton-line" style={{ width, height }} />
 }
 
-export function SkeletonCard({ rows = 3 }: any) {
+export function SkeletonCard({ rows = 3 }: { rows?: number }) {
   return (
     <div className="skeleton-card">
       <SkeletonLine width="50%" height={16} />
@@ -14,7 +14,7 @@ export function SkeletonCard({ rows = 3 }: any) {
   )
 }
 
-export default function SkeletonList({ count = 3 }: any) {
+export default function SkeletonList({ count = 3 }: { count?: number }) {
   return (
     <div className="stack">
       {Array.from({ length: count }).map((_, idx) => <SkeletonCard key={idx} rows={3} />)}

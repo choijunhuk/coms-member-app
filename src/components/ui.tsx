@@ -1,6 +1,8 @@
-import { ArrowLeft, BellRing, Image, Loader2 } from 'lucide-react'
+import type { ReactNode } from 'react'
+import { ArrowLeft, BellRing, Image, Loader2, type LucideIcon } from 'lucide-react'
+import type { AppConfig } from '../contract/types'
 
-export function LoadingScreen({ label = '불러오는 중입니다.' }: any) {
+export function LoadingScreen({ label = '불러오는 중입니다.' }: { label?: ReactNode }) {
   return (
     <div className="center-screen">
       <Loader2 className="spin" size={30} aria-hidden="true" />
@@ -9,7 +11,7 @@ export function LoadingScreen({ label = '불러오는 중입니다.' }: any) {
   )
 }
 
-export function Section({ title, action, onAction, children }: any) {
+export function Section({ title, action, onAction, children }: { title?: ReactNode; action?: ReactNode; onAction?: () => void; children?: ReactNode }) {
   return (
     <section className="card">
       <div className="section-title">
@@ -21,7 +23,7 @@ export function Section({ title, action, onAction, children }: any) {
   )
 }
 
-export function ListItem({ title, meta, body, pinned, image, onClick, children }: any) {
+export function ListItem({ title, meta, body, pinned, image, onClick, children }: { title?: ReactNode; meta?: ReactNode; body?: ReactNode; pinned?: boolean; image?: ReactNode; onClick?: () => void; children?: ReactNode }) {
   return (
     <button type="button" className="list-item" onClick={onClick}>
       <span className="item-title">{pinned && <b>중요</b>}{title}</span>
@@ -33,11 +35,11 @@ export function ListItem({ title, meta, body, pinned, image, onClick, children }
   )
 }
 
-export function Empty({ text }: any) {
+export function Empty({ text }: { text?: ReactNode }) {
   return <p className="empty">{text}</p>
 }
 
-export function Metric({ icon: Icon, label, value }: any) {
+export function Metric({ icon: Icon, label, value }: { icon: LucideIcon; label?: ReactNode; value?: ReactNode }) {
   return (
     <div className="metric">
       <Icon size={18} aria-hidden="true" />
@@ -47,7 +49,7 @@ export function Metric({ icon: Icon, label, value }: any) {
   )
 }
 
-export function Detail({ title, meta, onBack, children }: any) {
+export function Detail({ title, meta, onBack, children }: { title?: ReactNode; meta?: ReactNode; onBack?: () => void; children?: ReactNode }) {
   return (
     <article className="detail">
       <button type="button" className="back-button" onClick={onBack}><ArrowLeft size={17} aria-hidden="true" />목록</button>
@@ -58,11 +60,11 @@ export function Detail({ title, meta, onBack, children }: any) {
   )
 }
 
-export function Info({ label, value }: any) {
+export function Info({ label, value }: { label?: ReactNode; value?: ReactNode }) {
   return <div className="info-row"><span>{label}</span><strong>{value}</strong></div>
 }
 
-export function AppConfigBanner({ appConfig }: any) {
+export function AppConfigBanner({ appConfig }: { appConfig?: AppConfig | null }) {
   if (!appConfig?.maintenanceMessage) return null
   return (
     <section className="app-config-banner">

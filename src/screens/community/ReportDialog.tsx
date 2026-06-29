@@ -10,7 +10,7 @@ const REASONS = [
   { id: 'OTHER', label: '기타' },
 ]
 
-export default function ReportDialog({ onClose, onSubmit }: any) {
+export default function ReportDialog({ onClose, onSubmit }: { onClose: () => void; onSubmit: (reason: string, detail: string) => void | Promise<void> }) {
   const [reason, setReason] = useState('SPAM')
   const [detail, setDetail] = useState('')
   const [submitting, setSubmitting] = useState(false)

@@ -1,6 +1,6 @@
 import { isNativeRuntime } from './nativeBridge'
 
-export async function sharePost({ title, url, text }: any) {
+export async function sharePost({ title, url, text }: { title?: string; url?: string; text?: string }) {
   if (isNativeRuntime()) {
     try {
       const { Share } = await import('@capacitor/share')

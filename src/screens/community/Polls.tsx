@@ -2,7 +2,7 @@ import { asArray } from '../../utils/format'
 import { pollTotals } from '../../utils/postBlocks'
 import { Section } from '../../components/ui'
 
-export default function Polls({ polls, pollVote }: any) {
+export default function Polls({ polls, pollVote }: { polls: unknown; pollVote: (pollId: unknown, optionIndex: number) => void }) {
   const items = asArray(polls)
   if (!items.length) return null
   return (

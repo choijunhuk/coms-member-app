@@ -5,8 +5,20 @@ import { formatDate, preview } from '../utils/format'
 import { categoryLabels, fileCategoryLabels, latest, postImage } from '../utils/helpers'
 import { postPreviewText } from '../utils/postBlocks'
 import { Empty, ListItem, Metric, Section } from '../components/ui'
+import type { ClubActivity, ArchiveFile, CommunityPost, Notice } from '../contract/types'
 
-export default function HomeTab({ notices, posts, files, unreadCount, clubActivities = [], openNotice, openPost, setActiveTab }: any) {
+type HomeTabProps = {
+  notices: Notice[]
+  posts: CommunityPost[]
+  files: ArchiveFile[]
+  unreadCount: number
+  clubActivities?: ClubActivity[]
+  openNotice: (id: unknown) => void
+  openPost: (id: unknown) => void
+  setActiveTab: (tabId: string) => void
+}
+
+export default function HomeTab({ notices, posts, files, unreadCount, clubActivities = [], openNotice, openPost, setActiveTab }: HomeTabProps) {
   const recentNotices = latest(notices, 'createdAt').slice(0, 3)
   const recentPosts = latest(posts, 'createdAt').slice(0, 3)
   const recentFiles = latest(files, 'uploadedAt').slice(0, 2)

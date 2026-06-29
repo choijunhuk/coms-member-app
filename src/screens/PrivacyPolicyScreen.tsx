@@ -2,7 +2,7 @@ import { ArrowLeft } from 'lucide-react'
 
 const LAST_UPDATED = '2026-06-15'
 
-export default function PrivacyPolicyScreen({ onBack }: any) {
+export default function PrivacyPolicyScreen({ onBack }: { onBack: () => void }) {
   return (
     <main className="app-shell">
       <header className="topbar">

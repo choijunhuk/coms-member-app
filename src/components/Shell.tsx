@@ -1,11 +1,26 @@
+import type { CSSProperties, ReactNode } from 'react'
 import { Bell, Grid2X2, RefreshCcw, Settings, UserRound } from 'lucide-react'
 import { APP_SHELL_TABS } from '../config/appScope'
 import { DEFAULT_APP_LINKS, normalizeExternalUrl } from '../config/appLinks'
 import { isAdminUser } from '../utils/helpers'
 import { usePullToRefresh } from '../hooks/usePullToRefresh'
 import { hapticLight } from '../services/haptics'
+import type { AppLinks, CurrentUser } from '../contract/types'
 
-export function Shell({ user, activeTab, setActiveTab, unreadCount, onRefresh, refreshing, children, tabBadges = {}, onOpenSettings, appLinks }: any) {
+type ShellProps = {
+  user?: CurrentUser | null
+  activeTab: string
+  setActiveTab: (tabId: string) => void
+  unreadCount?: number
+  onRefresh?: () => void | Promise<void>
+  refreshing?: boolean
+  children?: ReactNode
+  tabBadges?: Record<string, number>
+  onOpenSettings?: () => void
+  appLinks?: AppLinks | null
+}
+
+export function Shell({ user, activeTab, setActiveTab, unreadCount, onRefresh, refreshing, children, tabBadges = {}, onOpenSettings, appLinks }: ShellProps) {
   const tabs = APP_SHELL_TABS.filter((tab) => !tab.adminOnly || isAdminUser(user))
   const active = APP_SHELL_TABS.find((tab) => tab.id === activeTab)
   const hubUrl = normalizeExternalUrl(appLinks?.hub, DEFAULT_APP_LINKS.hub)
@@ -54,7 +69,7 @@ export function Shell({ user, activeTab, setActiveTab, unreadCount, onRefresh, r
         )}
         {children}
       </section>
-      <nav className="tabbar" aria-label="회원 앱 메뉴" style={{ '--tab-count': tabs.length } as any}>
+      <nav className="tabbar" aria-label="회원 앱 메뉴" style={{ '--tab-count': tabs.length } as CSSProperties}>
         {tabs.map((tab) => {
           const Icon = tab.icon
           const selected = activeTab === tab.id

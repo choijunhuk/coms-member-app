@@ -1,19 +1,30 @@
-import { useState } from 'react'
+import { useState, type ChangeEvent } from 'react'
 import { Image as ImageIcon, ListPlus, Plus, Send, Trash2, X } from 'lucide-react'
 import { categoryOptionsForUser } from '../../utils/helpers'
 import { buildComposerContent, createEmptyPollDraft, normalizedPollOptions, pollDraftStatus } from '../../utils/pollDraft'
+import type { CurrentUser } from '../../contract/types'
 
 const MAX_IMAGE_SIZE = 8 * 1024 * 1024
 const MAX_IMAGES = 6
 
-export default function Composer({ onSubmit, currentUser }: any) {
+type ComposerSubmitInput = {
+  payload: { title: string; content: string; category: string; anonymousName: string }
+  images: File[]
+}
+
+type ComposerProps = {
+  onSubmit: (input: ComposerSubmitInput) => void | Promise<void>
+  currentUser?: CurrentUser | null
+}
+
+export default function Composer({ onSubmit, currentUser }: ComposerProps) {
   const categoryOptions = categoryOptionsForUser(currentUser)
   const [title, setTitle] = useState('')
   const [content, setContent] = useState('')
   const [category, setCategory] = useState('GENERAL')
   const [anonymousName, setAnonymousName] = useState('')
-  const [images, setImages] = useState([])
-  const [previews, setPreviews] = useState([])
+  const [images, setImages] = useState<File[]>([])
+  const [previews, setPreviews] = useState<string[]>([])
   const [pollDraft, setPollDraft] = useState(createEmptyPollDraft)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
@@ -22,8 +33,8 @@ export default function Composer({ onSubmit, currentUser }: any) {
   const pollOptions = normalizedPollOptions(pollDraft.options)
   const canSubmit = title.trim().length >= 2 && content.trim().length >= 2 && pollStatus.valid && !saving
 
-  function pickImages(event: any) {
-    const files: any[] = Array.from(event.target.files || [])
+  function pickImages(event: ChangeEvent<HTMLInputElement>) {
+    const files: File[] = Array.from(event.target.files || [])
     if (!files.length) return
     if (files.some((file) => file.size > MAX_IMAGE_SIZE)) {
       setError('이미지 크기는 한 장당 8MB까지 가능합니다.')
@@ -114,7 +125,7 @@ export default function Composer({ onSubmit, currentUser }: any) {
   return (
     <form className="form panel" onSubmit={submit}>
       <label>제목<input value={title} onChange={(event) => setTitle(event.target.value)} maxLength={80} /></label>
-      <label>분류<select value={category} onChange={(event) => setCategory(event.target.value)}>{categoryOptions.map(([value, label]: any) => <option key={value} value={value}>{label}</option>)}</select></label>
+      <label>분류<select value={category} onChange={(event) => setCategory(event.target.value)}>{categoryOptions.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
       {isAnonymous && (
         <label>표시 이름 (비워두면 "익명")
           <input value={anonymousName} onChange={(event) => setAnonymousName(event.target.value)} maxLength={20} placeholder="예: 익명 회원" />

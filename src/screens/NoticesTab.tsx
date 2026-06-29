@@ -3,8 +3,9 @@ import { Eye, Search, ThumbsUp } from 'lucide-react'
 import { formatDate, plainText, preview } from '../utils/format'
 import { useInfiniteList } from '../hooks/useInfiniteList'
 import { Detail, Empty, ListItem, LoadingScreen, Section } from '../components/ui'
+import type { Notice } from '../contract/types'
 
-const NOTICE_CATEGORY_LABELS = {
+const NOTICE_CATEGORY_LABELS: Record<string, string> = {
   GENERAL: '전체',
   RECRUIT: '모집',
   STUDY: '스터디',
@@ -27,12 +28,20 @@ function comparePinnedThenDate(a, b) {
   return bt - at
 }
 
-export default function NoticesTab({ notices, selected, loading, openNotice, closeNotice }: any) {
+type NoticesTabProps = {
+  notices: Notice[]
+  selected?: Notice | null
+  loading?: boolean
+  openNotice: (id: unknown) => void
+  closeNotice: () => void
+}
+
+export default function NoticesTab({ notices, selected, loading, openNotice, closeNotice }: NoticesTabProps) {
   const [query, setQuery] = useState('')
   const [category, setCategory] = useState('ALL')
 
   const availableCategories = useMemo(() => {
-    const set = new Set()
+    const set = new Set<string>()
     for (const item of notices) if (item?.category) set.add(item.category)
     return ['ALL', ...set]
   }, [notices])
@@ -66,7 +75,7 @@ export default function NoticesTab({ notices, selected, loading, openNotice, clo
       <div className="search-row"><Search size={17} /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="공지 제목·본문 검색" /></div>
       {availableCategories.length > 2 && (
         <div className="segments">
-          {availableCategories.map((value: any) => (
+          {availableCategories.map((value) => (
             <button key={value} type="button" className={category === value ? 'active' : ''} onClick={() => setCategory(value)}>
               {value === 'ALL' ? '전체' : (NOTICE_CATEGORY_LABELS[value] || value)}
             </button>

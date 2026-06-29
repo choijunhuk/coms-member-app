@@ -6,6 +6,7 @@ import { renderMarkdownToHtml } from '../../utils/markdown'
 import { postBlocks } from '../../utils/postBlocks'
 import PollBlock from './PollBlock'
 import Polls from './Polls'
+import type { CommunityPost } from '../../contract/types'
 
 function safeExternalHref(url) {
   return /^https?:\/\//i.test(String(url || '')) ? url : ''
@@ -20,11 +21,11 @@ function collectImageUrls(blocks) {
   return urls
 }
 
-export default function PostContent({ post, pollVote }: any) {
+export default function PostContent({ post, pollVote }: { post: CommunityPost; pollVote: (pollId: unknown, optionIndex: number) => void }) {
   const blocks = postBlocks(post)
   const hasPollBlock = blocks.some((block) => block.type === 'poll')
   const images = collectImageUrls(blocks)
-  const [activeIndex, setActiveIndex] = useState(null)
+  const [activeIndex, setActiveIndex] = useState<number | null>(null)
   const imageCount = images.length
 
   useEffect(() => {

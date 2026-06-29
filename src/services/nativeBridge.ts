@@ -68,7 +68,7 @@ export async function setupAppStateListener(onChange) {
 export async function setupBackButtonListener(handler) {
   if (!isNativeRuntime()) return () => {}
   const { App } = await import('@capacitor/app')
-  const handle = await App.addListener('backButton', ({ canGoBack }: any) => {
+  const handle = await App.addListener('backButton', ({ canGoBack }: { canGoBack: boolean }) => {
     const result = handler?.({ canGoBack })
     if (!result) {
       void App.exitApp()
@@ -121,7 +121,13 @@ export async function resetPushRegistration() {
 // — avoiding a native crash on devices that lack google-services.json / APNs
 // credentials. The caller (App.jsx) passes appConfig.pushEnabled so the
 // decision is driven by the backend at runtime, not by a build-time constant.
-export async function requestPushRegistration({ onToken, onRoute, pushEnabled = false }: any = {}) {
+type PushRegistrationOptions = {
+  onToken?: (token?: string) => void | Promise<void>
+  onRoute?: (route: unknown) => void
+  pushEnabled?: boolean
+}
+
+export async function requestPushRegistration({ onToken, onRoute, pushEnabled = false }: PushRegistrationOptions = {}) {
   if (!isNativeRuntime()) return { status: 'unavailable' }
   let PushNotifications
   try {

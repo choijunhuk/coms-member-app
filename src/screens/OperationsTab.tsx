@@ -9,27 +9,50 @@ import { asArray, formatDate, generationFromStudentId, plainText } from '../util
 import { categoryLabels, isAdminUser, latest, noticeCategoryLabels } from '../utils/helpers'
 import { validateHttpUrl } from '../utils/urlValidation'
 import { Empty, Info, ListItem, Metric, Section } from '../components/ui'
+import type { AppItem, ClubActivity, CommunityPost, CurrentUser, Notice } from '../contract/types'
 
 const ACTIVITY_CATEGORIES = ['GENERAL', 'SEMINAR', 'STUDY', 'PROJECT', 'MEETING', 'RECRUIT', 'EVENT', 'MT', 'ACHIEVEMENT']
 
-export default function OperationsTab({ user, notices, posts, clubActivities = [], apps = [], loadDashboard }: any) {
+type AdminRecord = {
+  id?: string | number | null
+  studentId?: string | number | null
+  name?: string | null
+  generation?: string | number | null
+  action?: string | null
+  actorName?: string | null
+  actorStudentId?: string | number | null
+  createdAt?: string | null
+  targetType?: string | null
+  targetId?: string | number | null
+}
+
+type OperationsTabProps = {
+  user?: CurrentUser | null
+  notices: Notice[]
+  posts: CommunityPost[]
+  clubActivities?: ClubActivity[]
+  apps?: AppItem[]
+  loadDashboard: (options?: { quiet?: boolean }) => void | Promise<void>
+}
+
+export default function OperationsTab({ user, notices, posts, clubActivities = [], apps = [], loadDashboard }: OperationsTabProps) {
   const [noticeId, setNoticeId] = useState('')
   const [noticeTitle, setNoticeTitle] = useState('')
   const [noticeContent, setNoticeContent] = useState('')
   const [noticePinned, setNoticePinned] = useState(true)
   const [noticeCategory, setNoticeCategory] = useState('GENERAL')
   const [savingNotice, setSavingNotice] = useState(false)
-  const [deletingPostId, setDeletingPostId] = useState(null)
-  const [eligibleMembers, setEligibleMembers] = useState([])
-  const [members, setMembers] = useState([])
-  const [auditLogs, setAuditLogs] = useState([])
+  const [deletingPostId, setDeletingPostId] = useState<unknown>(null)
+  const [eligibleMembers, setEligibleMembers] = useState<AdminRecord[]>([])
+  const [members, setMembers] = useState<AdminRecord[]>([])
+  const [auditLogs, setAuditLogs] = useState<AdminRecord[]>([])
   const [loadingOps, setLoadingOps] = useState(false)
   const [activityKind, setActivityKind] = useState('SCHEDULE')
   const [activityTitle, setActivityTitle] = useState('')
   const [activityDate, setActivityDate] = useState('')
   const [activityCategory, setActivityCategory] = useState('MEETING')
   const [activityDescription, setActivityDescription] = useState('')
-  const [activityImage, setActivityImage] = useState(null)
+  const [activityImage, setActivityImage] = useState<File | null>(null)
   const [activityFileKey, setActivityFileKey] = useState(0)
   const [savingActivity, setSavingActivity] = useState(false)
   const [appId, setAppId] = useState('')
@@ -39,7 +62,7 @@ export default function OperationsTab({ user, notices, posts, clubActivities = [
   const [appHref, setAppHref] = useState('')
   const [appSortOrder, setAppSortOrder] = useState('0')
   const [savingApp, setSavingApp] = useState(false)
-  const [deletingAppId, setDeletingAppId] = useState(null)
+  const [deletingAppId, setDeletingAppId] = useState<unknown>(null)
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
 
@@ -311,7 +334,7 @@ export default function OperationsTab({ user, notices, posts, clubActivities = [
           <label>
             분류
             <select value={noticeCategory} onChange={(event) => setNoticeCategory(event.target.value)}>
-              {Object.entries(noticeCategoryLabels).map(([value, label]: any) => <option key={value} value={value}>{label}</option>)}
+              {Object.entries(noticeCategoryLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
             </select>
           </label>
           <label>내용<textarea value={noticeContent} onChange={(event) => setNoticeContent(event.target.value)} rows={5} /></label>
