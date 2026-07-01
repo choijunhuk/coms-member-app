@@ -1754,3 +1754,28 @@ html[data-font-scale='xlarge'] { font-size: 20px; }
 .confirm-dialog-actions .button {
   flex: 0 0 auto;
 }
+
+/* Comment composer: anonymous name + reply mention toggle */
+.comment-composer,
+.reply-composer {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+.comment-anon-input {
+  border: 1px solid var(--hairline, rgba(0,0,0,0.1));
+  border-radius: 8px;
+  padding: 0.5rem 0.7rem;
+  font-size: 0.85rem;
+}
+.reply-mention-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.78rem;
+  color: var(--muted, #5b6478);
+}
+.reply-mention-toggle input {
+  width: auto;
+  margin: 0;
+}

@@ -83,10 +83,10 @@ export function listComments(postId) {
   return request(`/api/community/posts/${postId}/comments`)
 }
 
-export function createComment(postId, content, parentCommentId = null) {
+export function createComment(postId, content, parentCommentId = null, anonymousName = '') {
   return request(`/api/community/posts/${postId}/comments`, {
     method: 'POST',
-    body: JSON.stringify({ content, parentCommentId, anonymousName: '' }),
+    body: JSON.stringify({ content, parentCommentId, anonymousName }),
   })
 }
 
