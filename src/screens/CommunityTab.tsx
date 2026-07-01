@@ -5,7 +5,8 @@ import { AlertTriangle, Bookmark, BookmarkCheck, CornerDownRight, Eye, Plus, Sea
 import { confirmDialog } from '../components/ConfirmDialog'
 import { asArray, formatDate } from '../utils/format'
 import { categoryLabels, latest, postImage } from '../utils/helpers'
-import { postPreviewText } from '../utils/postBlocks'
+import { postPreviewText, isTextOnlyPost, postBodyText } from '../utils/postBlocks'
+import { buildComposerContent, createEmptyPollDraft } from '../utils/pollDraft'
 import { sharePost } from '../services/nativeShare'
 import { hapticLight, hapticSuccess } from '../services/haptics'
 import { Detail, Empty, ListItem, LoadingScreen, Section } from '../components/ui'
@@ -91,6 +92,7 @@ type CommunityTabProps = {
   openPost: (id: unknown) => void
   closePost: () => void
   createPost: (input: unknown) => unknown
+  editPost?: (id: unknown, payload: { title: string; content: string; category: string; anonymousName: string }) => void | Promise<void>
   createCommentForPost: (content: string, parentCommentId?: unknown, anonymousName?: string) => void | Promise<void>
   vote: (value: number) => void | Promise<void>
   pollVote: (pollId: unknown, optionIndex: number) => void
@@ -102,7 +104,7 @@ type CommunityTabProps = {
   retryPendingPosts?: () => void | Promise<void>
 }
 
-export default function CommunityTab({ posts, selected, comments, loading, openPost, closePost, createPost, createCommentForPost, vote, pollVote, toggleBookmark, editComment, removeComment, currentUser, pendingPosts = [], retryPendingPosts }: CommunityTabProps) {
+export default function CommunityTab({ posts, selected, comments, loading, openPost, closePost, createPost, editPost, createCommentForPost, vote, pollVote, toggleBookmark, editComment, removeComment, currentUser, pendingPosts = [], retryPendingPosts }: CommunityTabProps) {
   const [writing, setWriting] = useState(false)
   const [comment, setComment] = useState('')
   const [query, setQuery] = useState('')
@@ -116,7 +118,40 @@ export default function CommunityTab({ posts, selected, comments, loading, openP
   const [replyMention, setReplyMention] = useState(true)
   const [reporting, setReporting] = useState(false)
   const [reportedAt, setReportedAt] = useState<number | null>(null)
+  const [editingPost, setEditingPost] = useState(false)
+  const [editTitle, setEditTitle] = useState('')
+  const [editContent, setEditContent] = useState('')
+  const [savingEdit, setSavingEdit] = useState(false)
   const isAnonymousDetail = String(selected?.category) === 'ANONYMOUS'
+  const ownsSelected = Boolean(selected && currentUser && (
+    (selected.authorStudentId && currentUser.studentId && String(selected.authorStudentId) === String(currentUser.studentId)) ||
+    (selected.authorId && currentUser.id && String(selected.authorId) === String(currentUser.id))
+  ))
+  const canEditSelected = ownsSelected && isTextOnlyPost(selected) && Boolean(editPost)
+
+  function startEditPost() {
+    if (!selected) return
+    setEditTitle(selected.title || '')
+    setEditContent(postBodyText(selected))
+    setEditingPost(true)
+  }
+
+  async function submitEditPost(event) {
+    event.preventDefault()
+    if (!selected || !editTitle.trim() || !editContent.trim()) return
+    setSavingEdit(true)
+    try {
+      await editPost?.(selected.id, {
+        title: editTitle.trim(),
+        content: String(buildComposerContent({ text: editContent, poll: createEmptyPollDraft() })),
+        category: String(selected.category || 'GENERAL'),
+        anonymousName: String(selected.anonymousName || ''),
+      })
+      setEditingPost(false)
+    } finally {
+      setSavingEdit(false)
+    }
+  }
 
   async function submitReport(reason, detail) {
     if (!selected?.id) return
@@ -201,8 +236,21 @@ export default function CommunityTab({ posts, selected, comments, loading, openP
         {loading ? <LoadingScreen label="글을 불러오는 중입니다." /> : (
           <div className="stack">
             <div className="stats"><span><Eye size={14} />{selected.viewCount || 0}</span><span><ThumbsUp size={14} />{selected.upvotes || 0}</span><span><ThumbsDown size={14} />{selected.downvotes || 0}</span></div>
-            <PostContent post={selected} pollVote={pollVote} />
+            {editingPost ? (
+              <form className="form panel" onSubmit={submitEditPost}>
+                <label>제목<input value={editTitle} onChange={(event) => setEditTitle(event.target.value)} maxLength={80} /></label>
+                <label>내용 (**굵게**, _기울임_, [링크](https://...) 지원)<textarea value={editContent} onChange={(event) => setEditContent(event.target.value)} rows={6} maxLength={5000} /></label>
+                <div className="button-row">
+                  <button type="button" className="button secondary" onClick={() => setEditingPost(false)}>취소</button>
+                  <button type="submit" className="button primary" disabled={savingEdit || !editTitle.trim() || !editContent.trim()}>{savingEdit ? '저장 중...' : '수정 저장'}</button>
+                </div>
+              </form>
+            ) : (
+              <PostContent post={selected} pollVote={pollVote} />
+            )}
+            {!editingPost && (
             <div className="button-row">
+              {canEditSelected && <button className="button secondary" onClick={startEditPost}><Pencil size={16} />수정</button>}
               <button className="button secondary" onClick={() => vote(1)}><ThumbsUp size={16} />추천</button>
               <button className="button secondary" onClick={() => vote(-1)}><ThumbsDown size={16} />비추천</button>
               <button className="button secondary" onClick={shareSelected}><Share2 size={16} />공유</button>
@@ -214,6 +262,7 @@ export default function CommunityTab({ posts, selected, comments, loading, openP
                 <AlertTriangle size={16} /> {reportedAt ? '신고됨' : '신고'}
               </button>
             </div>
+            )}
             {reporting && <ReportDialog onClose={() => setReporting(false)} onSubmit={submitReport} />}
             <Section title={`댓글 ${asArray(comments).length}`}>
               {asArray(comments).map((item) => {

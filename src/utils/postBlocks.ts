@@ -236,6 +236,26 @@ export function postPreviewText(post) {
   return '내용 미리보기가 없습니다.'
 }
 
+// A post is "text only" when it has no images/videos/files/polls — i.e. its
+// whole content can be safely round-tripped through the mobile text composer.
+// (Editing a media post here would drop the media it can't re-render, so those
+// are edited on the web instead.)
+export function isTextOnlyPost(post) {
+  if (!post) return false
+  if (post.imageUrl) return false
+  if (Array.isArray(post.imageInfos) && post.imageInfos.length) return false
+  if (Array.isArray(post.imageUrls) && post.imageUrls.length) return false
+  if (Array.isArray(post.videoInfos) && post.videoInfos.length) return false
+  if (Array.isArray(post.fileInfos) && post.fileInfos.length) return false
+  const blocks = postBlocks(post)
+  return blocks.every((block) => block?.type === 'text')
+}
+
+// Full author body text (not truncated) — used to seed the edit form.
+export function postBodyText(post) {
+  return harvestText(postBlocks(post)) || harvestText(post?.content) || ''
+}
+
 // Preview for any block-JSON content (e.g. a notice's `content`), which may be a
 // JSON block array rather than plain text. Harvests the author text so we never
 // render raw `[{"type":"text",...}]` in a list. Falls back to a media hint.

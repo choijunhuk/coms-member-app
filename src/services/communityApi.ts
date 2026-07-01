@@ -37,6 +37,13 @@ export function appendCommunityPostImages(postId, images) {
   })
 }
 
+export function updateCommunityPost(id, payload) {
+  return request(`/api/community/posts/${id}`, {
+    method: 'PATCH',
+    body: JSON.stringify(payload),
+  })
+}
+
 export function deleteCommunityPost(id) {
   return request(`/api/community/posts/${id}`, {
     method: 'DELETE',
