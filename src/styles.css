@@ -1829,3 +1829,11 @@ html[data-font-scale='xlarge'] { font-size: 20px; }
   font-size: 0.78rem;
   margin-top: 0.2rem;
 }
+
+/* Email verification (profile) */
+.email-verify {
+  margin-top: 0.6rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}

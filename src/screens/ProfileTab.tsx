@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
-import { Bookmark, LogOut, MessageCircle, RotateCcw, ShieldAlert, UserX } from 'lucide-react'
+import { Bookmark, LogOut, MailCheck, MessageCircle, RotateCcw, ShieldAlert, UserX } from 'lucide-react'
 import { confirmDialog } from '../components/ConfirmDialog'
-import { changePassword } from '../services/authApi'
+import { changePassword, confirmEmailVerification, requestEmailVerification } from '../services/authApi'
 import { formatDate, generationFromStudentId, preview } from '../utils/format'
 import { passwordPolicyMessage, validPassword } from '../utils/passwordPolicy'
 import { categoryLabels, latest } from '../utils/helpers'
@@ -42,6 +42,43 @@ export default function ProfileTab({
   const [newPassword, setNewPassword] = useState('')
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
+  const [emailVerified, setEmailVerified] = useState(Boolean(user?.emailVerified))
+  const [verifySent, setVerifySent] = useState(false)
+  const [verifyCode, setVerifyCode] = useState('')
+  const [verifyBusy, setVerifyBusy] = useState(false)
+  const [verifyMsg, setVerifyMsg] = useState('')
+  const [verifyError, setVerifyError] = useState('')
+
+  async function sendVerifyCode() {
+    setVerifyBusy(true)
+    setVerifyError('')
+    setVerifyMsg('')
+    try {
+      await requestEmailVerification()
+      setVerifySent(true)
+      setVerifyMsg('인증 코드를 이메일로 보냈습니다. 메일함을 확인해주세요.')
+    } catch (err) {
+      setVerifyError(err?.message || '인증 코드 발송에 실패했습니다.')
+    } finally {
+      setVerifyBusy(false)
+    }
+  }
+
+  async function submitVerifyCode() {
+    const code = verifyCode.trim()
+    if (!code) return
+    setVerifyBusy(true)
+    setVerifyError('')
+    try {
+      await confirmEmailVerification(code)
+      setEmailVerified(true)
+      setVerifyMsg('이메일 인증이 완료되었습니다.')
+    } catch (err) {
+      setVerifyError(err?.message || '인증 코드가 올바르지 않습니다.')
+    } finally {
+      setVerifyBusy(false)
+    }
+  }
   const passwordError = newPassword ? passwordPolicyMessage(newPassword) : ''
   const canSubmit = currentPassword.trim() && validPassword(newPassword)
 
@@ -85,7 +122,28 @@ export default function ProfileTab({
   return (
     <div className="stack">
       <section className="profile-card"><div className="avatar">{(user?.name || 'C').slice(0, 1)}</div><div><h2>{user?.name || '회원'}</h2><p>{user?.studentId || '학번 없음'} · {generationFromStudentId(user?.studentId)}</p></div></section>
-      <section className="panel"><Info label="이메일 인증" value={user?.emailVerified ? '완료' : '미완료'} /><Info label="학과" value={user?.department || '미등록'} /><Info label="권한" value={user?.role === 'ADMIN' ? '관리자' : '회원'} /></section>
+      <section className="panel">
+        <Info label="이메일 인증" value={emailVerified ? '완료' : '미완료'} />
+        <Info label="학과" value={user?.department || '미등록'} />
+        <Info label="권한" value={user?.role === 'ADMIN' ? '관리자' : '회원'} />
+        {!emailVerified && (
+          <div className="email-verify">
+            {!verifySent ? (
+              <button type="button" className="button secondary compact" disabled={verifyBusy} onClick={sendVerifyCode}>
+                <MailCheck size={15} aria-hidden="true" /> {verifyBusy ? '보내는 중...' : '인증 메일 받기'}
+              </button>
+            ) : (
+              <div className="inline-form">
+                <input value={verifyCode} onChange={(event) => setVerifyCode(event.target.value)} maxLength={12} placeholder="인증 코드 입력" inputMode="numeric" />
+                <button type="button" className="button primary compact" disabled={verifyBusy || !verifyCode.trim()} onClick={submitVerifyCode}>확인</button>
+                <button type="button" className="button secondary compact" disabled={verifyBusy} onClick={sendVerifyCode}>재전송</button>
+              </div>
+            )}
+            {verifyMsg && <p className="form-success">{verifyMsg}</p>}
+            {verifyError && <p className="form-error">{verifyError}</p>}
+          </div>
+        )}
+      </section>
       <Section title={<><MessageCircle size={14} aria-hidden="true" /> 내가 쓴 글</>}>
         {myPosts.map((post) => (
           <ListItem

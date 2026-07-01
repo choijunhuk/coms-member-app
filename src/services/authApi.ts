@@ -27,3 +27,14 @@ export function changePassword(currentPassword, newPassword) {
 export function withdrawSelf() {
   return requestNoContent('/api/auth/me', { method: 'DELETE' })
 }
+
+export function requestEmailVerification() {
+  return request('/api/auth/email-verification/request', { method: 'POST' })
+}
+
+export function confirmEmailVerification(code) {
+  return request('/api/auth/email-verification/confirm', {
+    method: 'POST',
+    body: JSON.stringify({ code }),
+  })
+}
