@@ -1,8 +1,10 @@
 import { useMemo, useState } from 'react'
 import { Eye, Search, ThumbsUp } from 'lucide-react'
-import { formatDate, plainText, preview } from '../utils/format'
+import { formatDate, plainText } from '../utils/format'
+import { contentPreview } from '../utils/postBlocks'
 import { useInfiniteList } from '../hooks/useInfiniteList'
 import { Detail, Empty, ListItem, LoadingScreen, Section } from '../components/ui'
+import PostContent from './community/PostContent'
 import type { Notice } from '../contract/types'
 
 const NOTICE_CATEGORY_LABELS: Record<string, string> = {
@@ -66,7 +68,7 @@ export default function NoticesTab({ notices, selected, loading, openNotice, clo
       <Detail title={selected.title} meta={`${categoryDisplay(selected.category) || '공지'} · ${formatDate(selected.createdAt)}`} onBack={closeNotice}>
         {selected.pinned && <span className="badge">중요 공지</span>}
         <div className="stats"><span><Eye size={14} />{selected.viewCount || 0}</span><span><ThumbsUp size={14} />{selected.upvotes || 0}</span></div>
-        {loading ? <LoadingScreen label="공지 상세를 불러오는 중입니다." /> : <p className="body-text">{plainText(selected.content)}</p>}
+        {loading ? <LoadingScreen label="공지 상세를 불러오는 중입니다." /> : <PostContent post={selected} pollVote={() => {}} />}
       </Detail>
     )
   }
@@ -88,7 +90,7 @@ export default function NoticesTab({ notices, selected, loading, openNotice, clo
             key={notice.id}
             title={notice.title}
             meta={`${categoryDisplay(notice.category) || '공지'} · ${formatDate(notice.createdAt)}`}
-            body={preview(notice.content)}
+            body={contentPreview(notice.content)}
             pinned={notice.pinned}
             onClick={() => openNotice(notice.id)}
           >
