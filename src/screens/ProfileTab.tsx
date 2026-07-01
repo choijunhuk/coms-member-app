@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { Bookmark, Eraser, FileText, LogOut, MessageCircle, Moon, RotateCcw, ShieldAlert, Smartphone, Sun, UserX } from 'lucide-react'
+import { Bookmark, LogOut, MessageCircle, RotateCcw, ShieldAlert, UserX } from 'lucide-react'
 import { confirmDialog } from '../components/ConfirmDialog'
 import { changePassword } from '../services/authApi'
 import { formatDate, generationFromStudentId, preview } from '../utils/format'
@@ -7,12 +7,6 @@ import { passwordPolicyMessage, validPassword } from '../utils/passwordPolicy'
 import { categoryLabels, latest } from '../utils/helpers'
 import { postPreviewText } from '../utils/postBlocks'
 import { Empty, Info, ListItem, Section } from '../components/ui'
-
-const THEME_OPTIONS = [
-  { id: 'system', label: '시스템', icon: Smartphone },
-  { id: 'light', label: '라이트', icon: Sun },
-  { id: 'dark', label: '다크', icon: Moon },
-]
 
 function postOwnedBy(post, user) {
   if (!post || !user) return false
@@ -30,11 +24,7 @@ export default function ProfileTab({
   user,
   onLogout,
   onWithdraw,
-  onWipeDevice,
   accountActionError = '',
-  onShowPrivacy,
-  themePreference = 'system',
-  onChangeTheme,
   posts = [],
   bookmarkedPosts = [],
   bookmarkedPostsLoading = false,
@@ -155,23 +145,6 @@ export default function ProfileTab({
         ))}
         {!bookmarkedPostsLoading && scrapPosts.length === 0 && <Empty text="스크랩한 글이 없습니다." />}
       </Section>
-      <section className="panel">
-        <div className="section-title">
-          <h2>테마</h2>
-        </div>
-        <div className="segments">
-          {THEME_OPTIONS.map(({ id, label, icon: Icon }) => (
-            <button
-              key={id}
-              type="button"
-              className={themePreference === id ? 'active' : ''}
-              onClick={() => onChangeTheme?.(id)}
-            >
-              <Icon size={14} aria-hidden="true" /> {label}
-            </button>
-          ))}
-        </div>
-      </section>
       <form className="form panel" onSubmit={submit}>
         <h2>비밀번호 변경</h2>
         <label>현재 비밀번호<input type="password" value={currentPassword} onChange={(event) => setCurrentPassword(event.target.value)} /></label>
@@ -185,20 +158,8 @@ export default function ProfileTab({
         <div className="section-title">
           <h2>계정</h2>
         </div>
+        <p className="muted">테마·글자 크기·알림·보안 등은 오른쪽 위 설정(⚙️)에서 관리합니다.</p>
         <div className="stack">
-          <button type="button" className="button secondary" onClick={onShowPrivacy}><FileText size={16} aria-hidden="true" /> 개인정보 처리방침 보기</button>
-          <button
-            type="button"
-            className="button secondary"
-            disabled={busyAction === 'wipe'}
-            onClick={async () => {
-              if (!(await confirmDialog({ message: '이 기기에 저장된 캐시·북마크·테마 설정을 모두 지우고 로그아웃합니다. 계속할까요?', tone: 'danger', confirmText: '지우고 로그아웃' }))) return
-              setBusyAction('wipe')
-              try { await onWipeDevice?.() } finally { setBusyAction('') }
-            }}
-          >
-            <Eraser size={16} aria-hidden="true" /> 이 기기에서 데이터 지우기
-          </button>
           <button
             type="button"
             className="button danger"
