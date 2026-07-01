@@ -35,13 +35,15 @@ export default function OnboardingCard({ pushEnabled, pushPermission, biometricA
             {pushPermissionActionLabel(pushPermission, pushEnabled)}
           </button>
         </li>
-        <li>
-          <Fingerprint size={15} aria-hidden="true" />
-          <div>
-            <strong>Face ID / 지문 잠금</strong>
-            <p className="muted">{biometricAvailable ? '5분 자리 비움 후 자동 재인증.' : '이 기기는 생체 인식을 지원하지 않습니다.'}</p>
-          </div>
-        </li>
+        {biometricAvailable && (
+          <li>
+            <Fingerprint size={15} aria-hidden="true" />
+            <div>
+              <strong>Face ID / 지문 잠금</strong>
+              <p className="muted">5분 자리 비움 후 자동 재인증.</p>
+            </div>
+          </li>
+        )}
       </ul>
     </section>
   )

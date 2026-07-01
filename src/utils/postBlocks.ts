@@ -188,7 +188,9 @@ function harvestText(value) {
     try {
       return harvestText(JSON.parse(stripped))
     } catch {
-      return stripped
+      // Looks like block JSON but won't parse (e.g. a dashboard-truncated
+      // preview). Never surface raw `[{"type":...}]` to the UI.
+      return ''
     }
   }
   if (Array.isArray(value)) {
@@ -231,5 +233,18 @@ export function postPreviewText(post) {
   if (blocks.some((block) => block.type === 'video')) return '영상이 포함된 글입니다.'
   if (blocks.some((block) => block.type === 'file')) return '첨부파일이 포함된 글입니다.'
 
+  return '내용 미리보기가 없습니다.'
+}
+
+// Preview for any block-JSON content (e.g. a notice's `content`), which may be a
+// JSON block array rather than plain text. Harvests the author text so we never
+// render raw `[{"type":"text",...}]` in a list. Falls back to a media hint.
+export function contentPreview(content, limit = 90) {
+  const text = harvestText(content)
+  if (text) return preview(text, limit)
+  const blocks = parseContentBlocks(content) || []
+  if (blocks.some((block) => block?.type === 'image')) return '이미지가 포함된 내용입니다.'
+  if (blocks.some((block) => block?.type === 'video')) return '영상이 포함된 내용입니다.'
+  if (blocks.some((block) => block?.type === 'file')) return '첨부파일이 포함된 내용입니다.'
   return '내용 미리보기가 없습니다.'
 }
