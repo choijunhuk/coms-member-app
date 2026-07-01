@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
-import { CalendarDays, Eye, ExternalLink, Image, Sparkles, ThumbsUp } from 'lucide-react'
+import { CalendarDays, CalendarPlus, Eye, ExternalLink, Image, Sparkles, ThumbsUp } from 'lucide-react'
+import { exportSchedulesIcs } from '../utils/calendarExport'
 import {
   categoryLabel,
   companionServicesForLinks,
@@ -69,6 +70,15 @@ export default function ActivityTab({ clubActivities, apps, appLinks }: Activity
       <section className="panel">
         <div className="section-title">
           <h2><CalendarDays size={14} aria-hidden="true" /> 월별 일정</h2>
+          {monthSchedules.length > 0 && (
+            <button
+              type="button"
+              className="button secondary compact"
+              onClick={() => { void exportSchedulesIcs(monthSchedules, `COM's ${year}년 ${month + 1}월 일정`) }}
+            >
+              <CalendarPlus size={15} aria-hidden="true" /> 내보내기
+            </button>
+          )}
         </div>
         <div className="calendar-picker">
           <label>년도<input type="number" min="2000" max="2100" value={year} onChange={(event) => setYear(Number(event.target.value) || now.getFullYear())} /></label>
