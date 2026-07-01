@@ -890,11 +890,7 @@ export default function App() {
       user={user}
       onLogout={handleLogout}
       onWithdraw={handleWithdraw}
-      onWipeDevice={handleWipeDevice}
       accountActionError={accountActionError}
-      onShowPrivacy={() => setShowPrivacy(true)}
-      themePreference={themePreference}
-      onChangeTheme={applyTheme}
       posts={posts}
       bookmarkedPosts={asArray(bookmarkedPostsQuery.data)}
       bookmarkedPostsLoading={bookmarkedPostsQuery.isLoading}
