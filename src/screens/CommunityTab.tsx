@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState, type Dispatch, type SetState
 import { List, useDynamicRowHeight } from 'react-window'
 import type { DynamicRowHeight, RowComponentProps } from 'react-window'
 import { AlertTriangle, Bookmark, BookmarkCheck, CornerDownRight, Eye, Plus, Search, Send, Share2, ThumbsDown, ThumbsUp, Trash2, Pencil, Check, X } from 'lucide-react'
+import { confirmDialog } from '../components/ConfirmDialog'
 import { asArray, formatDate } from '../utils/format'
 import { categoryLabels, latest, postImage } from '../utils/helpers'
 import { postPreviewText } from '../utils/postBlocks'
@@ -168,7 +169,7 @@ export default function CommunityTab({ posts, selected, comments, loading, openP
   }
 
   async function removeOne(id) {
-    if (typeof window !== 'undefined' && !window.confirm('이 댓글을 삭제할까요?')) return
+    if (!(await confirmDialog({ message: '이 댓글을 삭제할까요?', tone: 'danger', confirmText: '삭제' }))) return
     await removeComment?.(id)
   }
 
