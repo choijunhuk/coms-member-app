@@ -1795,3 +1795,37 @@ html[data-font-scale='xlarge'] { font-size: 20px; }
   flex-wrap: wrap;
 }
 .rsvp-row .button { flex: 1 1 auto; }
+
+/* Club event entries (voting) */
+.entry-list {
+  margin-top: 0.6rem;
+  border-top: 1px solid var(--hairline, rgba(0,0,0,0.08));
+  padding-top: 0.6rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+.entry-list-head {
+  margin: 0;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--muted, #5b6478);
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+.entry-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+}
+.entry-info { min-width: 0; }
+.entry-info strong { font-size: 0.9rem; }
+.entry-file {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: 0.78rem;
+  margin-top: 0.2rem;
+}

@@ -1,8 +1,8 @@
 import { useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { CalendarCheck, CalendarDays, CalendarPlus, Eye, ExternalLink, Image, Sparkles, ThumbsUp } from 'lucide-react'
+import { CalendarCheck, CalendarDays, CalendarPlus, Eye, ExternalLink, Image, Sparkles, ThumbsUp, Trophy } from 'lucide-react'
 import { exportSchedulesIcs } from '../utils/calendarExport'
-import { CLUB_EVENTS_QUERY_KEY, RSVP_OPTIONS, listClubEvents, rsvpClubEvent } from '../services/clubEventApi'
+import { CLUB_EVENTS_QUERY_KEY, RSVP_OPTIONS, listClubEvents, rsvpClubEvent, voteClubEventEntry } from '../services/clubEventApi'
 import { asArray, formatDate } from '../utils/format'
 import {
   categoryLabel,
@@ -70,6 +70,10 @@ export default function ActivityTab({ clubActivities, apps, appLinks }: Activity
     mutationFn: ({ id, status }: { id: unknown; status: string }) => rsvpClubEvent(id, status),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: CLUB_EVENTS_QUERY_KEY }),
   })
+  const voteMutation = useMutation({
+    mutationFn: ({ eventId, entryId }: { eventId: unknown; entryId: unknown }) => voteClubEventEntry(eventId, entryId),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: CLUB_EVENTS_QUERY_KEY }),
+  })
 
   return (
     <div className="stack">
@@ -126,6 +130,31 @@ export default function ActivityTab({ clubActivities, apps, appLinks }: Activity
                     </button>
                   ))}
                 </div>
+                {asArray(event.entries).length > 0 && (
+                  <div className="entry-list">
+                    <p className="entry-list-head"><Trophy size={13} aria-hidden="true" /> 출품작 {event.votingOpen ? '· 투표 진행 중' : '· 투표 마감'}</p>
+                    {[...asArray(event.entries)].sort((a, b) => (a.rank || 99) - (b.rank || 99)).map((entry) => (
+                      <div key={entry.id} className="entry-row">
+                        <div className="entry-info">
+                          <strong>{entry.rank ? `${entry.rank}위 · ` : ''}{entry.title}</strong>
+                          {entry.authorName && <span className="muted"> · {entry.authorName}</span>}
+                          {asArray(entry.files).map((file) => (
+                            <a key={file.id} className="entry-file" href={file.downloadUrl} target="_blank" rel="noopener noreferrer"><ExternalLink size={12} aria-hidden="true" /> {file.originalName || '첨부파일'}</a>
+                          ))}
+                        </div>
+                        <button
+                          type="button"
+                          className={`button compact ${entry.myVote ? 'primary' : 'secondary'}`}
+                          disabled={!event.votingOpen || voteMutation.isPending}
+                          onClick={() => voteMutation.mutate({ eventId: event.id, entryId: entry.id })}
+                          aria-pressed={Boolean(entry.myVote)}
+                        >
+                          <ThumbsUp size={14} aria-hidden="true" /> {entry.voteCount || 0}
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             ))}
           </div>
