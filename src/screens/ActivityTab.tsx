@@ -139,7 +139,11 @@ export default function ActivityTab({ clubActivities, apps, appLinks }: Activity
                           <strong>{entry.rank ? `${entry.rank}위 · ` : ''}{entry.title}</strong>
                           {entry.authorName && <span className="muted"> · {entry.authorName}</span>}
                           {asArray(entry.files).map((file) => (
-                            <a key={file.id} className="entry-file" href={file.downloadUrl} target="_blank" rel="noopener noreferrer"><ExternalLink size={12} aria-hidden="true" /> {file.originalName || '첨부파일'}</a>
+                            isSafeHttpUrl(file.downloadUrl) ? (
+                              <a key={file.id} className="entry-file" href={file.downloadUrl} target="_blank" rel="noopener noreferrer"><ExternalLink size={12} aria-hidden="true" /> {file.originalName || '첨부파일'}</a>
+                            ) : (
+                              <span key={file.id} className="entry-file muted">{file.originalName || '첨부파일'}</span>
+                            )
                           ))}
                         </div>
                         <button
