@@ -14,6 +14,14 @@ export function rsvpClubEvent(id, status) {
   })
 }
 
+// Toggle a vote on an entry (submitted work) of a voting event.
+export function voteClubEventEntry(eventId, entryId) {
+  return request(`/api/club-events/${eventId}/entries/${entryId}/vote`, {
+    method: 'POST',
+    body: JSON.stringify({ entryId }),
+  })
+}
+
 export const RSVP_OPTIONS = [
   { status: 'GOING', label: '참석', countKey: 'goingCount' },
   { status: 'MAYBE', label: '미정', countKey: 'maybeCount' },
