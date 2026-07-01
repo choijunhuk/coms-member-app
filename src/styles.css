@@ -1779,3 +1779,19 @@ html[data-font-scale='xlarge'] { font-size: 20px; }
   width: auto;
   margin: 0;
 }
+
+/* Club event RSVP cards */
+.event-card {
+  padding: 0.85rem;
+  border: 1px solid var(--hairline, rgba(0,0,0,0.08));
+  border-radius: 12px;
+  background: var(--surface, #fff);
+}
+.event-card strong { display: block; }
+.event-card .muted { margin: 0.25rem 0 0.6rem; font-size: 0.85rem; }
+.rsvp-row {
+  display: flex;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+}
+.rsvp-row .button { flex: 1 1 auto; }
