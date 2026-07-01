@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import { ArrowLeft, BellRing, Bookmark, ChevronRight, Eraser, FileText, Fingerprint, Hand, LogOut, Moon, Smartphone, Sun, Type, UserX } from 'lucide-react'
+import { confirmDialog } from '../components/ConfirmDialog'
 import {
   FONT_SCALE_VALUES,
   IDLE_LOCK_VALUES,
@@ -128,7 +129,7 @@ export default function SettingsScreen({
             className="settings-row"
             disabled={busy === 'wipe'}
             onClick={async () => {
-              if (typeof window !== 'undefined' && !window.confirm('이 기기에 저장된 캐시·북마크·테마 설정을 모두 지우고 로그아웃합니다. 계속할까요?')) return
+              if (!(await confirmDialog({ message: '이 기기에 저장된 캐시·북마크·테마 설정을 모두 지우고 로그아웃합니다. 계속할까요?', tone: 'danger', confirmText: '지우고 로그아웃' }))) return
               setBusy('wipe')
               try { await onWipeDevice?.() } finally { setBusy('') }
             }}
@@ -168,7 +169,7 @@ export default function SettingsScreen({
             disabled={busy === 'withdraw'}
             style={{ marginTop: '0.5rem' }}
             onClick={async () => {
-              if (typeof window !== 'undefined' && !window.confirm('정말로 회원에서 탈퇴할까요? 작성한 글과 댓글도 함께 삭제되며 되돌릴 수 없습니다.')) return
+              if (!(await confirmDialog({ message: '정말로 회원에서 탈퇴할까요? 작성한 글과 댓글도 함께 삭제되며 되돌릴 수 없습니다.', tone: 'danger', confirmText: '회원 탈퇴' }))) return
               setBusy('withdraw')
               try { await onWithdraw?.() } catch { /* App owns the visible accountActionError. */ } finally { setBusy('') }
             }}

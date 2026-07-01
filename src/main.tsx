@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client'
 import { QueryClientProvider } from '@tanstack/react-query'
 import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client'
 import App from './App'
+import { ConfirmHost } from './components/ConfirmDialog'
 import { queryClient, queryPersister } from './services/queryClient'
 import { initObservability } from './services/observability'
 import { bundleVersion } from './utils/version'
@@ -20,6 +21,7 @@ if (queryPersister) {
         persistOptions={{ persister: queryPersister, maxAge: 24 * 60 * 60 * 1000 }}
       >
         <App />
+        <ConfirmHost />
       </PersistQueryClientProvider>
     </StrictMode>,
   )
@@ -28,6 +30,7 @@ if (queryPersister) {
     <StrictMode>
       <QueryClientProvider client={queryClient}>
         <App />
+        <ConfirmHost />
       </QueryClientProvider>
     </StrictMode>,
   )

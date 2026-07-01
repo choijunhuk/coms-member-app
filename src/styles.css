@@ -1729,3 +1729,28 @@ html[data-font-scale='xlarge'] { font-size: 20px; }
   display: grid;
   gap: 0;
 }
+
+/* Promise-based confirm modal (ConfirmDialog.tsx) — reuses .lightbox/.panel */
+.confirm-dialog {
+  width: 100%;
+  max-width: 22rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+.confirm-dialog-title {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 700;
+}
+.confirm-dialog-message {
+  margin: 0;
+  line-height: 1.55;
+  white-space: pre-line;
+}
+.confirm-dialog-actions {
+  justify-content: flex-end;
+}
+.confirm-dialog-actions .button {
+  flex: 0 0 auto;
+}

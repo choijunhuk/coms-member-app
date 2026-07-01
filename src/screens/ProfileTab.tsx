@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import { Bookmark, Eraser, FileText, LogOut, MessageCircle, Moon, RotateCcw, ShieldAlert, Smartphone, Sun, UserX } from 'lucide-react'
+import { confirmDialog } from '../components/ConfirmDialog'
 import { changePassword } from '../services/authApi'
 import { formatDate, generationFromStudentId, preview } from '../utils/format'
 import { passwordPolicyMessage, validPassword } from '../utils/passwordPolicy'
@@ -191,7 +192,7 @@ export default function ProfileTab({
             className="button secondary"
             disabled={busyAction === 'wipe'}
             onClick={async () => {
-              if (typeof window !== 'undefined' && !window.confirm('이 기기에 저장된 캐시·북마크·테마 설정을 모두 지우고 로그아웃합니다. 계속할까요?')) return
+              if (!(await confirmDialog({ message: '이 기기에 저장된 캐시·북마크·테마 설정을 모두 지우고 로그아웃합니다. 계속할까요?', tone: 'danger', confirmText: '지우고 로그아웃' }))) return
               setBusyAction('wipe')
               try { await onWipeDevice?.() } finally { setBusyAction('') }
             }}
@@ -203,7 +204,7 @@ export default function ProfileTab({
             className="button danger"
             disabled={busyAction === 'withdraw'}
             onClick={async () => {
-              if (typeof window !== 'undefined' && !window.confirm('정말로 회원에서 탈퇴할까요? 작성한 글과 댓글도 함께 삭제되며 되돌릴 수 없습니다.')) return
+              if (!(await confirmDialog({ message: '정말로 회원에서 탈퇴할까요? 작성한 글과 댓글도 함께 삭제되며 되돌릴 수 없습니다.', tone: 'danger', confirmText: '회원 탈퇴' }))) return
               setBusyAction('withdraw')
               setWithdrawError('')
               try {
