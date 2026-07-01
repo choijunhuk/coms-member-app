@@ -10,6 +10,7 @@ import {
   createComment,
   createCommunityPost,
   createCommunityPostWithImage,
+  updateCommunityPost,
   deleteComment,
   getCommunityPost,
   appealDeletedCommunityPost,
@@ -617,6 +618,19 @@ export default function App() {
     },
   })
 
+  const updatePostMutation = useMutation({
+    mutationFn: ({ id, payload }: { id: unknown; payload: unknown }) => updateCommunityPost(id, payload),
+    onSuccess: () => {
+      void hapticSuccess()
+      refreshDashboard()
+    },
+  })
+
+  async function editPostForId(id, payload) {
+    await updatePostMutation.mutateAsync({ id, payload })
+    await openPost(id)
+  }
+
   const voteMutation = useMutation({
     mutationFn: ({ postId, value }: { postId: unknown; value: number }) => voteCommunityPost(postId, value),
     onSuccess: () => { void hapticLight() },
@@ -881,7 +895,7 @@ export default function App() {
   )
   else if (activeTab === 'activity') content = <ActivityTab clubActivities={clubActivities} apps={apps} appLinks={appConfig.links} />
   else if (activeTab === 'notices') content = <NoticesTab notices={notices} selected={selectedNotice} loading={noticeLoading} openNotice={openNotice} closeNotice={() => setSelectedNotice(null)} />
-  else if (activeTab === 'community') content = <CommunityTab posts={posts} selected={selectedPost} comments={comments} loading={postLoading} openPost={openPost} closePost={() => { setSelectedPost(null); setComments([]) }} createPost={createPost} createCommentForPost={createCommentForPost} editComment={editCommentForPost} removeComment={removeCommentForPost} vote={vote} pollVote={pollVote} toggleBookmark={toggleBookmark} currentUser={user} pendingPosts={pendingCommunityPosts} retryPendingPosts={flushPendingCommunityPosts} />
+  else if (activeTab === 'community') content = <CommunityTab posts={posts} selected={selectedPost} comments={comments} loading={postLoading} openPost={openPost} closePost={() => { setSelectedPost(null); setComments([]) }} createPost={createPost} editPost={editPostForId} createCommentForPost={createCommentForPost} editComment={editCommentForPost} removeComment={removeCommentForPost} vote={vote} pollVote={pollVote} toggleBookmark={toggleBookmark} currentUser={user} pendingPosts={pendingCommunityPosts} retryPendingPosts={flushPendingCommunityPosts} />
   else if (activeTab === 'resources') content = <ResourcesTab files={files} />
   else if (activeTab === 'notifications') content = <NotificationsTab notifications={notifications} unreadCount={unreadCount} pushStatus={pushStatus} pushPermission={pushPermission} refreshPushPermission={refreshPushPermission} appConfig={appConfig} enablePush={enablePush} onOpenPushSettings={openPushSettings} markRead={markRead} markAllRead={markAllRead} openRoute={openRoute} />
   else if (activeTab === 'operations') content = <OperationsTab user={user} notices={notices} posts={posts} clubActivities={clubActivities} apps={apps} loadDashboard={refreshDashboard} />
