@@ -1,6 +1,9 @@
 import { useMemo, useState } from 'react'
-import { CalendarDays, CalendarPlus, Eye, ExternalLink, Image, Sparkles, ThumbsUp } from 'lucide-react'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { CalendarCheck, CalendarDays, CalendarPlus, Eye, ExternalLink, Image, Sparkles, ThumbsUp } from 'lucide-react'
 import { exportSchedulesIcs } from '../utils/calendarExport'
+import { CLUB_EVENTS_QUERY_KEY, RSVP_OPTIONS, listClubEvents, rsvpClubEvent } from '../services/clubEventApi'
+import { asArray, formatDate } from '../utils/format'
 import {
   categoryLabel,
   companionServicesForLinks,
@@ -60,6 +63,14 @@ export default function ActivityTab({ clubActivities, apps, appLinks }: Activity
     Array.isArray(apps) && apps.length > 0 ? apps : companionServicesForLinks(appLinks)
   ), [appLinks, apps])
 
+  const queryClient = useQueryClient()
+  const eventsQuery = useQuery({ queryKey: CLUB_EVENTS_QUERY_KEY, queryFn: listClubEvents })
+  const events = asArray(eventsQuery.data)
+  const rsvpMutation = useMutation({
+    mutationFn: ({ id, status }: { id: unknown; status: string }) => rsvpClubEvent(id, status),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: CLUB_EVENTS_QUERY_KEY }),
+  })
+
   return (
     <div className="stack">
       <section className="hero-card">
@@ -91,6 +102,35 @@ export default function ActivityTab({ clubActivities, apps, appLinks }: Activity
           {monthSchedules.length === 0 && <Empty text="선택한 달에 등록된 일정이 없습니다." />}
         </div>
       </section>
+
+      {events.length > 0 && (
+        <section className="panel">
+          <div className="section-title">
+            <h2><CalendarCheck size={14} aria-hidden="true" /> 동아리 이벤트</h2>
+          </div>
+          <div className="stack">
+            {events.map((event) => (
+              <div key={event.id} className="event-card">
+                <strong>{event.title}</strong>
+                <p className="muted">{formatDate(event.startsAt)}{event.description ? ` · ${event.description}` : ''}</p>
+                <div className="rsvp-row">
+                  {RSVP_OPTIONS.map((option) => (
+                    <button
+                      key={option.status}
+                      type="button"
+                      className={`button compact ${event.myRsvpStatus === option.status ? 'primary' : 'secondary'}`}
+                      disabled={rsvpMutation.isPending}
+                      onClick={() => rsvpMutation.mutate({ id: event.id, status: option.status })}
+                    >
+                      {option.label} {event[option.countKey] || 0}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
 
       <Section title={<><Sparkles size={14} aria-hidden="true" /> 활동 기록</>}>
         {activities.map((item) => (
