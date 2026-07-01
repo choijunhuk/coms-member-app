@@ -91,7 +91,7 @@ type CommunityTabProps = {
   openPost: (id: unknown) => void
   closePost: () => void
   createPost: (input: unknown) => unknown
-  createCommentForPost: (content: string, parentCommentId?: unknown) => void | Promise<void>
+  createCommentForPost: (content: string, parentCommentId?: unknown, anonymousName?: string) => void | Promise<void>
   vote: (value: number) => void | Promise<void>
   pollVote: (pollId: unknown, optionIndex: number) => void
   toggleBookmark?: (id: unknown) => void | Promise<void>
@@ -111,8 +111,12 @@ export default function CommunityTab({ posts, selected, comments, loading, openP
   const [editingContent, setEditingContent] = useState('')
   const [replyingToId, setReplyingToId] = useState<unknown>(null)
   const [replyContent, setReplyContent] = useState('')
+  const [commentAnon, setCommentAnon] = useState('')
+  const [replyAnon, setReplyAnon] = useState('')
+  const [replyMention, setReplyMention] = useState(true)
   const [reporting, setReporting] = useState(false)
   const [reportedAt, setReportedAt] = useState<number | null>(null)
+  const isAnonymousDetail = String(selected?.category) === 'ANONYMOUS'
 
   async function submitReport(reason, detail) {
     if (!selected?.id) return
@@ -133,15 +137,19 @@ export default function CommunityTab({ posts, selected, comments, loading, openP
   async function submitComment(event) {
     event.preventDefault()
     if (!comment.trim()) return
-    await createCommentForPost(comment.trim())
+    await createCommentForPost(comment.trim(), null, isAnonymousDetail ? commentAnon.trim() : '')
     setComment('')
+    setCommentAnon('')
   }
 
-  async function submitReply(parentId) {
-    const next = replyContent.trim()
-    if (!next) return
-    await createCommentForPost(next, parentId)
+  async function submitReply(parent) {
+    const body = replyContent.trim()
+    if (!body) return
+    const parentName = parent?.authorDisplayName || parent?.authorName || ''
+    const mention = replyMention && parentName ? `@${parentName} ` : ''
+    await createCommentForPost(`${mention}${body}`, parent?.id, isAnonymousDetail ? replyAnon.trim() : '')
     setReplyContent('')
+    setReplyAnon('')
     setReplyingToId(null)
   }
 
@@ -241,18 +249,32 @@ export default function CommunityTab({ posts, selected, comments, loading, openP
                       </div>
                     )}
                     {replying && (
-                      <form className="inline-form" onSubmit={(event) => { event.preventDefault(); void submitReply(item.id) }}>
-                        <input value={replyContent} onChange={(event) => setReplyContent(event.target.value)} placeholder="답글 작성" autoFocus />
-                        <button type="submit" aria-label="답글 등록"><Send size={15} /></button>
-                        <button type="button" aria-label="취소" onClick={() => setReplyingToId(null)}><X size={15} /></button>
-                      </form>
+                      <div className="reply-composer">
+                        {isAnonymousDetail && (
+                          <input className="comment-anon-input" value={replyAnon} onChange={(event) => setReplyAnon(event.target.value)} maxLength={20} placeholder='표시 이름 (비우면 "익명")' />
+                        )}
+                        <form className="inline-form" onSubmit={(event) => { event.preventDefault(); void submitReply(item) }}>
+                          <input value={replyContent} onChange={(event) => setReplyContent(event.target.value)} placeholder="답글 작성" autoFocus />
+                          <button type="submit" aria-label="답글 등록"><Send size={15} /></button>
+                          <button type="button" aria-label="취소" onClick={() => setReplyingToId(null)}><X size={15} /></button>
+                        </form>
+                        <label className="reply-mention-toggle">
+                          <input type="checkbox" checked={replyMention} onChange={(event) => setReplyMention(event.target.checked)} />
+                          @{item.authorDisplayName || item.authorName || '작성자'} 멘션
+                        </label>
+                      </div>
                     )}
                   </div>
                 )
               })}
               {asArray(comments).length === 0 && <Empty text="댓글이 없습니다." />}
             </Section>
-            <form className="inline-form" onSubmit={submitComment}><input value={comment} onChange={(event) => setComment(event.target.value)} placeholder="댓글 작성" /><button aria-label="댓글 등록"><Send size={17} /></button></form>
+            <div className="comment-composer">
+              {isAnonymousDetail && (
+                <input className="comment-anon-input" value={commentAnon} onChange={(event) => setCommentAnon(event.target.value)} maxLength={20} placeholder='표시 이름 (비우면 "익명")' />
+              )}
+              <form className="inline-form" onSubmit={submitComment}><input value={comment} onChange={(event) => setComment(event.target.value)} placeholder="댓글 작성" /><button aria-label="댓글 등록"><Send size={17} /></button></form>
+            </div>
           </div>
         )}
       </Detail>

@@ -650,9 +650,9 @@ export default function App() {
     },
   })
 
-  async function createCommentForPost(content, parentCommentId = null) {
+  async function createCommentForPost(content, parentCommentId = null, anonymousName = '') {
     if (!selectedPost?.id) return
-    await createComment(selectedPost.id, content, parentCommentId)
+    await createComment(selectedPost.id, content, parentCommentId, anonymousName)
     void hapticSuccess()
     await openPost(selectedPost.id)
   }
