@@ -1,8 +1,8 @@
 import { useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { CalendarCheck, CalendarDays, CalendarPlus, Eye, ExternalLink, Image, Sparkles, ThumbsUp, Trophy } from 'lucide-react'
+import { CalendarCheck, CalendarDays, CalendarPlus, Eye, ExternalLink, Image, Sparkles, ThumbsUp, Trophy, Upload } from 'lucide-react'
 import { exportSchedulesIcs } from '../utils/calendarExport'
-import { CLUB_EVENTS_QUERY_KEY, RSVP_OPTIONS, listClubEvents, rsvpClubEvent, voteClubEventEntry } from '../services/clubEventApi'
+import { CLUB_EVENTS_QUERY_KEY, RSVP_OPTIONS, WORK_TYPE_OPTIONS, listClubEvents, rsvpClubEvent, voteClubEventEntry, submitClubEventEntry } from '../services/clubEventApi'
 import { asArray, formatDate } from '../utils/format'
 import {
   categoryLabel,
@@ -12,6 +12,7 @@ import {
   schedulesForMonth,
 } from '../services/clubActivityApi'
 import { Empty, ListItem, Section } from '../components/ui'
+import EntrySubmitForm from './community/EntrySubmitForm'
 import type { AppItem, AppLinks, ClubActivity } from '../contract/types'
 
 const MONTHS = Array.from({ length: 12 }, (_, index) => ({ value: index, label: `${index + 1}월` }))
@@ -73,6 +74,14 @@ export default function ActivityTab({ clubActivities, apps, appLinks }: Activity
   const voteMutation = useMutation({
     mutationFn: ({ eventId, entryId }: { eventId: unknown; entryId: unknown }) => voteClubEventEntry(eventId, entryId),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: CLUB_EVENTS_QUERY_KEY }),
+  })
+  const [submitEventId, setSubmitEventId] = useState<unknown>(null)
+  const submitEntryMutation = useMutation({
+    mutationFn: ({ eventId, meta, files }: { eventId: unknown; meta: Record<string, string>; files: File[] }) => submitClubEventEntry(eventId, meta, files),
+    onSuccess: () => {
+      setSubmitEventId(null)
+      queryClient.invalidateQueries({ queryKey: CLUB_EVENTS_QUERY_KEY })
+    },
   })
 
   return (
@@ -158,6 +167,19 @@ export default function ActivityTab({ clubActivities, apps, appLinks }: Activity
                       </div>
                     ))}
                   </div>
+                )}
+                {event.votingOpen && (
+                  submitEventId === event.id ? (
+                    <EntrySubmitForm
+                      submitting={submitEntryMutation.isPending}
+                      onSubmit={(meta, files) => submitEntryMutation.mutateAsync({ eventId: event.id, meta, files })}
+                      onClose={() => setSubmitEventId(null)}
+                    />
+                  ) : (
+                    <button type="button" className="button secondary compact entry-submit-btn" onClick={() => setSubmitEventId(event.id)}>
+                      <Upload size={15} aria-hidden="true" /> 작품 제출
+                    </button>
+                  )
                 )}
               </div>
             ))}
