@@ -1837,3 +1837,39 @@ html[data-font-scale='xlarge'] { font-size: 20px; }
   flex-direction: column;
   gap: 0.4rem;
 }
+
+/* Composer: video/file/link attachments */
+.attach-list {
+  list-style: none;
+  margin: 0.2rem 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+.attach-list li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  font-size: 0.82rem;
+  padding: 0.4rem 0.6rem;
+  background: var(--surface-2, rgba(0,0,0,0.03));
+  border-radius: 8px;
+}
+.attach-list li span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.embed-picker {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+.embed-picker > label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.85rem;
+}

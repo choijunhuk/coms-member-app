@@ -37,6 +37,24 @@ export function appendCommunityPostImages(postId, images) {
   })
 }
 
+export function uploadCommunityPostVideo(postId, file) {
+  const form = new FormData()
+  form.append('video', file)
+  return request(`/api/community/posts/${postId}/videos`, {
+    method: 'POST',
+    body: form,
+  })
+}
+
+export function uploadCommunityPostFile(postId, file) {
+  const form = new FormData()
+  form.append('file', file)
+  return request(`/api/community/posts/${postId}/files`, {
+    method: 'POST',
+    body: form,
+  })
+}
+
 export function updateCommunityPost(id, payload) {
   return request(`/api/community/posts/${id}`, {
     method: 'PATCH',

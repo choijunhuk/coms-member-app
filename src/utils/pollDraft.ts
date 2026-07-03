@@ -39,13 +39,17 @@ export function buildPollBlock(poll, idSeed = '') {
   }
 }
 
-export function buildComposerContent({ text, poll, idSeed = '' }: { text?: string; poll?: PollDraft; idSeed?: string }) {
+export function buildComposerContent({ text, poll, media = [], idSeed = '' }: { text?: string; poll?: PollDraft; media?: unknown[]; idSeed?: string }) {
   const normalizedText = String(text || '').trim()
-  if (!poll?.enabled) return normalizedText
-  const pollBlock = buildPollBlock(poll, idSeed)
-  if (!pollBlock) return normalizedText
+  const mediaBlocks = Array.isArray(media) ? media.filter(Boolean) : []
+  const pollBlock = poll?.enabled ? buildPollBlock(poll, idSeed) : null
+
+  // No poll and no media → keep content as plain text (the common case).
+  if (!pollBlock && mediaBlocks.length === 0) return normalizedText
+
   return JSON.stringify([
     { type: 'text', content: normalizedText },
-    pollBlock,
+    ...mediaBlocks,
+    ...(pollBlock ? [pollBlock] : []),
   ])
 }
