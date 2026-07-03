@@ -1873,3 +1873,7 @@ html[data-font-scale='xlarge'] { font-size: 20px; }
   gap: 0.35rem;
   font-size: 0.85rem;
 }
+
+/* Club event work-submission */
+.entry-submit-btn { margin-top: 0.5rem; }
+.entry-form { margin-top: 0.6rem; }
