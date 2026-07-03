@@ -7,6 +7,8 @@ import { listClubActivities } from './services/clubActivityApi'
 import { listApps } from './services/appCatalogApi'
 import {
   appendCommunityPostImages,
+  uploadCommunityPostVideo,
+  uploadCommunityPostFile,
   createComment,
   createCommunityPost,
   createCommunityPostWithImage,
@@ -23,6 +25,7 @@ import {
   voteCommunityPoll,
   voteCommunityPost,
 } from './services/communityApi'
+import { buildComposerContent } from './utils/pollDraft'
 import {
   DEFAULT_APP_CONFIG,
   getAppConfig,
@@ -602,13 +605,41 @@ export default function App() {
   }, [activeTab, selectedNotice, selectedPost, setActiveTab, setComments, setSelectedNotice, setSelectedPost, setShowPrivacy, setShowSettings, showPrivacy, showSettings, user])
 
   const createPostMutation = useMutation({
-    mutationFn: async ({ payload, images }: { payload: unknown; images?: unknown[] }) => {
-      const list = Array.isArray(images) ? images : []
-      if (list.length === 0) return createCommunityPost(payload)
-      const created = await createCommunityPostWithImage(payload, list[0])
-      const extra = list.slice(1)
-      if (extra.length && created?.id) {
-        await appendCommunityPostImages(created.id, extra)
+    mutationFn: async ({ payload, images, videos, files, extras }: { payload: any; images?: unknown[]; videos?: unknown[]; files?: unknown[]; extras?: any }) => {
+      const imgs = Array.isArray(images) ? images : []
+      const vids = Array.isArray(videos) ? videos : []
+      const fls = Array.isArray(files) ? files : []
+
+      // 1. Create the post (first image inline, like before). payload.content
+      //    already carries text + poll + any youtube/link embeds.
+      const created = imgs.length
+        ? await createCommunityPostWithImage(payload, imgs[0])
+        : await createCommunityPost(payload)
+      if (imgs.slice(1).length && created?.id) {
+        await appendCommunityPostImages(created.id, imgs.slice(1))
+      }
+
+      // 2. Upload videos/files (need the post id) and collect their blocks.
+      const uploadedBlocks: unknown[] = []
+      if (created?.id) {
+        for (const video of vids) {
+          const res: any = await uploadCommunityPostVideo(created.id, video)
+          const mediaId = typeof res === 'object' ? (res?.videoId ?? res?.id ?? res?.mediaId) : res
+          uploadedBlocks.push({ type: 'video', mediaId, name: (video as File).name, width: 75, align: 'center' })
+        }
+        for (const file of fls) {
+          const res: any = await uploadCommunityPostFile(created.id, file)
+          const fileId = typeof res === 'object' ? (res?.fileId ?? res?.id) : res
+          uploadedBlocks.push({ type: 'file', fileId, name: (file as File).name })
+        }
+      }
+
+      // 3. Only re-serialize content when a video/file was uploaded — its id
+      //    wasn't known at create time. (Embeds were already in payload.content.)
+      if (uploadedBlocks.length && created?.id) {
+        const media = [...uploadedBlocks, ...(extras?.embeds || [])]
+        const content = buildComposerContent({ text: extras?.text, poll: extras?.poll, media })
+        await updateCommunityPost(created.id, { ...payload, content })
       }
       return created
     },
@@ -827,8 +858,9 @@ export default function App() {
       return { queued: false }
     } catch (error) {
       if (!shouldQueueCommunityPostError(error)) throw error
-      if (Array.isArray(input?.images) && input.images.length > 0) {
-        throw new Error('오프라인 상태에서는 이미지 첨부 글을 자동 임시 저장할 수 없습니다. 연결 후 이미지를 다시 첨부해 등록해주세요.', { cause: error })
+      const hasUploads = ['images', 'videos', 'files'].some((key) => Array.isArray(input?.[key]) && input[key].length > 0)
+      if (hasUploads) {
+        throw new Error('오프라인 상태에서는 파일 첨부 글을 자동 임시 저장할 수 없습니다. 연결 후 파일을 다시 첨부해 등록해주세요.', { cause: error })
       }
       const queue = await enqueuePendingCommunityPost(input.payload)
       setPendingCommunityPosts(queue)

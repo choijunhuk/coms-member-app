@@ -80,7 +80,7 @@ describe('CommunityTab', () => {
     fireEvent.click(screen.getByRole('button', { name: '등록' }))
 
     await waitFor(() => expect(createPost).toHaveBeenCalledTimes(1))
-    expect(createPost).toHaveBeenCalledWith({
+    expect(createPost).toHaveBeenCalledWith(expect.objectContaining({
       payload: {
         title: '새 커뮤니티 글',
         content: '커뮤니티 본문입니다.',
@@ -88,6 +88,8 @@ describe('CommunityTab', () => {
         anonymousName: '',
       },
       images: [],
-    })
+      videos: [],
+      files: [],
+    }))
   })
 })
