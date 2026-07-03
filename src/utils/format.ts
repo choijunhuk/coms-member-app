@@ -1,3 +1,5 @@
+import { stripMarkdown } from './markdown'
+
 export function asArray(value) {
   return Array.isArray(value) ? value : []
 }
@@ -15,7 +17,7 @@ export function plainText(value) {
 }
 
 export function preview(value, limit = 90) {
-  const text = plainText(value)
+  const text = stripMarkdown(plainText(value))
   if (!text) return '내용 미리보기가 없습니다.'
   return text.length > limit ? `${text.slice(0, limit)}...` : text
 }

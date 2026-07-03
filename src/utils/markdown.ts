@@ -28,3 +28,13 @@ export function renderMarkdownToHtml(input) {
 export function renderPlainTextWithEmoji(input) {
   return emojifySync(escapeHtml(input))
 }
+
+// Strip the markdown markers we render (**bold**, _italic_, [label](url)) down to
+// their visible text, for list previews that show plain text rather than HTML.
+// Without this a preview shows the raw `**`, `_`, and `[label](url)` syntax.
+export function stripMarkdown(input) {
+  return String(input || '')
+    .replace(/\[([^\]]{1,80})\]\(([^)]{1,200})\)/g, '$1')
+    .replace(/\*\*([^*\n]+)\*\*/g, '$1')
+    .replace(/(^|[^_])_([^_\n]+)_(?!_)/g, '$1$2')
+}
