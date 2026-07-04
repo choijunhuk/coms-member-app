@@ -1,10 +1,19 @@
+import { confirmDialog } from '../../components/ConfirmDialog'
 import { asArray } from '../../utils/format'
 import { pollResultRows, pollSummaryText } from '../../utils/pollResults'
 
 type PollBlockData = { pollId?: string; question?: string; [key: string]: unknown }
 type PollResult = { closed?: boolean; myOption?: number | null; [key: string]: unknown }
 
-export default function PollBlock({ block, result, pollVote }: { block: PollBlockData; result?: PollResult; pollVote: (pollId: unknown, optionIndex: number) => void }) {
+type PollBlockProps = {
+  block: PollBlockData
+  result?: PollResult
+  pollVote: (pollId: unknown, optionIndex: number) => void
+  // Present only when the viewer authored the post — closes the poll for everyone.
+  closePoll?: (pollId: unknown) => void | Promise<void>
+}
+
+export default function PollBlock({ block, result, pollVote, closePoll }: PollBlockProps) {
   const closed = Boolean(result?.closed)
   const voted = result?.myOption !== null && result?.myOption !== undefined
   const disabled = closed || voted
@@ -39,6 +48,18 @@ export default function PollBlock({ block, result, pollVote }: { block: PollBloc
         })}
       </div>
       {disabled && <p className="poll-note">{closed ? '종료된 투표입니다.' : '이미 참여한 투표입니다.'}</p>}
+      {closePoll && !closed && (
+        <button
+          type="button"
+          className="button secondary compact"
+          onClick={async () => {
+            if (!(await confirmDialog({ message: '이 투표를 종료할까요? 종료하면 더 이상 참여할 수 없습니다.', tone: 'danger', confirmText: '투표 종료' }))) return
+            await closePoll(block.pollId)
+          }}
+        >
+          투표 종료
+        </button>
+      )}
     </section>
   )
 }

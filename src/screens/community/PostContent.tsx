@@ -21,7 +21,7 @@ function collectImageUrls(blocks) {
   return urls
 }
 
-export default function PostContent({ post, pollVote }: { post: CommunityPost; pollVote: (pollId: unknown, optionIndex: number) => void }) {
+export default function PostContent({ post, pollVote, closePoll }: { post: CommunityPost; pollVote: (pollId: unknown, optionIndex: number) => void; closePoll?: (pollId: unknown) => void | Promise<void> }) {
   const blocks = postBlocks(post)
   const hasPollBlock = blocks.some((block) => block.type === 'poll')
   const images = collectImageUrls(blocks)
@@ -116,7 +116,7 @@ export default function PostContent({ post, pollVote }: { post: CommunityPost; p
         }
         if (block.type === 'poll') {
           const result = asArray(post.pollResults).find((item) => item.pollId === block.pollId)
-          return <PollBlock key={block.pollId || index} block={block} result={result} pollVote={pollVote} />
+          return <PollBlock key={block.pollId || index} block={block} result={result} pollVote={pollVote} closePoll={closePoll} />
         }
         return null
       })}

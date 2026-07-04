@@ -134,3 +134,26 @@ export function reportCommunityPost(postId, reason, detail) {
     body: JSON.stringify({ reason, detail: detail || null }),
   })
 }
+
+export function getMemberReputation(studentId) {
+  return request(`/api/community/members/${encodeURIComponent(studentId)}/reputation`)
+}
+
+export async function listPostsByAuthor(studentId, page = 0, size = 50) {
+  const data = await request(`/api/community/posts/by-author/${encodeURIComponent(studentId)}?page=${page}&size=${size}`)
+  return parseApiResponse(CommunityPostListSchema, Array.isArray(data) ? data : [], '작성한 글 목록')
+}
+
+export function closeCommunityPoll(postId, pollId) {
+  return request(`/api/community/posts/${postId}/polls/${encodeURIComponent(pollId)}/close`, {
+    method: 'POST',
+  })
+}
+
+export function searchYoutubeVideos(query) {
+  return request(`/api/community/posts/tools/youtube/search?q=${encodeURIComponent(query)}`)
+}
+
+export function fetchLinkPreview(url) {
+  return request(`/api/community/posts/tools/link-preview?url=${encodeURIComponent(url)}`)
+}

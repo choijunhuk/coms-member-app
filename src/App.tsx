@@ -20,6 +20,7 @@ import {
   listMyDeletedCommunityPosts,
   listComments,
   listCommunityPosts,
+  closeCommunityPoll,
   toggleCommunityPostBookmark,
   updateComment,
   voteCommunityPoll,
@@ -741,6 +742,14 @@ export default function App() {
     await openPost(selectedPost.id)
   }
 
+  // Author-only: closes the poll for everyone, then re-fetches the post so the
+  // closed state shows immediately.
+  async function closePoll(pollId) {
+    if (!selectedPost?.id) return
+    await closeCommunityPoll(selectedPost.id, pollId)
+    await openPost(selectedPost.id)
+  }
+
   const markRead = useCallback(async (id) => {
     await markNotificationRead(id)
     patchDashboard((prev) => {
@@ -927,7 +936,7 @@ export default function App() {
   )
   else if (activeTab === 'activity') content = <ActivityTab clubActivities={clubActivities} apps={apps} appLinks={appConfig.links} />
   else if (activeTab === 'notices') content = <NoticesTab notices={notices} selected={selectedNotice} loading={noticeLoading} openNotice={openNotice} closeNotice={() => setSelectedNotice(null)} />
-  else if (activeTab === 'community') content = <CommunityTab posts={posts} selected={selectedPost} comments={comments} loading={postLoading} openPost={openPost} closePost={() => { setSelectedPost(null); setComments([]) }} createPost={createPost} editPost={editPostForId} createCommentForPost={createCommentForPost} editComment={editCommentForPost} removeComment={removeCommentForPost} vote={vote} pollVote={pollVote} toggleBookmark={toggleBookmark} currentUser={user} pendingPosts={pendingCommunityPosts} retryPendingPosts={flushPendingCommunityPosts} />
+  else if (activeTab === 'community') content = <CommunityTab posts={posts} selected={selectedPost} comments={comments} loading={postLoading} openPost={openPost} closePost={() => { setSelectedPost(null); setComments([]) }} createPost={createPost} editPost={editPostForId} createCommentForPost={createCommentForPost} editComment={editCommentForPost} removeComment={removeCommentForPost} vote={vote} pollVote={pollVote} closePoll={closePoll} toggleBookmark={toggleBookmark} currentUser={user} pendingPosts={pendingCommunityPosts} retryPendingPosts={flushPendingCommunityPosts} />
   else if (activeTab === 'resources') content = <ResourcesTab files={files} />
   else if (activeTab === 'notifications') content = <NotificationsTab notifications={notifications} unreadCount={unreadCount} pushStatus={pushStatus} pushPermission={pushPermission} refreshPushPermission={refreshPushPermission} appConfig={appConfig} enablePush={enablePush} onOpenPushSettings={openPushSettings} markRead={markRead} markAllRead={markAllRead} openRoute={openRoute} />
   else if (activeTab === 'operations') content = <OperationsTab user={user} notices={notices} posts={posts} clubActivities={clubActivities} apps={apps} loadDashboard={refreshDashboard} />

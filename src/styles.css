@@ -1877,3 +1877,59 @@ html[data-font-scale='xlarge'] { font-size: 20px; }
 /* Club event work-submission */
 .entry-submit-btn { margin-top: 0.5rem; }
 .entry-form { margin-top: 0.6rem; }
+
+/* Community: member profile + sort + composer YouTube search */
+.author-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  align-self: flex-start;
+}
+
+.comment-author-button {
+  background: none;
+  border: 0;
+  padding: 0;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.member-reputation {
+  display: grid;
+  gap: 0.6rem;
+}
+
+.member-reputation .badge {
+  justify-self: start;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.yt-results li {
+  padding: 0;
+}
+
+.yt-result-button {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  width: 100%;
+  background: none;
+  border: 0;
+  padding: 0.45rem 0.2rem;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+}
+
+.yt-result-button img {
+  width: 72px;
+  height: 40px;
+  object-fit: cover;
+  border-radius: 8px;
+  flex-shrink: 0;
+}
