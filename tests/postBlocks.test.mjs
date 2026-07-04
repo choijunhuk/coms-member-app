@@ -4,6 +4,7 @@ import {
   pollOptionImageUrl,
   pollOptionLabel,
   pollTotals,
+  postBodyText,
   postPreviewText,
 } from '../src/utils/postBlocks.ts'
 
@@ -96,5 +97,24 @@ assert.deepEqual(nestedTextBlocks[1].options.map(pollOptionLabel), ['정상', '�
 assert.equal(pollOptionLabel({ label: '찬성' }), '찬성')
 assert.equal(pollOptionLabel('반대'), '반대')
 assert.equal(pollOptionImageUrl('반대'), '')
+
+// Web-authored posts carry sanitized HTML with entities — previews must show
+// decoded text, never `&nbsp;`/`&amp;` or tags.
+const htmlEntityPost = {
+  content: JSON.stringify([
+    { type: 'text', content: '<p><b>공지</b>&nbsp;사항 &amp; 안내</p><p>둘째&nbsp;줄</p>' },
+  ]),
+}
+assert.equal(postPreviewText(htmlEntityPost), '공지 사항 & 안내 둘째 줄')
+
+// Multi-line author text keeps its line breaks in the edit-form seed.
+const multiLinePost = {
+  content: JSON.stringify([
+    { type: 'text', content: '첫 줄<br>둘째 줄' },
+    { type: 'text', content: '<p>셋째 줄</p>' },
+  ]),
+}
+assert.equal(postBodyText(multiLinePost), '첫 줄\n둘째 줄\n셋째 줄')
+assert.equal(postPreviewText(multiLinePost), '첫 줄 둘째 줄 셋째 줄')
 
 console.log('post block contract passed')
