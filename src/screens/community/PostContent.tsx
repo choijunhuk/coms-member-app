@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { ChevronLeft, ChevronRight, Download, X } from 'lucide-react'
-import { asArray, plainText } from '../../utils/format'
+import { asArray, plainTextLines } from '../../utils/format'
 import { mediaSrc } from '../../utils/helpers'
 import { renderMarkdownToHtml } from '../../utils/markdown'
 import { postBlocks } from '../../utils/postBlocks'
@@ -69,7 +69,10 @@ export default function PostContent({ post, pollVote }: { post: CommunityPost; p
     <div className="post-content">
       {blocks.map((block, index) => {
         if (block.type === 'text') {
-          const text = plainText(block.content)
+          // plainTextLines keeps the author's line breaks (web HTML <br>/<p> too)
+          // so renderMarkdownToHtml can turn them back into <br /> — plainText
+          // flattened multi-line posts into one blob.
+          const text = plainTextLines(block.content)
           if (!text) return null
           return <p className="body-text" key={index} dangerouslySetInnerHTML={{ __html: renderMarkdownToHtml(text) }} />
         }
