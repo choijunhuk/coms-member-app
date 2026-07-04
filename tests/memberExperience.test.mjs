@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict'
 import { networkBannerMessage } from '../src/utils/networkStatus.ts'
+import { sortCommunityPosts } from '../src/utils/helpers.ts'
 import { pollResultRows, pollSummaryText } from '../src/utils/pollResults.ts'
 import { registerPushTokenWithRetry } from '../src/utils/pushRegistration.ts'
 
@@ -49,5 +50,19 @@ const result = await registerPushTokenWithRetry({
 
 assert.deepEqual(result, { ok: true })
 assert.equal(attempts, 3)
+
+// Community sort modes mirror the web: pinned first, then the chosen ordering.
+const sortPosts = [
+  { id: 1, createdAt: '2026-07-01T10:00:00Z', commentCount: 1, upvotes: 5, downvotes: 0, viewCount: 10 },
+  { id: 2, createdAt: '2026-07-03T10:00:00Z', commentCount: 9, upvotes: 0, downvotes: 2, viewCount: 90 },
+  { id: 3, createdAt: '2026-07-02T10:00:00Z', commentCount: 4, upvotes: 3, downvotes: 1, viewCount: 40, pinned: true },
+]
+assert.deepEqual(sortCommunityPosts(sortPosts, 'latest').map((p) => p.id), [3, 2, 1])
+assert.deepEqual(sortCommunityPosts(sortPosts, 'comments').map((p) => p.id), [3, 2, 1])
+assert.deepEqual(sortCommunityPosts(sortPosts, 'score').map((p) => p.id), [3, 1, 2])
+assert.deepEqual(sortCommunityPosts(sortPosts, 'views').map((p) => p.id), [3, 2, 1])
+// Ties fall back to newest-first; unknown mode behaves like latest.
+assert.deepEqual(sortCommunityPosts([{ id: 'a', createdAt: '2026-01-01' }, { id: 'b', createdAt: '2026-01-02' }], 'nope').map((p) => p.id), ['b', 'a'])
+assert.deepEqual(sortCommunityPosts(null, 'latest'), [])
 
 console.log('member experience contract passed')

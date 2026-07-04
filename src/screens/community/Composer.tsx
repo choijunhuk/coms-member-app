@@ -1,8 +1,9 @@
 import { useState, type ChangeEvent } from 'react'
-import { Film, Image as ImageIcon, ListPlus, Paperclip, Plus, Send, Trash2, X, Youtube } from 'lucide-react'
+import { Film, Image as ImageIcon, ListPlus, Paperclip, Plus, Search, Send, Trash2, X, Youtube } from 'lucide-react'
 import { categoryOptionsForUser } from '../../utils/helpers'
 import { buildComposerContent, createEmptyPollDraft, normalizedPollOptions, pollDraftStatus } from '../../utils/pollDraft'
 import { externalBlockFromUrl } from '../../utils/externalEmbed'
+import { fetchLinkPreview, searchYoutubeVideos } from '../../services/communityApi'
 import type { CurrentUser } from '../../contract/types'
 
 const MAX_IMAGE_SIZE = 8 * 1024 * 1024
@@ -36,6 +37,9 @@ export default function Composer({ onSubmit, currentUser }: ComposerProps) {
   const [files, setFiles] = useState<File[]>([])
   const [embeds, setEmbeds] = useState<{ url: string; block: { kind?: string; [key: string]: unknown } }[]>([])
   const [embedUrl, setEmbedUrl] = useState('')
+  const [ytQuery, setYtQuery] = useState('')
+  const [ytResults, setYtResults] = useState<{ videoId?: string; title?: string; thumbnailUrl?: string }[]>([])
+  const [ytSearching, setYtSearching] = useState(false)
   const [pollDraft, setPollDraft] = useState(createEmptyPollDraft)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
@@ -80,6 +84,8 @@ export default function Composer({ onSubmit, currentUser }: ComposerProps) {
     setFiles([])
     setEmbeds([])
     setEmbedUrl('')
+    setYtQuery('')
+    setYtResults([])
   }
 
   function pickVideos(event: ChangeEvent<HTMLInputElement>) {
@@ -112,14 +118,53 @@ export default function Composer({ onSubmit, currentUser }: ComposerProps) {
   }
 
   function addEmbed() {
-    const block = externalBlockFromUrl(embedUrl)
+    const url = embedUrl.trim()
+    const block = externalBlockFromUrl(url)
     if (!block) {
       setError('유효한 링크(https://...)를 입력해주세요.')
       return
     }
     setError('')
-    setEmbeds((current) => [...current, { url: embedUrl.trim(), block }])
+    setEmbeds((current) => [...current, { url, block }])
     setEmbedUrl('')
+    // Best-effort enrichment (web parity): fetch og-metadata so the link card
+    // gets a real title/description instead of the bare URL. Failure is fine.
+    if (block.kind === 'link') {
+      fetchLinkPreview(url).then((meta) => {
+        if (!meta) return
+        setEmbeds((current) => current.map((entry) => (
+          entry.url === url && entry.block?.kind === 'link'
+            ? { ...entry, block: { ...entry.block, title: meta.title || entry.block.title, description: meta.description || '', image: meta.image || '', siteName: meta.siteName || '' } }
+            : entry
+        )))
+      }).catch(() => {})
+    }
+  }
+
+  async function runYoutubeSearch() {
+    const q = ytQuery.trim()
+    if (!q || ytSearching) return
+    setYtSearching(true)
+    setError('')
+    try {
+      const data = await searchYoutubeVideos(q)
+      const items = Array.isArray(data?.items) ? data.items : []
+      setYtResults(items)
+      if (!items.length) setError('유튜브 검색 결과가 없습니다. URL 붙여넣기는 계속 사용할 수 있습니다.')
+    } catch (err) {
+      setError((err.message || '유튜브 검색에 실패했습니다.') + ' URL 붙여넣기는 계속 사용할 수 있습니다.')
+    } finally {
+      setYtSearching(false)
+    }
+  }
+
+  function addYoutubeResult(item) {
+    const url = `https://www.youtube.com/watch?v=${item.videoId}`
+    const block = externalBlockFromUrl(url, { title: item.title || '', thumbnailUrl: item.thumbnailUrl || '' })
+    if (!block) return
+    setEmbeds((current) => [...current, { url, block }])
+    setYtResults([])
+    setYtQuery('')
   }
 
   function setPollEnabled(enabled) {
@@ -272,11 +317,27 @@ export default function Composer({ onSubmit, currentUser }: ComposerProps) {
           <input value={embedUrl} onChange={(event) => setEmbedUrl(event.target.value)} placeholder="https://youtu.be/... 또는 링크" inputMode="url" />
           <button type="button" className="button secondary compact" onClick={addEmbed} disabled={!embedUrl.trim()}>추가</button>
         </div>
+        <div className="inline-form">
+          <input value={ytQuery} onChange={(event) => setYtQuery(event.target.value)} placeholder="유튜브 영상 검색" onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); void runYoutubeSearch() } }} />
+          <button type="button" className="button secondary compact" onClick={runYoutubeSearch} disabled={!ytQuery.trim() || ytSearching}><Search size={14} aria-hidden="true" />{ytSearching ? '검색 중...' : '검색'}</button>
+        </div>
+        {ytResults.length > 0 && (
+          <ul className="attach-list yt-results">
+            {ytResults.map((item) => (
+              <li key={item.videoId}>
+                <button type="button" className="yt-result-button" onClick={() => addYoutubeResult(item)}>
+                  {item.thumbnailUrl && <img src={item.thumbnailUrl} alt="" loading="lazy" decoding="async" />}
+                  <span>{item.title || item.videoId}</span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
       </div>
       {embeds.length > 0 && (
         <ul className="attach-list">
           {embeds.map((entry, index) => (
-            <li key={`${entry.url}-${index}`}><span>{entry.block?.kind === 'youtube' ? '▶ ' : '🔗 '}{entry.url}</span><button type="button" className="icon-button" onClick={() => setEmbeds((c) => c.filter((_, i) => i !== index))} aria-label="링크 제거"><X size={14} /></button></li>
+            <li key={`${entry.url}-${index}`}><span>{entry.block?.kind === 'youtube' ? '▶ ' : '🔗 '}{String(entry.block?.title || entry.url)}</span><button type="button" className="icon-button" onClick={() => setEmbeds((c) => c.filter((_, i) => i !== index))} aria-label="링크 제거"><X size={14} /></button></li>
           ))}
         </ul>
       )}

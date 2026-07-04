@@ -19,7 +19,9 @@ function youtubeVideoId(value) {
 }
 
 // Returns an externalEmbed block, or null if the input isn't a usable https URL.
-export function externalBlockFromUrl(value) {
+// `extra` carries known metadata (title, thumbnailUrl, description, …) — e.g.
+// from YouTube search results or a link-preview fetch — merged over the defaults.
+export function externalBlockFromUrl(value, extra = {}) {
   const raw = String(value || '').trim()
   if (!raw) return null
   let parsed
@@ -41,6 +43,7 @@ export function externalBlockFromUrl(value) {
       title: '',
       width: 75,
       align: 'center',
+      ...extra,
     }
   }
 
@@ -52,5 +55,6 @@ export function externalBlockFromUrl(value) {
     title: raw,
     width: 75,
     align: 'center',
+    ...extra,
   }
 }

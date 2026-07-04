@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useMemo, useState, type Dispatch, type SetStateAction } from 'react'
 import { List, useDynamicRowHeight } from 'react-window'
 import type { DynamicRowHeight, RowComponentProps } from 'react-window'
-import { AlertTriangle, Bookmark, BookmarkCheck, CornerDownRight, Eye, Plus, Search, Send, Share2, ThumbsDown, ThumbsUp, Trash2, Pencil, Check, X } from 'lucide-react'
+import { AlertTriangle, Bookmark, BookmarkCheck, CornerDownRight, Eye, Plus, Search, Send, Share2, ThumbsDown, ThumbsUp, Trash2, Pencil, Check, UserRound, X } from 'lucide-react'
 import { confirmDialog } from '../components/ConfirmDialog'
 import { asArray, formatDate } from '../utils/format'
-import { categoryLabels, latest, postImage } from '../utils/helpers'
+import { categoryLabels, communitySortOptions, postImage, sortCommunityPosts } from '../utils/helpers'
 import { postPreviewText, isTextOnlyPost, postBodyText } from '../utils/postBlocks'
 import { buildComposerContent, createEmptyPollDraft } from '../utils/pollDraft'
 import { sharePost } from '../services/nativeShare'
@@ -12,6 +12,7 @@ import { hapticLight, hapticSuccess } from '../services/haptics'
 import { Detail, Empty, ListItem, LoadingScreen, Section } from '../components/ui'
 import EmojiText from '../components/EmojiText'
 import Composer from './community/Composer'
+import MemberProfile from './community/MemberProfile'
 import PostContent from './community/PostContent'
 import ReportDialog from './community/ReportDialog'
 import { reportCommunityPost } from '../services/communityApi'
@@ -96,6 +97,7 @@ type CommunityTabProps = {
   createCommentForPost: (content: string, parentCommentId?: unknown, anonymousName?: string) => void | Promise<void>
   vote: (value: number) => void | Promise<void>
   pollVote: (pollId: unknown, optionIndex: number) => void
+  closePoll?: (pollId: unknown) => void | Promise<void>
   toggleBookmark?: (id: unknown) => void | Promise<void>
   editComment?: (id: unknown, content: string) => void | Promise<void>
   removeComment?: (id: unknown) => void | Promise<void>
@@ -104,11 +106,15 @@ type CommunityTabProps = {
   retryPendingPosts?: () => void | Promise<void>
 }
 
-export default function CommunityTab({ posts, selected, comments, loading, openPost, closePost, createPost, editPost, createCommentForPost, vote, pollVote, toggleBookmark, editComment, removeComment, currentUser, pendingPosts = [], retryPendingPosts }: CommunityTabProps) {
+export default function CommunityTab({ posts, selected, comments, loading, openPost, closePost, createPost, editPost, createCommentForPost, vote, pollVote, closePoll, toggleBookmark, editComment, removeComment, currentUser, pendingPosts = [], retryPendingPosts }: CommunityTabProps) {
   const [writing, setWriting] = useState(false)
   const [comment, setComment] = useState('')
   const [query, setQuery] = useState('')
   const [category, setCategory] = useState('ALL')
+  const [sort, setSort] = useState('latest')
+  // studentId of the member whose profile is open, with the tapped name as a
+  // loading fallback. Rendered above both list and detail views.
+  const [profileTarget, setProfileTarget] = useState<{ studentId: string; name: string } | null>(null)
   const [editingCommentId, setEditingCommentId] = useState<unknown>(null)
   const [editingContent, setEditingContent] = useState('')
   const [replyingToId, setReplyingToId] = useState<unknown>(null)
@@ -225,10 +231,28 @@ export default function CommunityTab({ posts, selected, comments, loading, openP
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase()
-    return latest(posts, 'createdAt')
+    return sortCommunityPosts(posts, sort)
       .filter((post) => (category === 'ALL' || (post.category || 'GENERAL') === category))
       .filter((post) => matchesQuery(post, q))
-  }, [posts, query, category])
+  }, [posts, query, category, sort])
+
+  function openMemberProfile(item) {
+    const studentId = item?.authorStudentId
+    if (!studentId) return
+    setProfileTarget({ studentId: String(studentId), name: item.authorDisplayName || item.authorName || '' })
+  }
+
+  if (profileTarget) {
+    return (
+      <MemberProfile
+        key={profileTarget.studentId}
+        studentId={profileTarget.studentId}
+        initialName={profileTarget.name}
+        onBack={() => setProfileTarget(null)}
+        openPost={(id) => { setProfileTarget(null); openPost(id) }}
+      />
+    )
+  }
 
   if (selected) {
     return (
@@ -236,6 +260,15 @@ export default function CommunityTab({ posts, selected, comments, loading, openP
         {loading ? <LoadingScreen label="글을 불러오는 중입니다." /> : (
           <div className="stack">
             <div className="stats"><span><Eye size={14} />{selected.viewCount || 0}</span><span><ThumbsUp size={14} />{selected.upvotes || 0}</span><span><ThumbsDown size={14} />{selected.downvotes || 0}</span></div>
+            {!isAnonymousDetail && (selected.authorDisplayName || selected.authorName) && (
+              selected.authorStudentId ? (
+                <button type="button" className="link-button author-link" onClick={() => openMemberProfile(selected)}>
+                  <UserRound size={14} aria-hidden="true" />{String(selected.authorDisplayName || selected.authorName)} 프로필 보기
+                </button>
+              ) : (
+                <p className="item-meta">{String(selected.authorDisplayName || selected.authorName)}</p>
+              )
+            )}
             {editingPost ? (
               <form className="form panel" onSubmit={submitEditPost}>
                 <label>제목<input value={editTitle} onChange={(event) => setEditTitle(event.target.value)} maxLength={80} /></label>
@@ -246,7 +279,7 @@ export default function CommunityTab({ posts, selected, comments, loading, openP
                 </div>
               </form>
             ) : (
-              <PostContent post={selected} pollVote={pollVote} />
+              <PostContent post={selected} pollVote={pollVote} closePoll={ownsSelected ? closePoll : undefined} />
             )}
             {!editingPost && (
             <div className="button-row">
@@ -273,7 +306,13 @@ export default function CommunityTab({ posts, selected, comments, loading, openP
                 return (
                   <div className={`comment comment-depth-${depth}`} key={item.id}>
                     {depth > 0 && <CornerDownRight className="comment-thread-arrow" size={14} aria-hidden="true" />}
-                    <strong>{item.authorDisplayName || item.authorName || '회원'}</strong>
+                    {!isAnonymousDetail && item.authorStudentId ? (
+                      <button type="button" className="comment-author-button" onClick={() => openMemberProfile(item)}>
+                        <strong>{item.authorDisplayName || item.authorName || '회원'}</strong>
+                      </button>
+                    ) : (
+                      <strong>{item.authorDisplayName || item.authorName || '회원'}</strong>
+                    )}
                     <span>{formatDate(item.createdAt)}{item.edited ? ' · 수정됨' : ''}</span>
                     {editing ? (
                       <form className="inline-form" onSubmit={(event) => { event.preventDefault(); void commitEditing(item.id) }}>
@@ -337,6 +376,8 @@ export default function CommunityTab({ posts, selected, comments, loading, openP
     setQuery={setQuery}
     category={category}
     setCategory={setCategory}
+    sort={sort}
+    setSort={setSort}
     writing={writing}
     setWriting={setWriting}
     createPost={createPost}
@@ -355,6 +396,8 @@ type CommunityListViewProps = {
   setQuery: (value: string) => void
   category: string
   setCategory: (value: string) => void
+  sort: string
+  setSort: (value: string) => void
   writing: boolean
   setWriting: Dispatch<SetStateAction<boolean>>
   createPost: (input: unknown) => unknown
@@ -365,7 +408,7 @@ type CommunityListViewProps = {
   retryPendingPosts?: () => void | Promise<void>
 }
 
-function CommunityListView({ posts, filtered, query, setQuery, category, setCategory, writing, setWriting, createPost, openPost, toggleBookmark, currentUser, pendingPosts, retryPendingPosts }: CommunityListViewProps) {
+function CommunityListView({ posts, filtered, query, setQuery, category, setCategory, sort, setSort, writing, setWriting, createPost, openPost, toggleBookmark, currentUser, pendingPosts, retryPendingPosts }: CommunityListViewProps) {
   const availableCategories = useMemo(() => {
     const set = new Set<string>()
     for (const post of posts) if (post?.category) set.add(post.category)
@@ -415,6 +458,11 @@ function CommunityListView({ posts, filtered, query, setQuery, category, setCate
       )}
       {writing && <Composer currentUser={currentUser} onSubmit={async (input) => { await createPost(input); setWriting(false) }} />}
       <div className="search-row"><Search size={17} /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="제목·본문·작성자 검색" /></div>
+      <div className="segments">
+        {communitySortOptions.map(([value, label]) => (
+          <button key={value} type="button" className={sort === value ? 'active' : ''} onClick={() => setSort(value)}>{label}</button>
+        ))}
+      </div>
       {availableCategories.length > 2 && (
         <div className="segments">
           {availableCategories.map((value) => (

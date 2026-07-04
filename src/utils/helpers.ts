@@ -52,6 +52,31 @@ export function latest(items, field) {
   return [...asArray(items)].sort((a, b) => Number(new Date(b?.[field] || 0)) - Number(new Date(a?.[field] || 0)))
 }
 
+// Community list sort modes, mirroring the web: latest | comments | score | views.
+// Pinned posts always surface first regardless of the chosen mode.
+export const communitySortOptions = [
+  ['latest', '최신순'],
+  ['comments', '댓글순'],
+  ['score', '추천순'],
+  ['views', '조회순'],
+]
+
+export function sortCommunityPosts(items, sort = 'latest') {
+  const score = (post) => Number(post?.upvotes || 0) - Number(post?.downvotes || 0)
+  const time = (post) => {
+    const value = Number(new Date(post?.createdAt || 0))
+    return Number.isFinite(value) ? value : 0
+  }
+  return [...asArray(items)].sort((a, b) => {
+    const pinDelta = Number(Boolean(b?.pinned)) - Number(Boolean(a?.pinned))
+    if (pinDelta !== 0) return pinDelta
+    if (sort === 'comments') return Number(b?.commentCount || 0) - Number(a?.commentCount || 0) || time(b) - time(a)
+    if (sort === 'score') return score(b) - score(a) || time(b) - time(a)
+    if (sort === 'views') return Number(b?.viewCount || 0) - Number(a?.viewCount || 0) || time(b) - time(a)
+    return time(b) - time(a)
+  })
+}
+
 export function mediaSrc(value) {
   if (!value) return ''
   if (/^https?:\/\//i.test(String(value))) return value
