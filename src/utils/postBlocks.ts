@@ -1,4 +1,4 @@
-import { plainText, preview } from './format'
+import { plainText, plainTextLines, preview } from './format'
 
 function mediaInfoById(items, id) {
   return Array.isArray(items) ? items.find((item) => Number(item?.id) === Number(id)) : null
@@ -182,7 +182,9 @@ export function pollTotals(result) {
 function harvestText(value) {
   if (value == null) return ''
   if (typeof value === 'string') {
-    const stripped = plainText(value).trim()
+    // plainTextLines (not plainText): newlines must survive so preview() can
+    // strip line-anchored markdown and postBodyText() keeps the author's breaks.
+    const stripped = plainTextLines(value).trim()
     if (!stripped) return ''
     if (!looksLikeBlockJson(stripped)) return stripped
     try {
@@ -194,7 +196,7 @@ function harvestText(value) {
     }
   }
   if (Array.isArray(value)) {
-    return value.map((entry) => harvestText(entry)).filter(Boolean).join(' ').trim()
+    return value.map((entry) => harvestText(entry)).filter(Boolean).join('\n').trim()
   }
   if (typeof value === 'object') {
     if (value.type && value.type !== 'text' && value.type !== 'externalEmbed') {
