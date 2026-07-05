@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useMemo, useState, type Dispatch, type SetStateAction } from 'react'
 import { List, useDynamicRowHeight } from 'react-window'
 import type { DynamicRowHeight, RowComponentProps } from 'react-window'
-import { AlertTriangle, Bookmark, BookmarkCheck, CornerDownRight, Eye, Plus, Search, Send, Share2, ThumbsDown, ThumbsUp, Trash2, Pencil, Check, UserRound, X } from 'lucide-react'
+import { AlertTriangle, Bookmark, BookmarkCheck, CornerDownRight, Eye, Pin, PinOff, Plus, Search, Send, Share2, ThumbsDown, ThumbsUp, Trash2, Pencil, Check, UserRound, X } from 'lucide-react'
 import { confirmDialog } from '../components/ConfirmDialog'
 import { asArray, formatDate } from '../utils/format'
-import { categoryLabels, communitySortOptions, postImage, sortCommunityPosts } from '../utils/helpers'
+import { categoryLabels, communitySortOptions, isAdminUser, postImage, sortCommunityPosts } from '../utils/helpers'
 import { postPreviewText, isTextOnlyPost, postBodyText } from '../utils/postBlocks'
 import { buildComposerContent, createEmptyPollDraft } from '../utils/pollDraft'
 import { sharePost } from '../services/nativeShare'
@@ -53,6 +53,7 @@ function PostListItem({ post, openPost, toggleBookmark }: PostListItemProps) {
         meta={`${categoryLabels[post.category] || '자유'} · 댓글 ${post.commentCount || 0}`}
         body={postPreviewText(post)}
         image={postImage(post)}
+        pinned={Boolean(post.pinned)}
         onClick={() => openPost(post.id)}
       />
       {toggleBookmark && (
@@ -98,6 +99,7 @@ type CommunityTabProps = {
   vote: (value: number) => void | Promise<void>
   pollVote: (pollId: unknown, optionIndex: number) => void
   closePoll?: (pollId: unknown) => void | Promise<void>
+  pinPost?: (pinned: boolean) => void | Promise<void>
   toggleBookmark?: (id: unknown) => void | Promise<void>
   editComment?: (id: unknown, content: string) => void | Promise<void>
   removeComment?: (id: unknown) => void | Promise<void>
@@ -106,7 +108,7 @@ type CommunityTabProps = {
   retryPendingPosts?: () => void | Promise<void>
 }
 
-export default function CommunityTab({ posts, selected, comments, loading, openPost, closePost, createPost, editPost, createCommentForPost, vote, pollVote, closePoll, toggleBookmark, editComment, removeComment, currentUser, pendingPosts = [], retryPendingPosts }: CommunityTabProps) {
+export default function CommunityTab({ posts, selected, comments, loading, openPost, closePost, createPost, editPost, createCommentForPost, vote, pollVote, closePoll, pinPost, toggleBookmark, editComment, removeComment, currentUser, pendingPosts = [], retryPendingPosts }: CommunityTabProps) {
   const [writing, setWriting] = useState(false)
   const [comment, setComment] = useState('')
   const [query, setQuery] = useState('')
@@ -294,6 +296,12 @@ export default function CommunityTab({ posts, selected, comments, loading, openP
               <button className="button secondary" onClick={() => setReporting(true)} disabled={Boolean(reportedAt)}>
                 <AlertTriangle size={16} /> {reportedAt ? '신고됨' : '신고'}
               </button>
+              {isAdminUser(currentUser) && pinPost && (
+                <button className="button secondary" onClick={() => pinPost(!selected.pinned)}>
+                  {selected.pinned ? <PinOff size={16} /> : <Pin size={16} />}
+                  {selected.pinned ? '고정 해제' : '상단 고정'}
+                </button>
+              )}
             </div>
             )}
             {reporting && <ReportDialog onClose={() => setReporting(false)} onSubmit={submitReport} />}

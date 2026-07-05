@@ -17,3 +17,35 @@ export async function voteFile(id, value) {
   })
   return parseApiResponse(FileSchema, data, '자료 투표')
 }
+
+export function createArchivePost({ title, description, category, file }) {
+  const form = new FormData()
+  form.append('title', title)
+  if (description) form.append('description', description)
+  form.append('category', category || 'GENERAL')
+  form.append('file', file)
+  return request('/api/files', {
+    method: 'POST',
+    body: form,
+  })
+}
+
+// Batch-create one resource entry per selected file by looping the single-create
+// endpoint (same approach as the web; no batch endpoint exists). When more than
+// one file is selected the shared title gets a 1-based suffix to stay distinct.
+// Returns per-file results so the caller can report partial success.
+export async function createArchivePosts(files, meta) {
+  const multiple = files.length > 1
+  const results = []
+  for (let index = 0; index < files.length; index += 1) {
+    const file = files[index]
+    const title = multiple ? `${meta.title} (${index + 1})` : meta.title
+    try {
+      const saved = await createArchivePost({ ...meta, title, file })
+      results.push({ ok: true, file, saved })
+    } catch (err) {
+      results.push({ ok: false, file, error: err })
+    }
+  }
+  return results
+}

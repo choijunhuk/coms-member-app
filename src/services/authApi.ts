@@ -38,3 +38,10 @@ export function confirmEmailVerification(code) {
     body: JSON.stringify({ code }),
   })
 }
+
+export function updateProfile(payload) {
+  return request('/api/auth/profile', {
+    method: 'PATCH',
+    body: JSON.stringify(payload),
+  })
+}

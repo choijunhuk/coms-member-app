@@ -1,6 +1,9 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { ArrowLeft, BellRing, Bookmark, ChevronRight, Eraser, FileText, Fingerprint, Hand, LogOut, Moon, Smartphone, Sun, Type, UserX } from 'lucide-react'
 import { confirmDialog } from '../components/ConfirmDialog'
+import { updateProfile } from '../services/authApi'
+import { listFonts } from '../services/fontApi'
+import { BUILT_IN_FONTS, applyFontPreference, effectiveFontId, writeFontPreference } from '../utils/fontPreferences'
 import {
   FONT_SCALE_VALUES,
   IDLE_LOCK_VALUES,
@@ -31,8 +34,11 @@ export default function SettingsScreen({
   onLogout,
   accountActionError = '',
   onBack,
+  user = null,
 }) {
   const [fontScale, setFontScale] = useState(() => readFontScale())
+  const [fontId, setFontId] = useState(() => effectiveFontId(user))
+  const [customFonts, setCustomFonts] = useState([])
   const [haptic, setHaptic] = useState(() => readHapticEnabled())
   const [idleLock, setIdleLock] = useState(() => readIdleLock())
   const [pushPrefs, setPushPrefs] = useState(() => readPushPreferences())
@@ -42,6 +48,22 @@ export default function SettingsScreen({
   function pickFontScale(id) {
     setFontScale(id)
     writeFontScale(id)
+  }
+  useEffect(() => {
+    let cancelled = false
+    listFonts().then((fonts) => { if (!cancelled) setCustomFonts(fonts) })
+    return () => { cancelled = true }
+  }, [])
+  function pickFont(value) {
+    setFontId(value)
+    writeFontPreference(value)
+    void applyFontPreference(user)
+    // Sync to the profile so the web picks the same font. Best-effort: the
+    // local preference above already applied, so a failure here is harmless.
+    updateProfile({
+      selectedFontId: value && !value.startsWith('b:') ? Number(value) : null,
+      selectedBuiltinFontKey: value.startsWith('b:') ? value : null,
+    }).catch(() => {})
   }
   function pickHaptic(value) {
     setHaptic(value)
@@ -86,6 +108,14 @@ export default function SettingsScreen({
               </button>
             ))}
           </div>
+          <p className="muted" style={{ marginTop: '0.5rem' }}>서체</p>
+          <label className="font-select">
+            <select value={fontId} onChange={(event) => pickFont(event.target.value)} aria-label="서체 선택">
+              <option value="">기본 (시스템)</option>
+              {BUILT_IN_FONTS.map((font) => <option key={font.id} value={font.id}>{font.name}</option>)}
+              {customFonts.map((font) => <option key={font.id} value={String(font.id)}>{font.name}</option>)}
+            </select>
+          </label>
         </section>
 
         <section className="panel">
