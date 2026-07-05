@@ -11,7 +11,7 @@
   --app-accent-hover: #0077ed;
   --app-accent-soft: #e8f3ff;
   --app-accent-text: #0066cc;
-  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Apple SD Gothic Neo", "Segoe UI", "Malgun Gothic", sans-serif;
+  font-family: var(--app-font-family, -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Apple SD Gothic Neo", "Segoe UI", "Malgun Gothic", sans-serif);
   background: var(--app-bg);
   color: var(--app-text);
   -webkit-font-smoothing: antialiased;
@@ -1932,4 +1932,15 @@ html[data-font-scale='xlarge'] { font-size: 20px; }
   object-fit: cover;
   border-radius: 8px;
   flex-shrink: 0;
+}
+
+/* Settings: font family picker / Resources: upload */
+.font-select select {
+  width: 100%;
+  padding: 0.55rem 0.7rem;
+  border: 1px solid var(--app-hairline);
+  border-radius: 10px;
+  background: var(--app-surface);
+  color: var(--app-text);
+  font: inherit;
 }

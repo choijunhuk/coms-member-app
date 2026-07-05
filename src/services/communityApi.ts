@@ -157,3 +157,11 @@ export function searchYoutubeVideos(query) {
 export function fetchLinkPreview(url) {
   return request(`/api/community/posts/tools/link-preview?url=${encodeURIComponent(url)}`)
 }
+
+// Admin only — pins/unpins a post to the top of the community list.
+export function pinCommunityPost(id, pinned) {
+  return request(`/api/community/posts/${id}/pin`, {
+    method: 'PATCH',
+    body: JSON.stringify({ pinned }),
+  })
+}

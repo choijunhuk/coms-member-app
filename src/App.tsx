@@ -21,6 +21,7 @@ import {
   listComments,
   listCommunityPosts,
   closeCommunityPoll,
+  pinCommunityPost,
   toggleCommunityPostBookmark,
   updateComment,
   voteCommunityPoll,
@@ -44,6 +45,7 @@ import { isVersionBelow } from './utils/version'
 import { useNotificationPolling } from './hooks/useNotificationPolling'
 import { isNew, lastSeenStorageKey, readLastSeen, writeLastSeen } from './utils/lastSeen'
 import { markOnboarded, PREFERENCE_STORAGE_KEYS, readFontScale, readIdleLock, readOnboarded, readTheme, resolveIdleLockMs, resolveTheme, writeTheme } from './utils/preferences'
+import { applyFontPreference } from './utils/fontPreferences'
 import { BOOKMARKS_KEY } from './utils/bookmarks'
 import { RECENT_RESOURCES_KEY } from './utils/resourceHistory'
 import { hydrateStoredValues, removeStoredValuesByPrefix } from './utils/deviceStorage'
@@ -358,6 +360,12 @@ export default function App() {
     document.documentElement.setAttribute('data-font-scale', readFontScale())
     return undefined
   }, [showSettings])
+
+  // Font family preference: local choice first, then the profile fields the
+  // web writes. Re-applied when settings close (a pick may have changed it).
+  useEffect(() => {
+    void applyFontPreference(user)
+  }, [user, showSettings])
 
   const applyTheme = useCallback((next) => {
     setThemePreference(next)
@@ -750,6 +758,15 @@ export default function App() {
     await openPost(selectedPost.id)
   }
 
+  // Admin-only: pin/unpin the selected post, then refresh it and the list so
+  // the pinned badge and pinned-first ordering update.
+  async function pinPost(pinned) {
+    if (!selectedPost?.id) return
+    await pinCommunityPost(selectedPost.id, pinned)
+    await openPost(selectedPost.id)
+    void queryClient.invalidateQueries({ queryKey: DASHBOARD_QUERY_KEY })
+  }
+
   const markRead = useCallback(async (id) => {
     await markNotificationRead(id)
     patchDashboard((prev) => {
@@ -900,6 +917,7 @@ export default function App() {
         onLogout={async () => { await handleLogout(); setShowSettings(false) }}
         accountActionError={accountActionError}
         onBack={() => setShowSettings(false)}
+        user={user}
       />
     )
   }
@@ -936,8 +954,8 @@ export default function App() {
   )
   else if (activeTab === 'activity') content = <ActivityTab clubActivities={clubActivities} apps={apps} appLinks={appConfig.links} />
   else if (activeTab === 'notices') content = <NoticesTab notices={notices} selected={selectedNotice} loading={noticeLoading} openNotice={openNotice} closeNotice={() => setSelectedNotice(null)} />
-  else if (activeTab === 'community') content = <CommunityTab posts={posts} selected={selectedPost} comments={comments} loading={postLoading} openPost={openPost} closePost={() => { setSelectedPost(null); setComments([]) }} createPost={createPost} editPost={editPostForId} createCommentForPost={createCommentForPost} editComment={editCommentForPost} removeComment={removeCommentForPost} vote={vote} pollVote={pollVote} closePoll={closePoll} toggleBookmark={toggleBookmark} currentUser={user} pendingPosts={pendingCommunityPosts} retryPendingPosts={flushPendingCommunityPosts} />
-  else if (activeTab === 'resources') content = <ResourcesTab files={files} />
+  else if (activeTab === 'community') content = <CommunityTab posts={posts} selected={selectedPost} comments={comments} loading={postLoading} openPost={openPost} closePost={() => { setSelectedPost(null); setComments([]) }} createPost={createPost} editPost={editPostForId} createCommentForPost={createCommentForPost} editComment={editCommentForPost} removeComment={removeCommentForPost} vote={vote} pollVote={pollVote} closePoll={closePoll} pinPost={pinPost} toggleBookmark={toggleBookmark} currentUser={user} pendingPosts={pendingCommunityPosts} retryPendingPosts={flushPendingCommunityPosts} />
+  else if (activeTab === 'resources') content = <ResourcesTab files={files} onUploaded={() => queryClient.invalidateQueries({ queryKey: DASHBOARD_QUERY_KEY })} />
   else if (activeTab === 'notifications') content = <NotificationsTab notifications={notifications} unreadCount={unreadCount} pushStatus={pushStatus} pushPermission={pushPermission} refreshPushPermission={refreshPushPermission} appConfig={appConfig} enablePush={enablePush} onOpenPushSettings={openPushSettings} markRead={markRead} markAllRead={markAllRead} openRoute={openRoute} />
   else if (activeTab === 'operations') content = <OperationsTab user={user} notices={notices} posts={posts} clubActivities={clubActivities} apps={apps} loadDashboard={refreshDashboard} />
   else content = (
