@@ -3,14 +3,22 @@
 // but trimmed to what the mobile composer needs: YouTube gets an embed, any
 // other https link becomes a plain link card.
 
+// YouTube video ids are exactly 11 chars of [A-Za-z0-9_-]; anything else is
+// rejected so a crafted id can't smuggle extra URL syntax into the built links.
+const YOUTUBE_ID_RE = /^[A-Za-z0-9_-]{11}$/
+
+function validVideoId(id) {
+  return id && YOUTUBE_ID_RE.test(id) ? id : null
+}
+
 function youtubeVideoId(value) {
   try {
     const url = new URL(String(value || '').trim())
-    if (url.hostname === 'youtu.be') return url.pathname.slice(1) || null
+    if (url.hostname === 'youtu.be') return validVideoId(url.pathname.slice(1))
     if (url.hostname.endsWith('youtube.com')) {
-      if (url.pathname.startsWith('/watch')) return url.searchParams.get('v')
-      if (url.pathname.startsWith('/shorts/')) return url.pathname.split('/')[2] || null
-      if (url.pathname.startsWith('/embed/')) return url.pathname.split('/')[2] || null
+      if (url.pathname.startsWith('/watch')) return validVideoId(url.searchParams.get('v'))
+      if (url.pathname.startsWith('/shorts/')) return validVideoId(url.pathname.split('/')[2])
+      if (url.pathname.startsWith('/embed/')) return validVideoId(url.pathname.split('/')[2])
     }
   } catch {
     return null

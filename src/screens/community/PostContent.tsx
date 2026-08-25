@@ -16,7 +16,7 @@ function collectImageUrls(blocks) {
   const urls = []
   for (const block of blocks) {
     if (block.type === 'image' && block.url) urls.push(mediaSrc(block.url))
-    else if (block.type === 'externalEmbed' && block.kind === 'image' && block.url) urls.push(block.url)
+    else if (block.type === 'externalEmbed' && block.kind === 'image' && safeExternalHref(block.url)) urls.push(block.url)
   }
   return urls
 }
@@ -57,7 +57,7 @@ export default function PostContent({ post, pollVote, closePoll }: { post: Commu
       if (block.type === 'image' && block.url) {
         map[idx] = next
         next += 1
-      } else if (block.type === 'externalEmbed' && block.kind === 'image' && block.url) {
+      } else if (block.type === 'externalEmbed' && block.kind === 'image' && safeExternalHref(block.url)) {
         map[idx] = next
         next += 1
       }

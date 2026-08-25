@@ -2,8 +2,19 @@ import { request } from './apiClient'
 import { CommunityPostListSchema, CommunityPostSchema, parseApiResponse } from './responseSchemas'
 
 export async function listCommunityPosts() {
-  const data = await request('/api/community/posts')
-  return parseApiResponse(CommunityPostListSchema, data, '커뮤니티 글 목록')
+  // The backend list endpoint became DB-paginated (default 20, max 200 per page),
+  // but the app filters/sorts/searches client-side over the full list — same as
+  // the web board — so fetch every page. ponytail: fine at club scale; move
+  // filter/sort/search server-side if the board outgrows a few thousand posts.
+  const size = 200
+  const all = []
+  for (let page = 0; page < 50; page += 1) {
+    const data = await request(`/api/community/posts?page=${page}&size=${size}`)
+    const batch = parseApiResponse(CommunityPostListSchema, data, '커뮤니티 글 목록')
+    all.push(...batch)
+    if (batch.length < size) break
+  }
+  return all
 }
 
 export async function getCommunityPost(id) {

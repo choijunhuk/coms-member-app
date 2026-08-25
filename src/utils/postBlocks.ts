@@ -238,10 +238,16 @@ export function postPreviewText(post) {
   return '내용 미리보기가 없습니다.'
 }
 
-// A post is "text only" when it has no images/videos/files/polls — i.e. its
-// whole content can be safely round-tripped through the mobile text composer.
-// (Editing a media post here would drop the media it can't re-render, so those
-// are edited on the web instead.)
+// Rich formatting the mobile plain-text composer cannot re-render: any HTML tag
+// other than the plain structural ones (<p>, <br>, <div>) that plainTextLines
+// flattens losslessly. A web post with <strong>/<ul>/<a>/… would silently lose
+// that markup on a mobile edit-save, so those stay web-edited.
+const RICH_MARKUP_RE = /<(?!\/?(?:p|br|div)\b)[a-z][^>]*>/i
+
+// A post is "text only" when it has no images/videos/files/polls AND no rich
+// HTML formatting — i.e. its whole content can be safely round-tripped through
+// the mobile text composer. (Editing anything else here would drop content the
+// composer can't re-render, so those are edited on the web instead.)
 export function isTextOnlyPost(post) {
   if (!post) return false
   if (post.imageUrl) return false
@@ -250,7 +256,7 @@ export function isTextOnlyPost(post) {
   if (Array.isArray(post.videoInfos) && post.videoInfos.length) return false
   if (Array.isArray(post.fileInfos) && post.fileInfos.length) return false
   const blocks = postBlocks(post)
-  return blocks.every((block) => block?.type === 'text')
+  return blocks.every((block) => block?.type === 'text' && !RICH_MARKUP_RE.test(String(block.content || '')))
 }
 
 // Full author body text (not truncated) — used to seed the edit form.
