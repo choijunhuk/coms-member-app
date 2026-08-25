@@ -548,12 +548,6 @@ p {
   font-size: 0.9rem;
 }
 
-.item-meta,
-.item-body,
-.empty {
-  font-size: 0.76rem;
-}
-
 .item-body {
   display: -webkit-box;
   -webkit-line-clamp: 2;
@@ -729,11 +723,6 @@ p {
   gap: 0.5rem;
 }
 
-.button.compact {
-  min-height: 2.3rem;
-  padding: 0.55rem 0.7rem;
-  font-size: 0.82rem;
-}
 
 .stats span {
   display: inline-flex;
@@ -2086,4 +2075,20 @@ html[data-font-scale='xlarge'] { font-size: 20px; }
 .project-card .button-row {
   flex-wrap: wrap;
   margin-top: 0.35rem;
+}
+
+/* Designed empty states (shared Empty component) */
+
+.empty {
+  display: grid;
+  justify-items: center;
+  gap: 0.35rem;
+  margin: 0;
+  padding: 1.1rem 0.8rem;
+  text-align: center;
+  color: var(--app-subtle);
+}
+
+.empty svg {
+  opacity: 0.75;
 }
