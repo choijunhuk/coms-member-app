@@ -94,6 +94,20 @@ export const AppSchema = z.looseObject({
 })
 export const AppListSchema = z.array(AppSchema)
 
+export const ClubProjectSchema = z.looseObject({
+  id: idValue,
+  title: z.string().nullish(),
+  description: z.string().nullish(),
+  eyebrow: z.string().nullish(),
+  madeBy: z.string().nullish(),
+  linkUrl: z.string().nullish(),
+  displayUrl: z.string().nullish(),
+  category: z.string().nullish(),
+  categoryName: z.string().nullish(),
+  files: z.array(z.looseObject({ id: idValue, url: z.string().nullish(), originalName: z.string().nullish() })).nullish(),
+})
+export const ClubProjectListSchema = z.array(ClubProjectSchema)
+
 // --- archive ---
 
 export const FileSchema = z.looseObject({
