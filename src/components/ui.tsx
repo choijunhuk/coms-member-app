@@ -35,6 +35,22 @@ export function ListItem({ title, meta, body, pinned, image, onClick, children }
   )
 }
 
+export function Switch({ checked, onChange, disabled = false, label = '' }: { checked: boolean; onChange?: (next: boolean) => void; disabled?: boolean; label?: string }) {
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={checked}
+      aria-label={label || undefined}
+      disabled={disabled}
+      className={`switch${checked ? ' on' : ''}`}
+      onClick={() => onChange?.(!checked)}
+    >
+      <span className="switch-thumb" />
+    </button>
+  )
+}
+
 export function Empty({ text }: { text?: ReactNode }) {
   return <p className="empty">{text}</p>
 }

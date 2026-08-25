@@ -141,6 +141,16 @@ export const NotificationSummarySchema = z.looseObject({
   unreadCount: numericValue,
 })
 
+export const NotificationPreferencesSchema = z.looseObject({
+  commentOnPost: z.boolean().nullish(),
+  replyOnComment: z.boolean().nullish(),
+  noticeCreated: z.boolean().nullish(),
+  externalInvite: z.boolean().nullish(),
+  communityPostRestored: z.boolean().nullish(),
+  communityPostDeleted: z.boolean().nullish(),
+  recruitApplication: z.boolean().nullish(),
+})
+
 export const NotificationSchema = z.looseObject({
   id: idValue,
   read: z.boolean().nullish(),

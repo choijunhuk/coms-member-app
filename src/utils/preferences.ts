@@ -27,30 +27,23 @@ export function resolveTheme(preference) {
   return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
 }
 
-export const PUSH_TYPES = [
-  { id: 'NOTICE', label: '공지 알림' },
-  { id: 'SCHEDULE', label: '일정 리마인더' },
-  { id: 'ACTIVITY', label: '활동 기록' },
-  { id: 'COMMENT', label: '내 글에 댓글' },
-  { id: 'REPLY', label: '내 댓글에 답글' },
-  { id: 'VOTE', label: '내 글 추천' },
-  { id: 'SYSTEM', label: '운영진 안내' },
+// Server-backed notification categories (GET/PUT /api/notifications/preferences).
+// Keys, labels, and descriptions mirror the website's 알림 설정 card one-to-one —
+// the backend filters at notification-creation time, so these are real opt-outs,
+// not device-local mutes. (The old coms.push.types:v1 local blob they replace
+// filtered nothing; PUSH_KEY stays in PREFERENCE_STORAGE_KEYS so wipes clear it.)
+export const NOTIFICATION_CATEGORIES = [
+  { id: 'commentOnPost', label: '내 글의 새 댓글', description: '내가 쓴 게시글에 댓글이 달리면 알려드립니다.' },
+  { id: 'replyOnComment', label: '내 댓글의 답글', description: '내가 쓴 댓글에 답글이 달리면 알려드립니다.' },
+  { id: 'noticeCreated', label: '새 공지사항', description: '새로운 공지가 등록되면 알려드립니다.' },
+  { id: 'externalInvite', label: '초대 알림', description: '다른 회원이 보낸 초대를 알려드립니다.' },
+  { id: 'communityPostRestored', label: '글 복원 안내', description: '내 글이 삭제 보관함에서 복원되면 알려드립니다.' },
+  { id: 'communityPostDeleted', label: '글 삭제 안내', description: '내 글이 관리자에 의해 삭제되면 알려드립니다.' },
+  { id: 'recruitApplication', label: '새 지원서 (관리자)', description: '새 지원서가 도착하면 알려드립니다.' },
 ]
 
-export function readPushPreferences() {
-  const defaults = Object.fromEntries(PUSH_TYPES.map((type) => [type.id, true]))
-  try {
-    const raw = readStoredValue(PUSH_KEY)
-    if (!raw) return defaults
-    const parsed = JSON.parse(raw)
-    return { ...defaults, ...parsed }
-  } catch {
-    return defaults
-  }
-}
-
-export function writePushPreferences(prefs) {
-  writeStoredValue(PUSH_KEY, JSON.stringify(prefs))
+export function defaultNotificationPreferences() {
+  return Object.fromEntries(NOTIFICATION_CATEGORIES.map((category) => [category.id, true]))
 }
 
 export function readOnboarded() {

@@ -11,7 +11,7 @@ globalThis.window = {
   matchMedia: () => ({ matches: false }),
 }
 
-const { PUSH_TYPES, readOnboarded, markOnboarded, readPushPreferences, readTheme, resolveTheme, writePushPreferences, writeTheme } = await import('../src/utils/preferences.ts')
+const { NOTIFICATION_CATEGORIES, defaultNotificationPreferences, readOnboarded, markOnboarded, readTheme, resolveTheme, writeTheme } = await import('../src/utils/preferences.ts')
 
 assert.equal(readTheme(), 'system')
 writeTheme('dark')
@@ -23,13 +23,16 @@ assert.equal(resolveTheme('light'), 'light')
 assert.equal(resolveTheme('dark'), 'dark')
 assert.equal(resolveTheme('system'), 'light')
 
-const defaults = readPushPreferences()
-for (const type of PUSH_TYPES) assert.equal(defaults[type.id], true)
-
-writePushPreferences({ ...defaults, NOTICE: false })
-const after = readPushPreferences()
-assert.equal(after.NOTICE, false)
-assert.equal(after.COMMENT, true)
+// Server-backed notification categories: keys must match the backend
+// NotificationPreferences contract exactly, all default-enabled.
+const SERVER_KEYS = ['commentOnPost', 'replyOnComment', 'noticeCreated', 'externalInvite', 'communityPostRestored', 'communityPostDeleted', 'recruitApplication']
+assert.deepEqual(NOTIFICATION_CATEGORIES.map((category) => category.id), SERVER_KEYS)
+for (const category of NOTIFICATION_CATEGORIES) {
+  assert.ok(category.label, `label missing for ${category.id}`)
+  assert.ok(category.description, `description missing for ${category.id}`)
+}
+const notifDefaults = defaultNotificationPreferences()
+for (const key of SERVER_KEYS) assert.equal(notifDefaults[key], true)
 
 assert.equal(readOnboarded(), false)
 markOnboarded()

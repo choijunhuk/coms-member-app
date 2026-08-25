@@ -625,13 +625,16 @@ p {
   border-color: var(--app-accent);
 }
 
+/* Keep the -webkit-box declaration above authoritative: a later `display: flex`
+   here used to silently kill the one-line clamp on every list title. */
 .item-title {
-  display: flex;
-  align-items: center;
-  gap: 0.4rem;
   font-weight: 600;
   letter-spacing: -0.005em;
   color: var(--app-text);
+}
+
+.item-title b {
+  margin-right: 0.35rem;
 }
 
 .item-title b,
@@ -1943,4 +1946,118 @@ html[data-font-scale='xlarge'] { font-size: 20px; }
   background: var(--app-surface);
   color: var(--app-text);
   font: inherit;
+}
+
+/* Switch (iOS-style pill, mirrors the website's settings toggles) */
+
+.switch {
+  position: relative;
+  flex-shrink: 0;
+  width: 2.75rem;
+  height: 1.6rem;
+  border: 0;
+  border-radius: 999px;
+  background: rgba(120, 120, 128, 0.32);
+  padding: 0;
+  transition: background 160ms ease;
+}
+
+.switch.on {
+  background: var(--app-accent);
+}
+
+.switch:disabled {
+  cursor: wait;
+  opacity: 0.6;
+}
+
+.switch-thumb {
+  position: absolute;
+  top: 0.15rem;
+  left: 0.15rem;
+  width: 1.3rem;
+  height: 1.3rem;
+  border-radius: 999px;
+  background: #ffffff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+  transition: transform 160ms ease;
+}
+
+.switch.on .switch-thumb {
+  transform: translateX(1.15rem);
+}
+
+.toggle-copy {
+  display: grid;
+  gap: 0.15rem;
+  min-width: 0;
+}
+
+.toggle-copy .muted {
+  font-size: 0.74rem;
+  line-height: 1.35;
+}
+
+/* Notification rows */
+
+.notification-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.6rem;
+  min-height: 0;
+}
+
+.notification-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 2rem;
+  height: 2rem;
+  margin-top: 0.1rem;
+  border-radius: 999px;
+  background: var(--app-surface-soft);
+  color: var(--app-muted);
+}
+
+.notification-item.unread .notification-icon {
+  background: var(--app-accent-soft);
+  color: var(--app-accent-text);
+}
+
+.notification-copy {
+  display: grid;
+  gap: 0.25rem;
+  min-width: 0;
+  flex: 1;
+}
+
+.notification-item .item-title {
+  -webkit-line-clamp: 2;
+  font-weight: 500;
+}
+
+.notification-item.unread .item-title {
+  font-weight: 700;
+}
+
+.unread-dot {
+  flex-shrink: 0;
+  width: 0.5rem;
+  height: 0.5rem;
+  margin-top: 0.45rem;
+  border-radius: 999px;
+  background: var(--app-accent);
+}
+
+.push-status-line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.push-settings-hint {
+  margin-top: 0.4rem;
+  font-size: 0.74rem;
 }

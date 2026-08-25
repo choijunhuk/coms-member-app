@@ -1,12 +1,12 @@
 import { useEffect } from 'react'
-import { Check, ExternalLink, RefreshCw, Settings as SettingsIcon, ShieldOff, Smartphone } from 'lucide-react'
+import { Bell, Check, ExternalLink, FileText, Mail, Megaphone, MessageCircle, RefreshCw, Reply, RotateCcw, Settings as SettingsIcon, ShieldOff, Smartphone, Trash2 } from 'lucide-react'
 import { formatDate } from '../utils/format'
 import { latest } from '../utils/helpers'
 import { routeFromNotification } from '../utils/mobileRoutes'
 import { isNativeRuntime } from '../services/nativeBridge'
 import { pushPermissionActionLabel } from '../utils/pushPermissionStatus'
 import { reportError } from '../services/observability'
-import { Empty, ListItem, Section } from '../components/ui'
+import { Empty, Section } from '../components/ui'
 import type { LucideIcon } from 'lucide-react'
 import type { AppConfig, NotificationItem } from '../contract/types'
 
@@ -26,6 +26,18 @@ const PUSH_STATUS_LABEL: Record<string, string> = {
   unavailable: '이 환경에서는 푸시 알림을 사용할 수 없습니다.',
   'server-unavailable': '권한은 허용되었지만, 서버 푸시 발송이 아직 준비되지 않았습니다. 앱 내 새 알림은 매 30초마다 확인합니다.',
   error: '푸시 등록 중 오류가 발생했습니다.',
+}
+
+// Korean label + icon per backend Notification.Type — without this the meta line
+// used to surface raw enum strings like COMMUNITY_POST_DELETED to members.
+const TYPE_META: Record<string, { label: string; icon: LucideIcon }> = {
+  COMMENT_ON_POST: { label: '새 댓글', icon: MessageCircle },
+  REPLY_ON_COMMENT: { label: '새 답글', icon: Reply },
+  NOTICE_CREATED: { label: '새 공지', icon: Megaphone },
+  EXTERNAL_INVITE: { label: '초대', icon: Mail },
+  COMMUNITY_POST_RESTORED: { label: '글 복원', icon: RotateCcw },
+  COMMUNITY_POST_DELETED: { label: '글 삭제', icon: Trash2 },
+  RECRUIT_APPLICATION: { label: '새 지원서', icon: FileText },
 }
 
 function hasExternalAcceptUrl(item) {
@@ -101,17 +113,16 @@ export default function NotificationsTab({ notifications, unreadCount, pushStatu
             <Smartphone size={15} aria-hidden="true" /> {pushPermissionActionLabel(permission, appConfig.pushEnabled)}
           </button>
         </div>
-        {badge && (
-          <div className="status-row">
+        <p className="muted push-status-line">
+          {badge && (
             <span className={`status-badge ${badge.className}`}>
               {BadgeIcon && <BadgeIcon size={12} aria-hidden="true" />} {badge.label}
             </span>
-            <span className="muted">시스템 알림 권한 상태</span>
-          </div>
-        )}
-        <p className="muted">{appConfig.pushEnabled ? pushMessage : '현재 앱 설정에서 푸시 알림이 비활성화되어 있습니다.'}</p>
+          )}
+          {appConfig.pushEnabled ? pushMessage : '현재 앱 설정에서 푸시 알림이 비활성화되어 있습니다.'}
+        </p>
         {(retryable || denied) && (
-          <div className="button-row" style={{ marginTop: '0.75rem' }}>
+          <div className="button-row" style={{ marginTop: '0.6rem' }}>
             {retryable && (
               <button type="button" className="button secondary compact" onClick={enablePush}>
                 <RefreshCw size={15} aria-hidden="true" /> 재시도
@@ -124,23 +135,34 @@ export default function NotificationsTab({ notifications, unreadCount, pushStatu
             )}
           </div>
         )}
-        <p className="muted" style={{ marginTop: '0.4rem' }}>알림 종류·잠금·테마는 설정에서 바꿀 수 있습니다.</p>
+        <p className="muted push-settings-hint">알림 종류별 수신 여부는 설정 → 알림에서 조정할 수 있습니다.</p>
       </section>
       <Section title={`알림 ${unreadCount > 0 ? `· 안 읽음 ${unreadCount}` : ''}`} action={items.length ? '모두 읽음' : ''} onAction={markAllRead}>
-        {items.map((item) => (
-          <ListItem
-            key={item.id}
-            title={item.message || '알림'}
-            meta={`${item.actorLabel || item.type || 'COMS'} · ${formatDate(item.createdAt)}`}
-            body={item.read ? '읽음' : '읽지 않음'}
-            pinned={!item.read}
-            onClick={() => openNotification(item)}
-          >
-            {hasExternalAcceptUrl(item) && (
-              <span className="media-chip"><ExternalLink size={12} aria-hidden="true" /> 외부 링크</span>
-            )}
-          </ListItem>
-        ))}
+        {items.map((item) => {
+          const typeMeta = item.type ? TYPE_META[item.type] : undefined
+          const TypeIcon = typeMeta?.icon || Bell
+          const metaText = [typeMeta?.label || item.actorLabel || 'COMS', typeMeta && item.actorLabel ? item.actorLabel : null, formatDate(item.createdAt)]
+            .filter(Boolean)
+            .join(' · ')
+          return (
+            <button
+              type="button"
+              key={item.id}
+              className={`list-item notification-item${item.read ? '' : ' unread'}`}
+              onClick={() => openNotification(item)}
+            >
+              <span className="notification-icon" aria-hidden="true"><TypeIcon size={15} /></span>
+              <span className="notification-copy">
+                <span className="item-title">{item.message || '알림'}</span>
+                <span className="item-meta">{metaText}</span>
+                {hasExternalAcceptUrl(item) && (
+                  <span className="media-chip"><ExternalLink size={12} aria-hidden="true" /> 외부 링크</span>
+                )}
+              </span>
+              {!item.read && <span className="unread-dot" aria-label="읽지 않음" />}
+            </button>
+          )
+        })}
         {items.length === 0 && <Empty text="새 알림이 없습니다." />}
       </Section>
     </div>

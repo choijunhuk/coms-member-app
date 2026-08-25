@@ -17,6 +17,7 @@ assert.deepEqual(routeFromNotification({ data: { url: 'https://coms.kw.ac.kr/not
 assert.deepEqual(routeFromNotification({ data: { type: 'NOTICE', noticeId: 6 } }), { tab: 'notices', noticeId: '6' })
 assert.deepEqual(routeFromNotification({ data: { type: 'COMMUNITY_COMMENT', postId: 9 } }), { tab: 'community', postId: '9' })
 assert.deepEqual(routeFromNotification({ data: { type: 'COMMUNITY_POST_DELETED' } }), { tab: 'profile', section: 'deleted-posts' })
+assert.deepEqual(routeFromNotification({ data: { type: 'RECRUIT_APPLICATION' } }), { tab: 'operations' })
 assert.deepEqual(routeFromNotification({ data: { type: 'COMMUNITY_POST_RESTORED', postId: 10 } }), { tab: 'community', postId: '10' })
 assert.deepEqual(routeFromNotification({ data: { type: 'SCHEDULE_REMINDER' } }), { tab: 'activity' })
 assert.deepEqual(routeFromNotification({ data: { type: 'ACTIVITY_LOG_CREATED' } }), { tab: 'activity' })
