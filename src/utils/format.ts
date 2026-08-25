@@ -40,12 +40,14 @@ export function plainTextLines(value) {
   if (!value) return ''
   const withBreaks = String(value)
     .replace(/<br\s*\/?>/gi, '\n')
-    .replace(/<\/(p|div)>/gi, '\n')
+    // Paragraph/div boundaries keep a blank line so web-authored paragraph
+    // breaks survive the edit-form round trip instead of collapsing forever.
+    .replace(/<\/(p|div)>/gi, '\n\n')
     .replace(/<[^>]*>/g, ' ')
   return decodeEntities(withBreaks)
     .replace(/[^\S\n]+/g, ' ')
     .replace(/ *\n */g, '\n')
-    .replace(/\n{2,}/g, '\n')
+    .replace(/\n{3,}/g, '\n\n')
     .trim()
 }
 

@@ -49,11 +49,16 @@ assert.equal(pv[2].type, 'file')
 assert.equal(pv[2].fileId, 7)
 
 // extra metadata (YouTube search results, link previews) merges over defaults
-const enriched = externalBlockFromUrl('https://youtu.be/abc123', { title: '검색 결과 제목', thumbnailUrl: 'https://i.ytimg.com/vi/abc123/default.jpg' })
+const enriched = externalBlockFromUrl('https://youtu.be/dQw4w9WgXcQ', { title: '검색 결과 제목', thumbnailUrl: 'https://i.ytimg.com/vi/dQw4w9WgXcQ/default.jpg' })
 assert.equal(enriched.kind, 'youtube')
 assert.equal(enriched.title, '검색 결과 제목')
-assert.equal(enriched.thumbnailUrl, 'https://i.ytimg.com/vi/abc123/default.jpg')
-assert.equal(enriched.embedUrl, 'https://www.youtube.com/embed/abc123')
+assert.equal(enriched.thumbnailUrl, 'https://i.ytimg.com/vi/dQw4w9WgXcQ/default.jpg')
+assert.equal(enriched.embedUrl, 'https://www.youtube.com/embed/dQw4w9WgXcQ')
+
+// malformed video ids (wrong length / charset) must NOT become youtube embeds —
+// they fall back to a plain link card so no crafted id reaches the embed URL
+assert.equal(externalBlockFromUrl('https://youtu.be/abc123').kind, 'link')
+assert.equal(externalBlockFromUrl('https://www.youtube.com/watch?v=abc%26evil%3D1').kind, 'link')
 const linkMeta = externalBlockFromUrl('https://example.com/post', { title: '기사 제목', description: '설명', image: 'https://example.com/og.png', siteName: 'Example' })
 assert.equal(linkMeta.kind, 'link')
 assert.equal(linkMeta.title, '기사 제목')

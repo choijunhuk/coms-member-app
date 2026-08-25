@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict'
 import {
+  isTextOnlyPost,
   postBlocks,
   pollOptionImageUrl,
   pollOptionLabel,
@@ -116,5 +117,27 @@ const multiLinePost = {
 }
 assert.equal(postBodyText(multiLinePost), '첫 줄\n둘째 줄\n셋째 줄')
 assert.equal(postPreviewText(multiLinePost), '첫 줄 둘째 줄 셋째 줄')
+
+// Web-authored paragraph breaks (<p>a</p><p>b</p>) survive the edit-form seed
+// as a blank line instead of collapsing to a single newline forever.
+const paragraphPost = {
+  content: JSON.stringify([{ type: 'text', content: '<p>첫 문단</p><p>둘째 문단</p>' }]),
+}
+assert.equal(postBodyText(paragraphPost), '첫 문단\n\n둘째 문단')
+
+// isTextOnlyPost: plain text and structural-only HTML are editable on mobile…
+assert.equal(isTextOnlyPost({ content: '그냥 텍스트\n\n둘째 문단' }), true)
+assert.equal(isTextOnlyPost(paragraphPost), true)
+// …but rich web markup (bold, lists, links) is NOT — a mobile save would
+// silently flatten it, so those posts stay web-edited.
+const richPost = {
+  content: JSON.stringify([
+    { type: 'text', content: '<p><strong>중요</strong> 공지</p><ul><li>항목1</li></ul>' },
+  ]),
+}
+assert.equal(isTextOnlyPost(richPost), false)
+assert.equal(isTextOnlyPost({ content: '<p><a href="https://a.b">링크</a></p>' }), false)
+// media posts remain non-editable as before
+assert.equal(isTextOnlyPost({ content: '텍스트', imageUrl: '/api/x.png' }), false)
 
 console.log('post block contract passed')
