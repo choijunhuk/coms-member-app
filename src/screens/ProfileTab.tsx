@@ -1,12 +1,28 @@
 import { useMemo, useState } from 'react'
-import { Bookmark, LogOut, MailCheck, MessageCircle, RotateCcw, ShieldAlert, UserX } from 'lucide-react'
+import { Bookmark, LogOut, MailCheck, MessageCircle, RotateCcw, ShieldAlert, UserPen, UserX } from 'lucide-react'
 import { confirmDialog } from '../components/ConfirmDialog'
-import { changePassword, confirmEmailVerification, requestEmailVerification } from '../services/authApi'
+import { changePassword, confirmEmailVerification, requestEmailVerification, updateProfile } from '../services/authApi'
 import { formatDate, generationFromStudentId, preview } from '../utils/format'
 import { passwordPolicyMessage, validPassword } from '../utils/passwordPolicy'
 import { categoryLabels, latest } from '../utils/helpers'
 import { postPreviewText } from '../utils/postBlocks'
 import { Empty, Info, ListItem, Section } from '../components/ui'
+
+// Interests are stored as one comma-joined string (≤500 chars) on the profile;
+// the web edits them as 보안/웹/앱 chips plus free text, so mirror that split.
+const INTEREST_CHIPS = ['보안', '웹', '앱']
+
+function splitInterests(raw) {
+  const parts = String(raw || '').split(',').map((part) => part.trim()).filter(Boolean)
+  return {
+    chips: INTEREST_CHIPS.filter((chip) => parts.includes(chip)),
+    extra: parts.filter((part) => !INTEREST_CHIPS.includes(part)).join(', '),
+  }
+}
+
+function joinInterests(chips, extra) {
+  return [...chips, ...String(extra || '').split(',').map((part) => part.trim()).filter(Boolean)].join(',')
+}
 
 function postOwnedBy(post, user) {
   if (!post || !user) return false
@@ -79,6 +95,38 @@ export default function ProfileTab({
       setVerifyBusy(false)
     }
   }
+  const initialInterests = useMemo(() => splitInterests(user?.interests), [user?.interests])
+  const [phone, setPhone] = useState(() => String(user?.phone || ''))
+  const [interestChips, setInterestChips] = useState(() => initialInterests.chips)
+  const [interestExtra, setInterestExtra] = useState(() => initialInterests.extra)
+  const [aspiration, setAspiration] = useState(() => String(user?.aspiration || ''))
+  const [profileBusy, setProfileBusy] = useState(false)
+  const [profileMsg, setProfileMsg] = useState('')
+  const [profileError, setProfileError] = useState('')
+
+  function toggleInterestChip(chip) {
+    setInterestChips((current) => (current.includes(chip) ? current.filter((item) => item !== chip) : [...current, chip]))
+  }
+
+  async function submitProfile(event) {
+    event.preventDefault()
+    setProfileBusy(true)
+    setProfileMsg('')
+    setProfileError('')
+    try {
+      await updateProfile({
+        phone: phone.trim(),
+        interests: joinInterests(interestChips, interestExtra).slice(0, 500),
+        aspiration: aspiration.slice(0, 2000),
+      })
+      setProfileMsg('내 정보가 저장되었습니다.')
+    } catch (err) {
+      setProfileError(err?.message || '내 정보 저장 중 오류가 발생했습니다.')
+    } finally {
+      setProfileBusy(false)
+    }
+  }
+
   const passwordError = newPassword ? passwordPolicyMessage(newPassword) : ''
   const canSubmit = currentPassword.trim() && validPassword(newPassword)
 
@@ -144,6 +192,23 @@ export default function ProfileTab({
           </div>
         )}
       </section>
+      <form className="form panel" onSubmit={submitProfile}>
+        <div className="section-title"><h2><UserPen size={14} aria-hidden="true" /> 내 정보 수정</h2></div>
+        <label>전화번호<input type="tel" value={phone} maxLength={20} onChange={(event) => setPhone(event.target.value)} placeholder="010-0000-0000" inputMode="tel" /></label>
+        <p className="muted">관심 분야</p>
+        <div className="segments">
+          {INTEREST_CHIPS.map((chip) => (
+            <button key={chip} type="button" className={interestChips.includes(chip) ? 'active' : ''} onClick={() => toggleInterestChip(chip)}>
+              {chip}
+            </button>
+          ))}
+        </div>
+        <label>기타 관심 분야<input value={interestExtra} maxLength={100} onChange={(event) => setInterestExtra(event.target.value)} placeholder="예: 게임 개발, 인공지능" /></label>
+        <label>포부<textarea value={aspiration} maxLength={2000} rows={3} onChange={(event) => setAspiration(event.target.value)} placeholder="동아리에서 이루고 싶은 목표를 적어주세요." /></label>
+        {profileMsg && <p className="form-success">{profileMsg}</p>}
+        {profileError && <p className="form-error">{profileError}</p>}
+        <button type="submit" className="button primary" disabled={profileBusy}>{profileBusy ? '저장 중...' : '내 정보 저장'}</button>
+      </form>
       <Section title={<><MessageCircle size={14} aria-hidden="true" /> 내가 쓴 글</>}>
         {myPosts.map((post) => (
           <ListItem

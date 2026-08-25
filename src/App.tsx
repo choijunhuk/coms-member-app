@@ -346,6 +346,9 @@ export default function App() {
     const apply = () => {
       const resolved = resolveTheme(themePreference)
       document.documentElement.setAttribute('data-theme', resolved)
+      // Keep the browser/WebView chrome color in step with the app theme —
+      // index.html ships a static placeholder that matched neither palette.
+      document.querySelector('meta[name="theme-color"]')?.setAttribute('content', resolved === 'dark' ? '#0f1115' : '#f5f5f7')
     }
     apply()
     if (themePreference !== 'system' || typeof window === 'undefined' || !window.matchMedia) return undefined

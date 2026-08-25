@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import { ArrowLeft, BellRing, Image, Loader2, type LucideIcon } from 'lucide-react'
+import { ArrowLeft, BellRing, Image, Inbox, Loader2, type LucideIcon } from 'lucide-react'
 import type { AppConfig } from '../contract/types'
 
 export function LoadingScreen({ label = '불러오는 중입니다.' }: { label?: ReactNode }) {
@@ -35,8 +35,29 @@ export function ListItem({ title, meta, body, pinned, image, onClick, children }
   )
 }
 
-export function Empty({ text }: { text?: ReactNode }) {
-  return <p className="empty">{text}</p>
+export function Switch({ checked, onChange, disabled = false, label = '' }: { checked: boolean; onChange?: (next: boolean) => void; disabled?: boolean; label?: string }) {
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={checked}
+      aria-label={label || undefined}
+      disabled={disabled}
+      className={`switch${checked ? ' on' : ''}`}
+      onClick={() => onChange?.(!checked)}
+    >
+      <span className="switch-thumb" />
+    </button>
+  )
+}
+
+export function Empty({ text, icon: Icon = Inbox }: { text?: ReactNode; icon?: LucideIcon }) {
+  return (
+    <p className="empty">
+      <Icon size={20} aria-hidden="true" />
+      {text}
+    </p>
+  )
 }
 
 export function Metric({ icon: Icon, label, value }: { icon: LucideIcon; label?: ReactNode; value?: ReactNode }) {

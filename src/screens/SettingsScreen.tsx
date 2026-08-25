@@ -1,21 +1,22 @@
 import { useEffect, useMemo, useState } from 'react'
 import { ArrowLeft, BellRing, Bookmark, ChevronRight, Eraser, FileText, Fingerprint, Hand, LogOut, Moon, Smartphone, Sun, Type, UserX } from 'lucide-react'
 import { confirmDialog } from '../components/ConfirmDialog'
+import { Switch } from '../components/ui'
 import { updateProfile } from '../services/authApi'
 import { listFonts } from '../services/fontApi'
+import { getNotificationPreferences, updateNotificationPreferences } from '../services/notificationApi'
 import { BUILT_IN_FONTS, applyFontPreference, effectiveFontId, writeFontPreference } from '../utils/fontPreferences'
 import {
   FONT_SCALE_VALUES,
   IDLE_LOCK_VALUES,
-  PUSH_TYPES,
+  NOTIFICATION_CATEGORIES,
+  defaultNotificationPreferences,
   readFontScale,
   readHapticEnabled,
   readIdleLock,
-  readPushPreferences,
   writeFontScale,
   writeHapticEnabled,
   writeIdleLock,
-  writePushPreferences,
 } from '../utils/preferences'
 import { bundleVersion } from '../utils/version'
 
@@ -41,9 +42,40 @@ export default function SettingsScreen({
   const [customFonts, setCustomFonts] = useState([])
   const [haptic, setHaptic] = useState(() => readHapticEnabled())
   const [idleLock, setIdleLock] = useState(() => readIdleLock())
-  const [pushPrefs, setPushPrefs] = useState(() => readPushPreferences())
+  const [notifPrefs, setNotifPrefs] = useState(() => defaultNotificationPreferences())
+  const [notifState, setNotifState] = useState('loading')
+  const [notifDirty, setNotifDirty] = useState(false)
   const [busy, setBusy] = useState('')
   const version = useMemo(() => bundleVersion(), [])
+
+  useEffect(() => {
+    let cancelled = false
+    getNotificationPreferences()
+      .then((prefs) => {
+        if (cancelled) return
+        setNotifPrefs(prefs)
+        setNotifState('ready')
+      })
+      .catch(() => { if (!cancelled) setNotifState('error') })
+    return () => { cancelled = true }
+  }, [])
+
+  function toggleNotifCategory(id) {
+    setNotifPrefs((current) => ({ ...current, [id]: !current[id] }))
+    setNotifDirty(true)
+    setNotifState((state) => (state === 'saved' ? 'ready' : state))
+  }
+
+  async function saveNotifPrefs() {
+    setNotifState('saving')
+    try {
+      await updateNotificationPreferences(notifPrefs)
+      setNotifDirty(false)
+      setNotifState('saved')
+    } catch {
+      setNotifState('save-error')
+    }
+  }
 
   function pickFontScale(id) {
     setFontScale(id)
@@ -72,13 +104,6 @@ export default function SettingsScreen({
   function pickIdleLock(id) {
     setIdleLock(id)
     writeIdleLock(id)
-  }
-  function togglePushType(id) {
-    setPushPrefs((current) => {
-      const next = { ...current, [id]: !current[id] }
-      writePushPreferences(next)
-      return next
-    })
   }
 
   return (
@@ -120,15 +145,57 @@ export default function SettingsScreen({
 
         <section className="panel">
           <div className="section-title"><h2><BellRing size={14} aria-hidden="true" /> 알림</h2></div>
-          <div className="list compact-list">
-            {PUSH_TYPES.map((type) => (
-              <label key={type.id} className="toggle-row">
-                <span>{type.label}</span>
-                <input type="checkbox" checked={Boolean(pushPrefs[type.id])} onChange={() => togglePushType(type.id)} />
-              </label>
-            ))}
-          </div>
-          <p className="muted" style={{ marginTop: '0.5rem' }}>이 기기에서 표시·소리 무음 처리. 운영진 발송 자체는 별도.</p>
+          <p className="muted">받고 싶은 알림 종류를 선택할 수 있습니다. 끈 항목은 더 이상 받지 않습니다.</p>
+          {notifState === 'loading' && <p className="muted" style={{ marginTop: '0.5rem' }}>알림 설정을 불러오는 중...</p>}
+          {notifState === 'error' && (
+            <div className="button-row" style={{ marginTop: '0.5rem' }}>
+              <p className="form-error">알림 설정을 불러오지 못했습니다.</p>
+              <button
+                type="button"
+                className="button secondary compact"
+                onClick={() => {
+                  setNotifState('loading')
+                  getNotificationPreferences()
+                    .then((prefs) => { setNotifPrefs(prefs); setNotifState('ready') })
+                    .catch(() => setNotifState('error'))
+                }}
+              >
+                다시 시도
+              </button>
+            </div>
+          )}
+          {notifState !== 'loading' && notifState !== 'error' && (
+            <>
+              <div className="list compact-list" style={{ marginTop: '0.5rem' }}>
+                {NOTIFICATION_CATEGORIES.map((category) => (
+                  <div key={category.id} className="toggle-row">
+                    <span className="toggle-copy">
+                      <span>{category.label}</span>
+                      <span className="muted">{category.description}</span>
+                    </span>
+                    <Switch
+                      checked={Boolean(notifPrefs[category.id])}
+                      disabled={notifState === 'saving'}
+                      label={category.label}
+                      onChange={() => toggleNotifCategory(category.id)}
+                    />
+                  </div>
+                ))}
+              </div>
+              <div className="button-row" style={{ marginTop: '0.65rem' }}>
+                <button
+                  type="button"
+                  className="button primary compact"
+                  disabled={notifState === 'saving' || !notifDirty}
+                  onClick={saveNotifPrefs}
+                >
+                  {notifState === 'saving' ? '저장 중...' : '알림 설정 저장'}
+                </button>
+                {notifState === 'saved' && !notifDirty && <span className="muted">알림 설정이 저장되었습니다.</span>}
+                {notifState === 'save-error' && <span className="form-error">알림 설정 저장 중 오류가 발생했습니다.</span>}
+              </div>
+            </>
+          )}
         </section>
 
         <section className="panel">
@@ -146,10 +213,10 @@ export default function SettingsScreen({
 
         <section className="panel">
           <div className="section-title"><h2><Hand size={14} aria-hidden="true" /> 피드백</h2></div>
-          <label className="toggle-row">
+          <div className="toggle-row">
             <span>버튼 햅틱 진동</span>
-            <input type="checkbox" checked={haptic} onChange={(event) => pickHaptic(event.target.checked)} />
-          </label>
+            <Switch checked={haptic} label="버튼 햅틱 진동" onChange={(value) => pickHaptic(value)} />
+          </div>
         </section>
 
         <section className="panel">

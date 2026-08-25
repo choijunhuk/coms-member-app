@@ -1,8 +1,10 @@
 import { useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { CalendarCheck, CalendarDays, CalendarPlus, Eye, ExternalLink, Image, Sparkles, ThumbsUp, Trophy, Upload } from 'lucide-react'
+import { Boxes, CalendarCheck, CalendarDays, CalendarPlus, Download, Eye, ExternalLink, Image, Sparkles, ThumbsUp, Trophy, Upload } from 'lucide-react'
 import { exportSchedulesIcs } from '../utils/calendarExport'
 import { CLUB_EVENTS_QUERY_KEY, RSVP_OPTIONS, WORK_TYPE_OPTIONS, listClubEvents, rsvpClubEvent, voteClubEventEntry, submitClubEventEntry } from '../services/clubEventApi'
+import { listClubProjects } from '../services/clubProjectApi'
+import { apiUrl } from '../services/apiClient'
 import { asArray, formatDate } from '../utils/format'
 import {
   categoryLabel,
@@ -40,6 +42,12 @@ async function openService(url) {
   window.open(url, '_blank', 'noopener,noreferrer')
 }
 
+function projectFileUrl(projectId, fileId) {
+  const path = apiUrl(`/api/club-projects/${projectId}/files/${fileId}/download`)
+  if (/^https?:\/\//i.test(path)) return path
+  return typeof window !== 'undefined' ? new URL(path, window.location.origin).toString() : path
+}
+
 type ServiceCard = {
   id?: AppItem['id']
   title?: string | null
@@ -65,6 +73,8 @@ export default function ActivityTab({ clubActivities, apps, appLinks }: Activity
   ), [appLinks, apps])
 
   const queryClient = useQueryClient()
+  const projectsQuery = useQuery({ queryKey: ['club-projects'], queryFn: listClubProjects })
+  const clubProjects = asArray(projectsQuery.data)
   const eventsQuery = useQuery({ queryKey: CLUB_EVENTS_QUERY_KEY, queryFn: listClubEvents })
   const events = asArray(eventsQuery.data)
   const rsvpMutation = useMutation({
@@ -204,6 +214,35 @@ export default function ActivityTab({ clubActivities, apps, appLinks }: Activity
           </ListItem>
         ))}
       </Section>
+
+      {clubProjects.length > 0 && (
+        <section className="panel">
+          <div className="section-title"><h2><Boxes size={14} aria-hidden="true" /> COM's 프로젝트</h2></div>
+          <p className="muted">동아리에서 만든 웹사이트·앱·게임 모음입니다.</p>
+          <div className="stack" style={{ marginTop: '0.6rem' }}>
+            {clubProjects.map((project) => (
+              <article key={project.id} className="project-card">
+                {(project.categoryName || project.eyebrow) && <p className="eyebrow">{project.categoryName || project.eyebrow}</p>}
+                <strong>{project.title}</strong>
+                {project.description && <p className="item-body">{project.description}</p>}
+                {project.madeBy && <p className="item-meta">만든 사람: {project.madeBy}</p>}
+                <div className="button-row">
+                  {isSafeHttpUrl(project.linkUrl) && (
+                    <button type="button" className="button secondary compact" onClick={() => openService(project.linkUrl)}>
+                      <ExternalLink size={14} aria-hidden="true" /> {project.displayUrl || '열기'}
+                    </button>
+                  )}
+                  {asArray(project.files).map((file) => (
+                    <button key={file.id} type="button" className="button secondary compact" onClick={() => openService(projectFileUrl(project.id, file.id))}>
+                      <Download size={14} aria-hidden="true" /> {file.originalName || '다운로드'}
+                    </button>
+                  ))}
+                </div>
+              </article>
+            ))}
+          </div>
+        </section>
+      )}
     </div>
   )
 }
