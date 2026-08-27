@@ -55,21 +55,43 @@ jobs:
       - name: Build and sync Capacitor
         run: npm run build:mobile && npx cap sync android
 
-      - name: Build debug APK
+      - name: Restore release keystore
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+        run: |
+          if [ -z "$ANDROID_KEYSTORE_BASE64" ]; then
+            echo "ANDROID_KEYSTORE_BASE64 secret is missing" >&2
+            exit 1
+          fi
+          printf '%s' "$ANDROID_KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/release.keystore"
+
+      - name: Build signed release APK
         working-directory: android
-        run: ./gradlew assembleDebug --no-daemon
+        env:
+          ANDROID_KEYSTORE_FILE: ${{ runner.temp }}/release.keystore
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          TAG: ${{ steps.tag.outputs.name }}
+        run: |
+          # Version stamps derive from the tag (v0.2.0 -> name 0.2.0, monotonically
+          # increasing code from the run number so updates always install over
+          # the previous release).
+          export ANDROID_VERSION_NAME="${TAG#v}"
+          export ANDROID_VERSION_CODE="$GITHUB_RUN_NUMBER"
+          ./gradlew assembleRelease --no-daemon
 
       - name: Stage APK
         run: |
           mkdir -p out
-          cp android/app/build/outputs/apk/debug/app-debug.apk out/coms-member-debug.apk
+          cp android/app/build/outputs/apk/release/app-release.apk out/coms-member.apk
 
       - name: Create or update release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.tag.outputs.name }}
           name: COMS Member App ${{ steps.tag.outputs.name }}
-          files: out/coms-member-debug.apk
+          files: out/coms-member.apk
           fail_on_unmatched_files: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
