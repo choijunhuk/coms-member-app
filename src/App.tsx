@@ -50,6 +50,7 @@ import { BOOKMARKS_KEY } from './utils/bookmarks'
 import { RECENT_RESOURCES_KEY } from './utils/resourceHistory'
 import { hydrateStoredValues, removeStoredValuesByPrefix } from './utils/deviceStorage'
 import { reportError, setUserContext } from './services/observability'
+import { onSessionExpired } from './services/apiClient'
 import { purgePersistedCache } from './services/queryClient'
 import { registerPushTokenWithRetry } from './utils/pushRegistration'
 import { getInstallationDeviceId } from './utils/installationDeviceId'
@@ -201,6 +202,8 @@ export default function App() {
   const lastBackgroundedRef = useRef(null)
   const pendingPostFlushRef = useRef(false)
   const [queueWarning, setQueueWarning] = useState('')
+  // One-shot section anchor for the profile tab (set by notification routes).
+  const [profileFocus, setProfileFocus] = useState('')
 
   const restoreSession = useCallback(async () => {
     try {
@@ -290,16 +293,50 @@ export default function App() {
     }
   }, [refreshDashboard, setPendingCommunityPosts, user])
 
-  // Without FCM we still want users to see new notifications while the app is
-  // foregrounded — poll every 30s and skip when the document is hidden.
-  useNotificationPolling({ enabled: Boolean(user), refresh: refreshDashboard })
-
   const patchDashboard = useCallback((updater) => {
     queryClient.setQueryData(DASHBOARD_QUERY_KEY, (prev) => {
       const base = prev ?? EMPTY_DASHBOARD
       return updater(base)
     })
   }, [queryClient])
+
+  // Without FCM we still want users to see new notifications while the app is
+  // foregrounded. Poll ONLY the notification endpoints — the old full-dashboard
+  // invalidate refetched the entire (multi-page) post list every 30s, and the
+  // list reordering under the user's finger sent taps to the wrong post.
+  const refreshNotifications = useCallback(async () => {
+    try {
+      const [summary, list] = await Promise.all([getNotificationSummary(), listNotifications()])
+      patchDashboard((base) => ({
+        ...base,
+        notifications: asArray(list),
+        unreadCount: Number(summary?.unreadCount ?? 0),
+      }))
+    } catch {
+      // Transient poll failure — the next tick retries.
+    }
+  }, [patchDashboard])
+  useNotificationPolling({ enabled: Boolean(user), refresh: refreshNotifications })
+
+  // Re-pull the account after profile-side mutations (profile save, email
+  // verification) — ProfileTab's form state seeds from this `user` object on
+  // every remount, so a stale copy made saved edits look like they reverted.
+  const refreshUser = useCallback(async () => {
+    try {
+      setUser(await getCurrentUser())
+    } catch {
+      // Keep the current user on transient failure; the next boot re-syncs.
+    }
+  }, [setUser])
+
+  // A 401 that survives the refresh means the session is gone — drop to the
+  // login screen instead of leaving a logged-in shell where every panel errors.
+  useEffect(() => onSessionExpired(() => {
+    setUser(null)
+    setPushPermission(null)
+    queryClient.clear()
+    void purgePersistedCache()
+  }), [queryClient, setPushPermission, setUser])
 
   useEffect(() => {
     let cancelled = false
@@ -524,28 +561,38 @@ export default function App() {
     notifications: unreadCount,
   }
 
+  // Sequence guard for detail fetches: without it a slow tap-A response landing
+  // after a newer tap-B (or after the user backed out) overwrote the screen with
+  // the stale post/notice — "I tapped one post and a different one opened".
+  const detailSeqRef = useRef(0)
+
   const openNotice = useCallback(async (id) => {
+    const seq = ++detailSeqRef.current
     changeTab('notices')
     setSelectedNotice(null)
     setNoticeLoading(true)
     try {
-      setSelectedNotice(await getNotice(id))
+      const notice = await getNotice(id)
+      if (seq !== detailSeqRef.current) return
+      setSelectedNotice(notice)
     } finally {
-      setNoticeLoading(false)
+      if (seq === detailSeqRef.current) setNoticeLoading(false)
     }
   }, [changeTab, setNoticeLoading, setSelectedNotice])
 
   const openPost = useCallback(async (id) => {
+    const seq = ++detailSeqRef.current
     changeTab('community')
     setSelectedPost(null)
     setComments([])
     setPostLoading(true)
     try {
       const [post, commentData] = await Promise.all([getCommunityPost(id), listComments(id)])
+      if (seq !== detailSeqRef.current) return
       setSelectedPost(post)
       setComments(asArray(commentData))
     } finally {
-      setPostLoading(false)
+      if (seq === detailSeqRef.current) setPostLoading(false)
     }
   }, [changeTab, setComments, setPostLoading, setSelectedPost])
 
@@ -558,7 +605,12 @@ export default function App() {
       void openPost(route.postId)
       return
     }
-    if (route?.tab) changeTab(route.tab)
+    if (route?.tab) {
+      // e.g. 글 삭제 안내 → profile's deleted-posts section; ProfileTab scrolls
+      // to it on mount, then the one-shot value is cleared.
+      setProfileFocus(route.tab === 'profile' && route.section ? route.section : '')
+      changeTab(route.tab)
+    }
   }, [changeTab, openNotice, openPost])
 
   useEffect(() => {
@@ -931,8 +983,11 @@ export default function App() {
       <BiometricLockScreen
         onUnlock={() => setLocked(false)}
         onLogout={async () => {
-          setLocked(false)
+          // Clear the session BEFORE dropping the lock — unlocking first flashed
+          // the full authenticated app (cached data intact) to whoever just
+          // failed biometric auth three times.
           await handleLogout()
+          setLocked(false)
         }}
       />
     )
@@ -956,8 +1011,8 @@ export default function App() {
     </div>
   )
   else if (activeTab === 'activity') content = <ActivityTab clubActivities={clubActivities} apps={apps} appLinks={appConfig.links} />
-  else if (activeTab === 'notices') content = <NoticesTab notices={notices} selected={selectedNotice} loading={noticeLoading} openNotice={openNotice} closeNotice={() => setSelectedNotice(null)} />
-  else if (activeTab === 'community') content = <CommunityTab posts={posts} selected={selectedPost} comments={comments} loading={postLoading} openPost={openPost} closePost={() => { setSelectedPost(null); setComments([]) }} createPost={createPost} editPost={editPostForId} createCommentForPost={createCommentForPost} editComment={editCommentForPost} removeComment={removeCommentForPost} vote={vote} pollVote={pollVote} closePoll={closePoll} pinPost={pinPost} toggleBookmark={toggleBookmark} currentUser={user} pendingPosts={pendingCommunityPosts} retryPendingPosts={flushPendingCommunityPosts} />
+  else if (activeTab === 'notices') content = <NoticesTab notices={notices} selected={selectedNotice} loading={noticeLoading} openNotice={openNotice} closeNotice={() => { detailSeqRef.current += 1; setSelectedNotice(null) }} />
+  else if (activeTab === 'community') content = <CommunityTab posts={posts} selected={selectedPost} comments={comments} loading={postLoading} openPost={openPost} closePost={() => { detailSeqRef.current += 1; setSelectedPost(null); setComments([]) }} createPost={createPost} editPost={editPostForId} createCommentForPost={createCommentForPost} editComment={editCommentForPost} removeComment={removeCommentForPost} vote={vote} pollVote={pollVote} closePoll={closePoll} pinPost={pinPost} toggleBookmark={toggleBookmark} currentUser={user} pendingPosts={pendingCommunityPosts} retryPendingPosts={flushPendingCommunityPosts} />
   else if (activeTab === 'resources') content = <ResourcesTab files={files} onUploaded={() => queryClient.invalidateQueries({ queryKey: DASHBOARD_QUERY_KEY })} />
   else if (activeTab === 'notifications') content = <NotificationsTab notifications={notifications} unreadCount={unreadCount} pushStatus={pushStatus} pushPermission={pushPermission} refreshPushPermission={refreshPushPermission} appConfig={appConfig} enablePush={enablePush} onOpenPushSettings={openPushSettings} markRead={markRead} markAllRead={markAllRead} openRoute={openRoute} />
   else if (activeTab === 'operations') content = <OperationsTab user={user} notices={notices} posts={posts} clubActivities={clubActivities} apps={apps} loadDashboard={refreshDashboard} />
@@ -975,6 +1030,9 @@ export default function App() {
       appealDeletedPost={(id, message) => appealDeletedPostMutation.mutateAsync({ id, message })}
       appealBusy={appealDeletedPostMutation.isPending}
       openPost={openPost}
+      refreshUser={refreshUser}
+      focusSection={profileFocus}
+      onFocusConsumed={() => setProfileFocus('')}
     />
   )
 

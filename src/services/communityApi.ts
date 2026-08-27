@@ -8,10 +8,19 @@ export async function listCommunityPosts() {
   // filter/sort/search server-side if the board outgrows a few thousand posts.
   const size = 200
   const all = []
+  // Posts created while paging shift the offset-based pages, so the same post
+  // can appear on two consecutive pages — dedupe by id or the list renders
+  // duplicate rows (and duplicate React keys misroute taps).
+  const seen = new Set()
   for (let page = 0; page < 50; page += 1) {
     const data = await request(`/api/community/posts?page=${page}&size=${size}`)
     const batch = parseApiResponse(CommunityPostListSchema, data, '커뮤니티 글 목록')
-    all.push(...batch)
+    for (const post of batch) {
+      const key = String(post.id)
+      if (seen.has(key)) continue
+      seen.add(key)
+      all.push(post)
+    }
     if (batch.length < size) break
   }
   return all
