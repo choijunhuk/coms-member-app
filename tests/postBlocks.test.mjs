@@ -141,3 +141,12 @@ assert.equal(isTextOnlyPost({ content: '<p><a href="https://a.b">링크</a></p>'
 assert.equal(isTextOnlyPost({ content: '텍스트', imageUrl: '/api/x.png' }), false)
 
 console.log('post block contract passed')
+
+// Graduate synthetic ids (G{입학연도}-{명부번호}) resolve to a 기수 and never
+// leak the raw id into profile displays.
+const { displayStudentId, generationFromStudentId } = await import('../src/utils/format.ts')
+assert.equal(generationFromStudentId('2024123456'), '58기')
+assert.equal(generationFromStudentId('G2015-42'), '49기')
+assert.equal(generationFromStudentId('garbage'), '기수 미상')
+assert.equal(displayStudentId('G2015-42'), '졸업생')
+assert.equal(displayStudentId('2024123456'), '2024123456')

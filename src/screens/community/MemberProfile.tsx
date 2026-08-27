@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Award, FileText, MessageSquare, ThumbsUp } from 'lucide-react'
 import { getMemberReputation, listPostsByAuthor } from '../../services/communityApi'
-import { generationFromStudentId } from '../../utils/format'
+import { displayStudentId, generationFromStudentId } from '../../utils/format'
 import { postImage } from '../../utils/helpers'
 import { postPreviewText } from '../../utils/postBlocks'
 import { Detail, Empty, ListItem, LoadingScreen, Metric, Section } from '../../components/ui'
@@ -50,7 +50,7 @@ export default function MemberProfile({ studentId, initialName, onBack, openPost
   const breakdown = reputation?.breakdown || {}
 
   return (
-    <Detail title={memberName} meta={`${generationFromStudentId(studentId)} · ${studentId}`} onBack={onBack}>
+    <Detail title={memberName} meta={`${generationFromStudentId(studentId)} · ${displayStudentId(studentId)}`} onBack={onBack}>
       {loading ? <LoadingScreen label="회원 정보를 불러오는 중입니다." /> : (
         <div className="stack">
           {error && <Empty text={error} />}
