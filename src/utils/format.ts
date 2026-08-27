@@ -64,9 +64,19 @@ export function preview(value, limit = 90) {
 const COMS_FOUNDING_YEAR = 1967
 
 export function generationFromStudentId(studentId) {
-  const match = String(studentId || '').match(/^(\d{4})/)
+  // Two id shapes: 10-digit 학번, or the graduate synthetic id G{입학연도}-{명부번호}
+  // minted at graduate signup — both carry the admission year up front.
+  const match = String(studentId || '').match(/^G?(\d{4})/)
   if (!match) return '기수 미상'
   const entryYear = Number(match[1])
   if (!Number.isFinite(entryYear) || entryYear < COMS_FOUNDING_YEAR) return '기수 미상'
   return `${entryYear - COMS_FOUNDING_YEAR + 1}기`
+}
+
+// What to show where a raw student id would appear: graduates' synthetic
+// G-ids are an internal artifact, so display them as 졸업생 instead.
+export function displayStudentId(studentId) {
+  const raw = String(studentId || '')
+  if (/^G\d{4}-\d+$/.test(raw)) return '졸업생'
+  return raw
 }
