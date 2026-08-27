@@ -154,11 +154,12 @@ p {
   letter-spacing: 0;
 }
 
-.login-panel h1,
-.hero-card h2 {
+.login-panel h1 {
   margin: 0;
   font-size: clamp(1.8rem, 8vw, 2.55rem);
-  line-height: 1.05;
+  line-height: 1.03;
+  word-break: keep-all;
+  text-wrap: balance;
 }
 
 .muted,
@@ -450,31 +451,49 @@ p {
   gap: 0.8rem;
 }
 
+/* Editorial hero, mirroring the website's section intros: neutral surface,
+   accent eyebrow, large tight display type. (The old navy gradient was exactly
+   the look the website retired when it aliased the brand navy to the accent.) */
 .hero-card {
   overflow: hidden;
   border-radius: 16px;
-  background: linear-gradient(135deg, #0a2540 0%, #0071e3 90%);
-  color: white;
-  padding: 0.95rem 1rem 1.05rem;
-  box-shadow: 0 8px 18px rgba(10, 37, 64, 0.16);
+  border: 1px solid var(--app-hairline);
+  background: color-mix(in srgb, var(--app-surface) 90%, transparent);
+  color: var(--app-text);
+  padding: 1.15rem 1rem 1.2rem;
+  box-shadow:
+    0 12px 32px rgba(0, 0, 0, 0.06),
+    inset 0 1px 0 rgba(255, 255, 255, 0.5);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
 }
 
-.hero-card .eyebrow,
-.hero-card p {
-  color: rgba(255, 255, 255, 0.82);
+[data-theme='dark'] .hero-card {
+  box-shadow:
+    0 12px 32px rgba(0, 0, 0, 0.32),
+    inset 0 1px 0 rgba(255, 255, 255, 0.06);
+}
+
+.hero-card .eyebrow {
+  color: var(--app-accent-text);
 }
 
 .hero-card h2 {
-  margin: 0.3rem 0 0;
-  font-size: 1.15rem;
+  margin: 0.35rem 0 0;
+  font-size: clamp(1.45rem, 6vw, 1.8rem);
   font-weight: 700;
-  letter-spacing: -0.01em;
-  line-height: 1.25;
+  letter-spacing: 0;
+  line-height: 1.08;
+  word-break: keep-all;
+  text-wrap: balance;
 }
 
 .hero-card p {
   margin: 0;
-  font-size: 0.8rem;
+  color: var(--app-muted);
+  font-size: 0.84rem;
+  font-weight: 500;
+  line-height: 1.5;
 }
 
 .metric-grid {
@@ -2152,4 +2171,84 @@ html[data-font-scale='xlarge'] { font-size: 20px; }
 
 .web-post a {
   color: var(--app-accent-text);
+}
+
+/* --- Website-parity pass (tokens, type, focus, interaction) --- */
+
+:root {
+  --app-hairline-strong: rgba(0, 0, 0, 0.16);
+}
+
+[data-theme='dark'] {
+  --app-hairline-strong: rgba(255, 255, 255, 0.26);
+}
+
+/* Korean-aware editorial type: headings never break inside words. */
+h1,
+h2,
+.item-title,
+.detail h2 {
+  word-break: keep-all;
+}
+
+.detail h2 {
+  font-size: 1.35rem;
+  line-height: 1.15;
+  text-wrap: balance;
+}
+
+.topbar h1 {
+  letter-spacing: 0;
+}
+
+.eyebrow {
+  font-size: 0.8125rem;
+  font-weight: 700;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+/* Body copy rhythm (website .apple-copy: 500 weight, relaxed leading). */
+.muted {
+  font-weight: 500;
+  line-height: 1.5;
+}
+
+/* Keyboard/switch-access focus, same recipe as the website. */
+button:focus-visible,
+a:focus-visible,
+[role='button']:focus-visible {
+  outline: 2px solid var(--app-accent);
+  outline-offset: 2px;
+}
+
+/* Pressed states firm up the hairline, echoing the web's hover lift. */
+.list-item:active,
+.settings-row:active,
+.button.secondary:active:not(:disabled) {
+  border-color: var(--app-hairline-strong);
+}
+
+.section-title h2 {
+  font-size: 0.95rem;
+  font-weight: 800;
+}
+
+.section-title h2 svg {
+  color: var(--app-accent-text);
+}
+
+/* Chips/badges: the website never goes heavier than 800. */
+.item-title b,
+.badge,
+.media-chip {
+  font-weight: 800;
+}
+
+.segments button {
+  border: 1px solid var(--app-hairline);
+}
+
+.segments button.active {
+  border-color: var(--app-accent);
 }
