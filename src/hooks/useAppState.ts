@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { readLastSeen } from '../utils/lastSeen'
-import { readIdleLock, readOnboarded, readTheme, resolveIdleLockMs } from '../utils/preferences'
+import { IDLE_LOCK_FEATURE_ENABLED, readIdleLock, readOnboarded, readTheme, resolveIdleLockMs } from '../utils/preferences'
 import { isNativeRuntime } from '../services/nativeBridge'
 
 // Boot LOCKED when the user enabled idle-lock so cached PII never renders before
@@ -8,7 +8,7 @@ import { isNativeRuntime } from '../services/nativeBridge'
 // on; users who disabled it are never locked. The optimistic value is reconciled
 // in App once preferences and biometric availability resolve.
 function shouldLockOnBoot() {
-  return isNativeRuntime() && resolveIdleLockMs(readIdleLock()) !== null
+  return IDLE_LOCK_FEATURE_ENABLED && isNativeRuntime() && resolveIdleLockMs(readIdleLock()) !== null
 }
 
 export function useAppState() {

@@ -8,6 +8,7 @@ import { getNotificationPreferences, updateNotificationPreferences } from '../se
 import { BUILT_IN_FONTS, applyFontPreference, effectiveFontId, writeFontPreference } from '../utils/fontPreferences'
 import {
   FONT_SCALE_VALUES,
+  IDLE_LOCK_FEATURE_ENABLED,
   IDLE_LOCK_VALUES,
   NOTIFICATION_CATEGORIES,
   defaultNotificationPreferences,
@@ -198,18 +199,20 @@ export default function SettingsScreen({
           )}
         </section>
 
-        <section className="panel">
-          <div className="section-title"><h2><Fingerprint size={14} aria-hidden="true" /> 보안</h2></div>
-          <p className="muted">자리 비움 후 잠금</p>
-          <div className="segments">
-            {IDLE_LOCK_VALUES.map((option) => (
-              <button key={option.id} type="button" className={idleLock === option.id ? 'active' : ''} onClick={() => pickIdleLock(option.id)}>
-                {option.label}
-              </button>
-            ))}
-          </div>
-          <p className="muted" style={{ marginTop: '0.5rem' }}>해당 시간 이상 자리를 비웠다가 돌아오면 Face ID / 지문으로 재인증을 요청합니다.</p>
-        </section>
+        {IDLE_LOCK_FEATURE_ENABLED && (
+          <section className="panel">
+            <div className="section-title"><h2><Fingerprint size={14} aria-hidden="true" /> 보안</h2></div>
+            <p className="muted">자리 비움 후 잠금</p>
+            <div className="segments">
+              {IDLE_LOCK_VALUES.map((option) => (
+                <button key={option.id} type="button" className={idleLock === option.id ? 'active' : ''} onClick={() => pickIdleLock(option.id)}>
+                  {option.label}
+                </button>
+              ))}
+            </div>
+            <p className="muted" style={{ marginTop: '0.5rem' }}>해당 시간 이상 자리를 비웠다가 돌아오면 Face ID / 지문으로 재인증을 요청합니다.</p>
+          </section>
+        )}
 
         <section className="panel">
           <div className="section-title"><h2><Hand size={14} aria-hidden="true" /> 피드백</h2></div>

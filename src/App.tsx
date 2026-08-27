@@ -44,7 +44,7 @@ import { isAdminUser, normalizeAppConfig, normalizeHomeData } from './utils/help
 import { isVersionBelow } from './utils/version'
 import { useNotificationPolling } from './hooks/useNotificationPolling'
 import { isNew, lastSeenStorageKey, readLastSeen, writeLastSeen } from './utils/lastSeen'
-import { markOnboarded, PREFERENCE_STORAGE_KEYS, readFontScale, readIdleLock, readOnboarded, readTheme, resolveIdleLockMs, resolveTheme, writeTheme } from './utils/preferences'
+import { IDLE_LOCK_FEATURE_ENABLED, markOnboarded, PREFERENCE_STORAGE_KEYS, readFontScale, readIdleLock, readOnboarded, readTheme, resolveIdleLockMs, resolveTheme, writeTheme } from './utils/preferences'
 import { applyFontPreference } from './utils/fontPreferences'
 import { BOOKMARKS_KEY } from './utils/bookmarks'
 import { RECENT_RESOURCES_KEY } from './utils/resourceHistory'
@@ -490,6 +490,7 @@ export default function App() {
       void refreshPushPermission()
       const last = lastBackgroundedRef.current
       lastBackgroundedRef.current = null
+      if (!IDLE_LOCK_FEATURE_ENABLED) return
       const threshold = resolveIdleLockMs(readIdleLock()) ?? DEFAULT_IDLE_LOCK_THRESHOLD_MS
       if (threshold === null) return
       if (!last || Date.now() - last < threshold) return
