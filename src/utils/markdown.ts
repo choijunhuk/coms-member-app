@@ -3,6 +3,9 @@
 // Escapes HTML first; the returned tokens are safe to render via dangerouslySetInnerHTML.
 
 import { emojifySync } from './emoji'
+// Circular with format.ts (it imports stripMarkdown) — safe: both sides only
+// touch the import inside function bodies, never at module-init time.
+import { decodeEntities } from './format'
 
 const ESCAPE = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }
 
@@ -27,6 +30,40 @@ export function renderMarkdownToHtml(input) {
 
 export function renderPlainTextWithEmoji(input) {
   return emojifySync(escapeHtml(input))
+}
+
+// --- Safe rendering for web-authored HTML posts ---
+// Web TipTap posts store sanitized HTML. Rendering them through plainTextLines
+// flattened bold/lists/links to plain text, so the app showed a degraded copy
+// of every web-formatted post. This renders a safe allowlisted subset instead:
+// escape everything, then re-open ONLY known formatting tags (attributes are
+// dropped), plus validated http(s) links. Nothing else survives escaping.
+
+const SAFE_HTML_TAGS = ['p', 'br', 'strong', 'b', 'em', 'i', 'u', 's', 'ul', 'ol', 'li', 'blockquote', 'code', 'pre', 'mark', 'h1', 'h2', 'h3']
+
+export function looksLikeHtml(input) {
+  return /<([a-z][a-z0-9]*)\b[^>]*>/i.test(String(input || ''))
+}
+
+export function renderSafeHtml(input) {
+  // Decode entities first so sanitizer output (&nbsp;, &amp;) displays as text,
+  // then escape the whole string — anything an entity decoded into (including
+  // a smuggled <script>) is re-escaped and never re-opened below.
+  const escaped = escapeHtml(decodeEntities(String(input || '')))
+  let html = escaped
+  for (const tag of SAFE_HTML_TAGS) {
+    // (?=[\s&/]) keeps `p` from matching the start of `pre`; attributes up to
+    // the closing bracket are matched but discarded.
+    html = html
+      .replace(new RegExp(`&lt;${tag}(?=[\\s&/])((?:(?!&gt;).)*?)/?&gt;`, 'gi'), tag === 'br' ? '<br />' : `<${tag}>`)
+      .replace(new RegExp(`&lt;/${tag}&gt;`, 'gi'), `</${tag}>`)
+  }
+  html = html.replace(/&lt;a\s((?:(?!&gt;).)*?)&gt;([\s\S]*?)&lt;\/a&gt;/gi, (full, attrs, label) => {
+    const href = /href=&quot;(.*?)&quot;/i.exec(attrs)?.[1]?.replace(/&amp;/g, '&')
+    if (!href || !/^https?:\/\//i.test(href)) return label
+    return `<a href="${href.replace(/&/g, '&amp;').replace(/"/g, '')}" target="_blank" rel="noreferrer">${label}</a>`
+  })
+  return emojifySync(html)
 }
 
 // Strip markdown markers down to their visible text, for list previews that

@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { ChevronLeft, ChevronRight, Download, X } from 'lucide-react'
 import { asArray, plainTextLines } from '../../utils/format'
 import { mediaSrc } from '../../utils/helpers'
-import { renderMarkdownToHtml } from '../../utils/markdown'
+import { looksLikeHtml, renderMarkdownToHtml, renderSafeHtml } from '../../utils/markdown'
 import { postBlocks } from '../../utils/postBlocks'
 import PollBlock from './PollBlock'
 import Polls from './Polls'
@@ -69,10 +69,15 @@ export default function PostContent({ post, pollVote, closePoll }: { post: Commu
     <div className="post-content">
       {blocks.map((block, index) => {
         if (block.type === 'text') {
-          // plainTextLines keeps the author's line breaks (web HTML <br>/<p> too)
-          // so renderMarkdownToHtml can turn them back into <br /> — plainText
-          // flattened multi-line posts into one blob.
-          const text = plainTextLines(block.content)
+          const raw = String(block.content || '')
+          // Web-authored posts carry sanitized HTML — render the safe subset
+          // (bold, lists, links, headings) instead of flattening it to text.
+          if (looksLikeHtml(raw)) {
+            return <div className="body-text web-post" key={index} dangerouslySetInnerHTML={{ __html: renderSafeHtml(raw) }} />
+          }
+          // plainTextLines keeps the author's line breaks so renderMarkdownToHtml
+          // can turn them back into <br /> — plainText flattened multi-line posts.
+          const text = plainTextLines(raw)
           if (!text) return null
           return <p className="body-text" key={index} dangerouslySetInnerHTML={{ __html: renderMarkdownToHtml(text) }} />
         }
