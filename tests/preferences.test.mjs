@@ -55,3 +55,7 @@ assert.equal(safeFontUrl('https://x.com/a"b.woff2'), null)
 assert.equal(buildFontFaceCss([]), '')
 
 console.log('preferences contract passed')
+
+// Idle-lock kill switch: feature disabled app-wide (code kept for revival).
+const { IDLE_LOCK_FEATURE_ENABLED } = await import('../src/utils/preferences.ts')
+assert.equal(IDLE_LOCK_FEATURE_ENABLED, false)

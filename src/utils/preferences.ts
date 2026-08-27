@@ -84,6 +84,11 @@ export function writeHapticEnabled(value) {
   writeStoredValue(HAPTIC_KEY, value ? '1' : '0')
 }
 
+// Kill switch for the whole idle-lock feature (자리비움 잠금). The lock/unlock
+// code stays intact behind this flag — flip to true to bring it back. Disabled
+// 2026-08-27 by user request: the re-auth prompt annoyed more than it protected.
+export const IDLE_LOCK_FEATURE_ENABLED = false
+
 export const IDLE_LOCK_VALUES = [
   { id: 'off', label: '사용 안 함', minutes: null },
   { id: '3m', label: '3분', minutes: 3 },
