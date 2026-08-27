@@ -4,9 +4,26 @@ import { createArchivePosts, downloadUrl, voteFile } from '../services/archiveAp
 import { ArchiveCategory } from '../contract/enums'
 import { asArray, formatDate } from '../utils/format'
 import { fileCategoryLabels, latest } from '../utils/helpers'
+import { looksLikeHtml, renderMarkdownToHtml, renderSafeHtml } from '../utils/markdown'
+import { postBodyText, postPreviewText } from '../utils/postBlocks'
 import { readRecentResourceIds, rememberResource } from '../utils/resourceHistory'
-import { Empty, ListItem, Section } from '../components/ui'
+import { Detail, Empty, ListItem, Section } from '../components/ui'
 import type { ArchiveFile } from '../contract/types'
+
+// Descriptions written through the archive-post flow arrive as block JSON —
+// rendered raw they read as `[{"type":"text",...`. Normalize both list preview
+// and detail body through the same block-aware helpers the community uses.
+function descriptionPreview(file) {
+  return file.description ? postPreviewText({ content: file.description }) : (file.originalName || '')
+}
+
+function descriptionBodyHtml(file) {
+  const raw = String(file.description || '')
+  if (!raw) return ''
+  if (looksLikeHtml(raw)) return renderSafeHtml(raw)
+  const text = postBodyText({ content: raw })
+  return text ? renderMarkdownToHtml(text) : ''
+}
 
 const UPLOAD_CATEGORY_OPTIONS = Object.values(ArchiveCategory)
 
@@ -94,7 +111,8 @@ export default function ResourcesTab({ files, onUploaded }: { files: ArchiveFile
       return (category === 'ALL' || (file.category || 'GENERAL') === category) && (!q || text.includes(q))
     })
   }, [category, files, query])
-  const openFile = (file) => {
+  const [selected, setSelected] = useState<ArchiveFile | null>(null)
+  const downloadFile = (file) => {
     rememberResource(file.id)
     setRecentIds(readRecentResourceIds())
     window.open(downloadUrl(file.id), '_blank', 'noopener,noreferrer')
@@ -109,6 +127,39 @@ export default function ResourcesTab({ files, onUploaded }: { files: ArchiveFile
     } catch {
       // ignore vote failures; UI stays unchanged
     }
+  }
+
+  if (selected) {
+    const stats = statsFor(selected)
+    const bodyHtml = descriptionBodyHtml(selected)
+    return (
+      <div className="stack">
+        <Detail
+          title={selected.title}
+          meta={`${fileCategoryLabels[selected.category] || '일반'} · ${formatDate(selected.uploadedAt)}`}
+          onBack={() => setSelected(null)}
+        >
+          {bodyHtml
+            ? <div className="body-text web-post" dangerouslySetInnerHTML={{ __html: bodyHtml }} />
+            : <p className="muted">설명이 없습니다.</p>}
+          <div className="button-row">
+            <button type="button" className="button primary compact" onClick={() => downloadFile(selected)}>
+              <Download size={15} aria-hidden="true" /> {selected.originalName || '파일 다운로드'}
+            </button>
+          </div>
+          <div className="stats">
+            <span><Eye size={14} />{stats.viewCount || 0}</span>
+            <span
+              role="button"
+              tabIndex={0}
+              className={stats.myVote ? 'voted' : ''}
+              onClick={() => toggleVote(selected)}
+              onKeyDown={(event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); toggleVote(selected) } }}
+            ><ThumbsUp size={14} />{stats.upvotes || 0}</span>
+          </div>
+        </Detail>
+      </div>
+    )
   }
 
   return (
@@ -126,15 +177,15 @@ export default function ResourcesTab({ files, onUploaded }: { files: ArchiveFile
       <div className="segments">{categories.map((item) => <button key={item} className={category === item ? 'active' : ''} onClick={() => setCategory(item)}>{item === 'ALL' ? '전체' : fileCategoryLabels[item] || item}</button>)}</div>
       {recentFiles.length > 0 && (
         <Section title="최근 다운로드">
-          {recentFiles.map((file) => <ListItem key={file.id} title={file.title} meta={fileCategoryLabels[file.category] || '일반'} body={file.originalName} onClick={() => openFile(file)}><span className="media-chip"><Download size={14} />다시 열기</span></ListItem>)}
+          {recentFiles.map((file) => <ListItem key={file.id} title={file.title} meta={fileCategoryLabels[file.category] || '일반'} body={file.originalName} onClick={() => downloadFile(file)}><span className="media-chip"><Download size={14} />다시 열기</span></ListItem>)}
         </Section>
       )}
       <Section title="자료실">
         {filtered.map((file) => {
           const stats = statsFor(file)
           return (
-            <ListItem key={file.id} title={file.title} meta={`${fileCategoryLabels[file.category] || '일반'} · ${formatDate(file.uploadedAt)}`} body={file.description || file.originalName} onClick={() => openFile(file)}>
-              <span className="media-chip"><Download size={14} />다운로드</span>
+            <ListItem key={file.id} title={file.title} meta={`${fileCategoryLabels[file.category] || '일반'} · ${formatDate(file.uploadedAt)}`} body={descriptionPreview(file)} onClick={() => setSelected(file)}>
+              <span className="media-chip"><Download size={14} />{file.originalName || '첨부파일'}</span>
               <div className="stats">
                 <span><Eye size={14} />{stats.viewCount || 0}</span>
                 <span
