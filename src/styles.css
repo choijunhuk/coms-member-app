@@ -2092,3 +2092,64 @@ html[data-font-scale='xlarge'] { font-size: 20px; }
 .empty svg {
   opacity: 0.75;
 }
+
+/* Web-authored post body (safe HTML subset) */
+
+.web-post p {
+  margin: 0 0 0.55rem;
+}
+
+.web-post p:last-child {
+  margin-bottom: 0;
+}
+
+.web-post ul,
+.web-post ol {
+  margin: 0 0 0.55rem;
+  padding-left: 1.25rem;
+}
+
+.web-post li {
+  margin: 0.15rem 0;
+}
+
+.web-post h1,
+.web-post h2,
+.web-post h3 {
+  margin: 0.7rem 0 0.35rem;
+  font-size: 1.02rem;
+  letter-spacing: -0.01em;
+}
+
+.web-post blockquote {
+  margin: 0 0 0.55rem;
+  border-left: 3px solid var(--app-hairline);
+  padding-left: 0.7rem;
+  color: var(--app-muted);
+}
+
+.web-post code,
+.web-post pre {
+  border-radius: 8px;
+  background: var(--app-surface-soft);
+  font-size: 0.84em;
+}
+
+.web-post code {
+  padding: 0.1rem 0.3rem;
+}
+
+.web-post pre {
+  overflow-x: auto;
+  padding: 0.6rem 0.7rem;
+}
+
+.web-post mark {
+  border-radius: 3px;
+  background: color-mix(in srgb, var(--app-accent) 22%, transparent);
+  color: inherit;
+}
+
+.web-post a {
+  color: var(--app-accent-text);
+}

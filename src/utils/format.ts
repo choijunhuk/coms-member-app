@@ -21,7 +21,7 @@ function codePointOrEmpty(code) {
   return code >= 0 && code <= 0x10ffff ? String.fromCodePoint(code) : ''
 }
 
-function decodeEntities(text) {
+export function decodeEntities(text) {
   return text
     .replace(/&#x([0-9a-f]{1,6});/gi, (_, hex) => codePointOrEmpty(parseInt(hex, 16)))
     .replace(/&#(\d{1,7});/g, (_, dec) => codePointOrEmpty(Number(dec)))
