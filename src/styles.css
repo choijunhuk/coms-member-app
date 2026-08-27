@@ -1147,15 +1147,28 @@ p {
   box-shadow: 0 0 0 3px var(--app-accent-soft);
 }
 
+/* Neutral editorial surface matching the redesigned hero-card — the retired
+   navy gradient lived on here after the design pass missed this block. */
 .profile-card {
   display: flex;
   align-items: center;
   gap: 0.7rem;
   border-radius: 14px;
-  background: linear-gradient(135deg, #0a2540 0%, #0071e3 100%);
-  color: white;
-  padding: 0.8rem 0.9rem;
-  box-shadow: 0 6px 16px rgba(10, 37, 64, 0.16);
+  border: 1px solid var(--app-hairline);
+  background: color-mix(in srgb, var(--app-surface) 90%, transparent);
+  color: var(--app-text);
+  padding: 0.9rem 0.95rem;
+  box-shadow:
+    0 12px 32px rgba(0, 0, 0, 0.06),
+    inset 0 1px 0 rgba(255, 255, 255, 0.5);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+}
+
+[data-theme='dark'] .profile-card {
+  box-shadow:
+    0 12px 32px rgba(0, 0, 0, 0.32),
+    inset 0 1px 0 rgba(255, 255, 255, 0.06);
 }
 
 .avatar {
@@ -1164,14 +1177,16 @@ p {
   height: 3.2rem;
   place-items: center;
   border-radius: 12px;
-  background: #0071e3;
+  background: var(--app-accent-soft);
+  color: var(--app-accent-text);
   font-size: 1.45rem;
-  font-weight: 900;
+  font-weight: 800;
 }
 
 .profile-card p {
   margin: 0.25rem 0 0;
-  color: rgba(255, 255, 255, 0.72);
+  color: var(--app-muted);
+  font-weight: 500;
 }
 
 .offline-banner {
@@ -2251,4 +2266,29 @@ a:focus-visible,
 
 .segments button.active {
   border-color: var(--app-accent);
+}
+
+/* 동아리방 door-code card */
+
+.club-room-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.club-room-code {
+  border: 1px solid var(--app-hairline);
+  border-radius: 10px;
+  background: var(--app-surface);
+  padding: 0.4rem 0.8rem;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 1.05rem;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+}
+
+.club-room-hint {
+  margin-top: 0.45rem;
+  font-size: 0.74rem;
 }

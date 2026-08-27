@@ -1,5 +1,5 @@
 import { useEffect } from 'react'
-import { Bell, Check, ExternalLink, FileText, Mail, Megaphone, MessageCircle, RefreshCw, Reply, RotateCcw, Settings as SettingsIcon, ShieldOff, Smartphone, Trash2 } from 'lucide-react'
+import { Bell, Check, ExternalLink, FileText, Mail, Megaphone, MessageCircle, RefreshCw, Reply, RotateCcw, Settings as SettingsIcon, ShieldAlert, ShieldOff, Smartphone, Trash2 } from 'lucide-react'
 import { formatDate } from '../utils/format'
 import { latest } from '../utils/helpers'
 import { routeFromNotification } from '../utils/mobileRoutes'
@@ -38,6 +38,7 @@ const TYPE_META: Record<string, { label: string; icon: LucideIcon }> = {
   COMMUNITY_POST_RESTORED: { label: '글 복원', icon: RotateCcw },
   COMMUNITY_POST_DELETED: { label: '글 삭제', icon: Trash2 },
   RECRUIT_APPLICATION: { label: '새 지원서', icon: FileText },
+  COMMUNITY_REPORT: { label: '새 신고', icon: ShieldAlert },
 }
 
 function hasExternalAcceptUrl(item) {

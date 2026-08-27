@@ -4,7 +4,7 @@ import type { DynamicRowHeight, RowComponentProps } from 'react-window'
 import { AlertTriangle, Bookmark, BookmarkCheck, CornerDownRight, Eye, Pin, PinOff, Plus, Search, Send, Share2, ThumbsDown, ThumbsUp, Trash2, Pencil, Check, UserRound, X } from 'lucide-react'
 import { confirmDialog } from '../components/ConfirmDialog'
 import { asArray, formatDate } from '../utils/format'
-import { categoryLabels, communitySortOptions, isAdminUser, postImage, sortCommunityPosts } from '../utils/helpers'
+import { canModerateCommunity, categoryLabels, communitySortOptions, postImage, sortCommunityPosts } from '../utils/helpers'
 import { postPreviewText, isTextOnlyPost, postBodyText } from '../utils/postBlocks'
 import { buildComposerContent, createEmptyPollDraft } from '../utils/pollDraft'
 import { sharePost } from '../services/nativeShare'
@@ -296,7 +296,7 @@ export default function CommunityTab({ posts, selected, comments, loading, openP
               <button className="button secondary" onClick={() => setReporting(true)} disabled={Boolean(reportedAt)}>
                 <AlertTriangle size={16} /> {reportedAt ? '신고됨' : '신고'}
               </button>
-              {isAdminUser(currentUser) && pinPost && (
+              {canModerateCommunity(currentUser) && pinPost && (
                 <button className="button secondary" onClick={() => pinPost(!selected.pinned)}>
                   {selected.pinned ? <PinOff size={16} /> : <Pin size={16} />}
                   {selected.pinned ? '고정 해제' : '상단 고정'}

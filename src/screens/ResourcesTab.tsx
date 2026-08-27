@@ -111,7 +111,11 @@ export default function ResourcesTab({ files, onUploaded }: { files: ArchiveFile
       return (category === 'ALL' || (file.category || 'GENERAL') === category) && (!q || text.includes(q))
     })
   }, [category, files, query])
-  const [selected, setSelected] = useState<ArchiveFile | null>(null)
+  // Store the id and re-derive from `files` each render so a background
+  // refresh updates the open detail (and a removed file closes it).
+  const [selectedId, setSelectedId] = useState<ArchiveFile['id'] | null>(null)
+  const selected = selectedId === null ? null : (asArray(files).find((file) => file.id === selectedId) ?? null)
+  const setSelected = (file: ArchiveFile | null) => setSelectedId(file ? file.id : null)
   const downloadFile = (file) => {
     rememberResource(file.id)
     setRecentIds(readRecentResourceIds())

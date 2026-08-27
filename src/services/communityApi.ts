@@ -12,16 +12,28 @@ export async function listCommunityPosts() {
   // can appear on two consecutive pages — dedupe by id or the list renders
   // duplicate rows (and duplicate React keys misroute taps).
   const seen = new Set()
-  for (let page = 0; page < 50; page += 1) {
-    const data = await request(`/api/community/posts?page=${page}&size=${size}`)
-    const batch = parseApiResponse(CommunityPostListSchema, data, '커뮤니티 글 목록')
+  const collect = (batch) => {
     for (const post of batch) {
       const key = String(post.id)
       if (seen.has(key)) continue
       seen.add(key)
       all.push(post)
     }
-    if (batch.length < size) break
+  }
+  const fetchPage = async (page) => {
+    const data = await request(`/api/community/posts?page=${page}&size=${size}`)
+    return parseApiResponse(CommunityPostListSchema, data, '커뮤니티 글 목록')
+  }
+  // The bare-array response carries no total, so pages load in concurrent
+  // windows of 4: fetch a window, stop as soon as any page comes back short.
+  const first = await fetchPage(0)
+  collect(first)
+  if (first.length < size) return all
+  for (let start = 1; start < 50; start += 4) {
+    const pages = [start, start + 1, start + 2, start + 3].filter((page) => page < 50)
+    const batches = await Promise.all(pages.map(fetchPage))
+    batches.forEach(collect)
+    if (batches.some((batch) => batch.length < size)) break
   }
   return all
 }
