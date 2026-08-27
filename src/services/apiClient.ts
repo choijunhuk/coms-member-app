@@ -63,14 +63,23 @@ async function fetchWithTimeout(url, options: RequestOptions = {}) {
   }
 }
 
+function fallbackErrorMessage(status) {
+  if (status === 401 || status === 403) return '로그인이 만료되었거나 접근 권한이 없습니다. 다시 로그인해주세요.'
+  if (status >= 500) return `서버 오류가 발생했습니다. 잠시 후 다시 시도해주세요. (HTTP ${status})`
+  return `요청 처리 중 오류가 발생했습니다. (HTTP ${status})`
+}
+
 async function parseError(response) {
   const text = await response.text().catch(() => '')
-  if (!text) return `요청 처리 중 오류가 발생했습니다. (HTTP ${response.status})`
+  if (!text) return fallbackErrorMessage(response.status)
   try {
     const data = JSON.parse(text)
-    return data?.message || data?.detail || data?.error || `요청 처리 중 오류가 발생했습니다. (HTTP ${response.status})`
+    // Only `message` is an intentional user-facing string. `error`/`detail` are
+    // framework defaults ("Unauthorized", "Forbidden") — with the backend's
+    // include-message=never they leaked raw English into the login screen.
+    return data?.message || fallbackErrorMessage(response.status)
   } catch {
-    return text.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim() || `요청 처리 중 오류가 발생했습니다. (HTTP ${response.status})`
+    return text.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim() || fallbackErrorMessage(response.status)
   }
 }
 
@@ -82,15 +91,39 @@ async function refreshSession() {
   return response.ok
 }
 
+// Notified when a 401 survives the token refresh — i.e. the session is truly
+// gone. Without this the app kept rendering a logged-in shell where every panel
+// errored "로그인이 만료되었습니다" with no way out (same trap the web fixed in #408).
+let sessionExpiredHandler: (() => void) | null = null
+
+export function onSessionExpired(handler: () => void) {
+  sessionExpiredHandler = handler
+  return () => {
+    if (sessionExpiredHandler === handler) sessionExpiredHandler = null
+  }
+}
+
 export async function request(path, options: RequestOptions = {}) {
   const isFormData = options.body instanceof FormData
   const headers = isFormData ? options.headers : { 'Content-Type': 'application/json', ...options.headers }
   const fetchOnce = () => fetchWithTimeout(apiUrl(path), { credentials: 'include', ...options, headers })
 
   let response = await fetchOnce()
-  const canRefresh = path === '/api/auth/me' || !path.includes('/api/auth/')
-  if ((response.status === 401 || response.status === 403) && canRefresh && await refreshSession()) {
-    response = await fetchOnce()
+  // Refreshable: everything except the auth endpoints where a 401 means "the
+  // credentials in THIS request are wrong" (login, and password change with a
+  // wrong current password) — refresh-retrying those would loop the 401 into
+  // the session-expired handler and log the user out on a typo. /api/auth/me
+  // and /api/auth/profile 401 only on a dead session, so they stay refreshable.
+  const canRefresh = path === '/api/auth/me' || path === '/api/auth/profile' || !path.includes('/api/auth/')
+  if ((response.status === 401 || response.status === 403) && canRefresh) {
+    if (await refreshSession()) {
+      response = await fetchOnce()
+    }
+    // 401 after (failed or replayed) refresh = expired session. 403 is excluded:
+    // it can be a plain permission denial for a signed-in member.
+    if (response.status === 401) {
+      sessionExpiredHandler?.()
+    }
   }
 
   if (!response.ok) {

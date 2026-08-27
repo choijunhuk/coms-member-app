@@ -41,4 +41,12 @@ pages = [[]]
 assert.deepEqual(await listCommunityPosts(), [])
 assert.equal(calls.length, 1)
 
+// posts created while paging shift offset pages — overlapping ids must dedupe
+// (duplicates rendered duplicate rows and misrouted list taps)
+calls.length = 0
+pages = [Array.from({ length: 200 }, (_, i) => post(i)), [post(199), post(198), post(200)]]
+const deduped = await listCommunityPosts()
+assert.equal(deduped.length, 201)
+assert.equal(new Set(deduped.map((p) => p.id)).size, 201)
+
 console.log('community pagination contract passed')

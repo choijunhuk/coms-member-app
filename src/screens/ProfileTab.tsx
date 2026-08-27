@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Bookmark, LogOut, MailCheck, MessageCircle, RotateCcw, ShieldAlert, UserPen, UserX } from 'lucide-react'
 import { confirmDialog } from '../components/ConfirmDialog'
 import { changePassword, confirmEmailVerification, requestEmailVerification, updateProfile } from '../services/authApi'
@@ -49,7 +49,18 @@ export default function ProfileTab({
   appealDeletedPost,
   appealBusy = false,
   openPost,
+  refreshUser,
+  focusSection = '',
+  onFocusConsumed,
 }) {
+  // Notification deep-link target: 글 삭제 안내 lands on the deleted-posts list
+  // instead of the top of the tab.
+  const deletedSectionRef = useRef(null)
+  useEffect(() => {
+    if (focusSection !== 'deleted-posts') return
+    deletedSectionRef.current?.scrollIntoView?.({ behavior: 'smooth', block: 'start' })
+    onFocusConsumed?.()
+  }, [focusSection, onFocusConsumed])
   const [withdrawError, setWithdrawError] = useState('')
   const [busyAction, setBusyAction] = useState('')
   const [appealId, setAppealId] = useState(null)
@@ -88,6 +99,7 @@ export default function ProfileTab({
     try {
       await confirmEmailVerification(code)
       setEmailVerified(true)
+      await refreshUser?.()
       setVerifyMsg('이메일 인증이 완료되었습니다.')
     } catch (err) {
       setVerifyError(err?.message || '인증 코드가 올바르지 않습니다.')
@@ -119,6 +131,9 @@ export default function ProfileTab({
         interests: joinInterests(interestChips, interestExtra).slice(0, 500),
         aspiration: aspiration.slice(0, 2000),
       })
+      // Sync the app-level user so a tab switch doesn't re-seed the form from
+      // the pre-save snapshot and make the edit look reverted.
+      await refreshUser?.()
       setProfileMsg('내 정보가 저장되었습니다.')
     } catch (err) {
       setProfileError(err?.message || '내 정보 저장 중 오류가 발생했습니다.')
@@ -221,6 +236,7 @@ export default function ProfileTab({
         ))}
         {myPosts.length === 0 && <Empty text="아직 작성한 글이 없습니다." />}
       </Section>
+      <div ref={deletedSectionRef}>
       <Section title={<><ShieldAlert size={14} aria-hidden="true" /> 삭제된 내 글</>}>
         {deletedPostsLoading && <Empty text="삭제 기록을 불러오는 중입니다." />}
         {!deletedPostsLoading && deletedPosts.map((record) => {
@@ -255,6 +271,7 @@ export default function ProfileTab({
         })}
         {!deletedPostsLoading && deletedPosts.length === 0 && <Empty text="삭제된 내 글이 없습니다." />}
       </Section>
+      </div>
       <Section title={<><Bookmark size={14} aria-hidden="true" /> 내 스크랩</>}>
         {bookmarkedPostsLoading && scrapPosts.length === 0 && <Empty text="스크랩한 글을 불러오는 중입니다." />}
         {scrapPosts.map((post) => (
