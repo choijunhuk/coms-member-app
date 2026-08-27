@@ -20,13 +20,14 @@ const { listCommunityPosts } = await import('../src/services/communityApi.ts')
 
 const post = (id) => ({ id, title: `글 ${id}`, commentCount: 0, viewCount: 0, upvotes: 0, downvotes: 0 })
 
-// full first page (200) → must fetch the next page; short second page → stop
-pages = [Array.from({ length: 200 }, (_, i) => post(i)), [post(200), post(201)]]
+// full first page (200) → fetches a concurrent window of pages 1-4; short
+// page 1 stops further windows. All 202 unique posts collected.
+pages = [Array.from({ length: 200 }, (_, i) => post(i)), [post(200), post(201)], [], [], []]
 const all = await listCommunityPosts()
 assert.equal(all.length, 202)
-assert.equal(calls.length, 2)
+assert.equal(calls.length, 5)
 assert.match(calls[0], /\/api\/community\/posts\?page=0&size=200$/)
-assert.match(calls[1], /\/api\/community\/posts\?page=1&size=200$/)
+assert.ok(calls.slice(1).some((url) => /page=1&size=200$/.test(url)))
 
 // short first page → exactly one request
 calls.length = 0

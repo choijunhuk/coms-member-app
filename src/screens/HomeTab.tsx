@@ -5,6 +5,7 @@ import { formatDate } from '../utils/format'
 import { categoryLabels, fileCategoryLabels, latest, postImage } from '../utils/helpers'
 import { postPreviewText, contentPreview } from '../utils/postBlocks'
 import { ListItem, Metric, Section } from '../components/ui'
+import ClubRoomCard from '../components/ClubRoomCard'
 import type { ClubActivity, ArchiveFile, CommunityPost, Notice } from '../contract/types'
 
 type HomeTabProps = {
@@ -30,6 +31,7 @@ export default function HomeTab({ notices, posts, files, unreadCount, clubActivi
         <p className="eyebrow">Today COMS</p>
         <h2>오늘 볼 일정, 활동, 공지, 자료를 한 화면에서 확인합니다.</h2>
       </section>
+      <ClubRoomCard />
       <div className="metric-grid">
         <Metric icon={Bell} label="공지" value={recentNotices.length} />
         <Metric icon={CalendarDays} label="예정" value={upcomingSchedules.length} />

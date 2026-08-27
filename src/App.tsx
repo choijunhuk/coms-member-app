@@ -31,7 +31,6 @@ import { buildComposerContent } from './utils/pollDraft'
 import {
   DEFAULT_APP_CONFIG,
   getAppConfig,
-  getMobileHome,
   isRecoverableMobileApiError,
   registerPushToken,
 } from './services/mobileApi'
@@ -40,7 +39,7 @@ import { isBiometricAvailable } from './services/biometric'
 import { getNotice, listNotices } from './services/noticeApi'
 import { getNotificationSummary, listNotifications, markAllNotificationsRead, markNotificationRead } from './services/notificationApi'
 import { asArray } from './utils/format'
-import { isAdminUser, normalizeAppConfig, normalizeHomeData } from './utils/helpers'
+import { canManageContent, normalizeAppConfig } from './utils/helpers'
 import { isVersionBelow } from './utils/version'
 import { useNotificationPolling } from './hooks/useNotificationPolling'
 import { isNew, lastSeenStorageKey, readLastSeen, writeLastSeen } from './utils/lastSeen'
@@ -121,11 +120,8 @@ async function fetchDashboard() {
     partialError = true
     return fallback
   }
-  const [configData, mobileHome, noticeData, postData, fileData, clubActivityData, appData, notificationData, notificationList] = await Promise.all([
+  const [configData, noticeData, postData, fileData, clubActivityData, appData, notificationData, notificationList] = await Promise.all([
     getAppConfig().catch(onError(DEFAULT_APP_CONFIG)),
-    // Mobile home is a supplementary aggregate and may be absent on some backends,
-    // so its failure is tolerated quietly and does not flag a partial error.
-    getMobileHome().catch(() => null),
     listNotices().catch(onError([])),
     listCommunityPosts().catch(onError([])),
     listFiles().catch(onError([])),
@@ -136,8 +132,6 @@ async function fetchDashboard() {
   ])
 
   const appConfig = normalizeAppConfig(configData)
-  const home = mobileHome ? normalizeHomeData(mobileHome) : null
-
   return {
     appConfig,
     notices: asArray(noticeData),
@@ -146,7 +140,7 @@ async function fetchDashboard() {
     clubActivities: asArray(clubActivityData),
     apps: asArray(appData),
     notifications: asArray(notificationList),
-    unreadCount: Number(home?.unreadCount ?? notificationData?.unreadCount ?? 0),
+    unreadCount: Number(notificationData?.unreadCount ?? 0),
     partialError,
   }
 }
@@ -307,6 +301,9 @@ export default function App() {
   const refreshNotifications = useCallback(async () => {
     try {
       const [summary, list] = await Promise.all([getNotificationSummary(), listNotifications()])
+      // A full dashboard refetch in flight will land fresher data than this
+      // poll tick — skip the patch instead of stomping it (next tick catches up).
+      if (queryClient.isFetching({ queryKey: DASHBOARD_QUERY_KEY }) > 0) return
       patchDashboard((base) => ({
         ...base,
         notifications: asArray(list),
@@ -315,7 +312,7 @@ export default function App() {
     } catch {
       // Transient poll failure — the next tick retries.
     }
-  }, [patchDashboard])
+  }, [patchDashboard, queryClient])
   useNotificationPolling({ enabled: Boolean(user), refresh: refreshNotifications })
 
   // Re-pull the account after profile-side mutations (profile save, email
@@ -524,7 +521,7 @@ export default function App() {
   }, [setAppVersion])
 
   const changeTab = useCallback((tabId) => {
-    const nextTab = tabId === 'operations' && !isAdminUser(user) ? 'home' : tabId
+    const nextTab = tabId === 'operations' && !canManageContent(user) ? 'home' : tabId
     setActiveTab(nextTab)
     if (nextTab !== 'notices') setSelectedNotice(null)
     if (nextTab !== 'community') {

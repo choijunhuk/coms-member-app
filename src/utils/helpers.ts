@@ -90,8 +90,26 @@ export function postImage(post) {
   return null
 }
 
+// Mirrors the website's role ladder: ASSOCIATE < USER < OFFICER < VICE_PRESIDENT < ADMIN.
+const ROLE_RANK = { ASSOCIATE: 0, USER: 1, OFFICER: 2, VICE_PRESIDENT: 3, ADMIN: 4 }
+
+function roleAtLeast(user, tier) {
+  return (ROLE_RANK[user?.role] ?? -1) >= ROLE_RANK[tier]
+}
+
+// 회장 전용 (앱 카탈로그 관리, 명부/운영 기록 — backend /api/admin/** gates).
 export function isAdminUser(user) {
   return user?.role === 'ADMIN'
+}
+
+// 임원 이상: 공지/활동/일정 작성 (backend hasAnyRole ADMIN,OFFICER routes).
+export function canManageContent(user) {
+  return roleAtLeast(user, 'OFFICER')
+}
+
+// 부회장 이상: 커뮤니티 중재 — 글 고정/삭제 (backend VICE_PRESIDENT gates).
+export function canModerateCommunity(user) {
+  return roleAtLeast(user, 'VICE_PRESIDENT')
 }
 
 export function normalizeHomeData(data) {

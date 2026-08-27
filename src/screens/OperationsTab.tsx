@@ -6,7 +6,7 @@ import { createApp, deleteApp, updateApp } from '../services/appCatalogApi'
 import { deleteCommunityPost } from '../services/communityApi'
 import { createNotice, updateNotice } from '../services/noticeApi'
 import { asArray, formatDate, generationFromStudentId, plainText } from '../utils/format'
-import { categoryLabels, isAdminUser, latest, noticeCategoryLabels } from '../utils/helpers'
+import { canManageContent, canModerateCommunity, categoryLabels, isAdminUser, latest, noticeCategoryLabels } from '../utils/helpers'
 import { validateHttpUrl } from '../utils/urlValidation'
 import { Empty, Info, ListItem, Metric, Section } from '../components/ui'
 import type { AppItem, ClubActivity, CommunityPost, CurrentUser, Notice } from '../contract/types'
@@ -245,105 +245,112 @@ export default function OperationsTab({ user, notices, posts, clubActivities = [
     }
   }
 
-  if (!isAdminUser(user)) {
+  if (!canManageContent(user)) {
     return <section className="empty-panel"><ShieldCheck size={24} aria-hidden="true" /><p>운영진 권한이 필요합니다.</p></section>
   }
 
   return (
     <div className="stack">
-      <section className="panel">
-        <div className="section-title">
-          <h2>{activityKind === 'SCHEDULE' ? <CalendarDays size={14} aria-hidden="true" /> : <Sparkles size={14} aria-hidden="true" />} 활동/일정 등록</h2>
-        </div>
-        <form className="form" onSubmit={submitActivity}>
-          <label>
-            등록 유형
-            <select value={activityKind} onChange={(event) => setActivityKind(event.target.value)}>
-              <option value="SCHEDULE">일정</option>
-              <option value="ACTIVITY">활동 기록</option>
-            </select>
-          </label>
-          <label>제목<input value={activityTitle} onChange={(event) => setActivityTitle(event.target.value)} maxLength={120} /></label>
-          <label>날짜<input type="date" value={activityDate} onChange={(event) => setActivityDate(event.target.value)} /></label>
-          <label>
-            분류
-            <select value={activityCategory} onChange={(event) => setActivityCategory(event.target.value)}>
-              {ACTIVITY_CATEGORIES.map((item) => <option key={item} value={item}>{categoryLabel(item)}</option>)}
-            </select>
-          </label>
-          <label>설명<textarea value={activityDescription} onChange={(event) => setActivityDescription(event.target.value)} rows={3} /></label>
-          <label>사진<input key={activityFileKey} type="file" accept="image/*" onChange={(event) => setActivityImage(event.target.files?.[0] || null)} /></label>
-          <button className="button primary" type="submit" disabled={savingActivity || !activityTitle.trim() || !activityDate}>
-            {savingActivity ? <Loader2 className="spin" size={17} aria-hidden="true" /> : <CheckCircle2 size={17} aria-hidden="true" />}등록
-          </button>
-        </form>
-      </section>
+      {canManageContent(user) && (
+        <section className="panel">
+          <div className="section-title">
+            <h2>{activityKind === 'SCHEDULE' ? <CalendarDays size={14} aria-hidden="true" /> : <Sparkles size={14} aria-hidden="true" />} 활동/일정 등록</h2>
+          </div>
+          <form className="form" onSubmit={submitActivity}>
+            <label>
+              등록 유형
+              <select value={activityKind} onChange={(event) => setActivityKind(event.target.value)}>
+                <option value="SCHEDULE">일정</option>
+                <option value="ACTIVITY">활동 기록</option>
+              </select>
+            </label>
+            <label>제목<input value={activityTitle} onChange={(event) => setActivityTitle(event.target.value)} maxLength={120} /></label>
+            <label>날짜<input type="date" value={activityDate} onChange={(event) => setActivityDate(event.target.value)} /></label>
+            <label>
+              분류
+              <select value={activityCategory} onChange={(event) => setActivityCategory(event.target.value)}>
+                {ACTIVITY_CATEGORIES.map((item) => <option key={item} value={item}>{categoryLabel(item)}</option>)}
+              </select>
+            </label>
+            <label>설명<textarea value={activityDescription} onChange={(event) => setActivityDescription(event.target.value)} rows={3} /></label>
+            <label>사진<input key={activityFileKey} type="file" accept="image/*" onChange={(event) => setActivityImage(event.target.files?.[0] || null)} /></label>
+            <button className="button primary" type="submit" disabled={savingActivity || !activityTitle.trim() || !activityDate}>
+              {savingActivity ? <Loader2 className="spin" size={17} aria-hidden="true" /> : <CheckCircle2 size={17} aria-hidden="true" />}등록
+            </button>
+          </form>
+        </section>
+      )}
       <Section title="최근 활동/일정">
         {recentClubActivities.map((item) => <ListItem key={item.id} title={item.title} meta={`${item.kind === 'SCHEDULE' ? '일정' : '활동'} · ${categoryLabel(item.category)} · ${formatDate(item.eventDate)}`} body={item.description} />)}
         {recentClubActivities.length === 0 && <Empty text="최근 등록된 활동/일정이 없습니다." />}
       </Section>
-      <section className="panel">
-        <div className="section-title">
-          <h2><AppWindow size={14} aria-hidden="true" /> COMS Apps 관리</h2>
-          <button type="button" onClick={resetAppForm}><Edit3 size={15} aria-hidden="true" /> 새 앱</button>
-        </div>
-        <form className="form" onSubmit={submitApp}>
-          <label>제목<input value={appTitle} onChange={(event) => setAppTitle(event.target.value)} maxLength={120} /></label>
-          <label>부제목<input value={appEyebrow} onChange={(event) => setAppEyebrow(event.target.value)} maxLength={60} /></label>
-          <label>설명<textarea value={appBody} onChange={(event) => setAppBody(event.target.value)} rows={3} /></label>
-          <label>링크<input value={appHref} onChange={(event) => setAppHref(event.target.value)} maxLength={500} placeholder="https://" /></label>
-          <label>정렬 순서<input type="number" value={appSortOrder} onChange={(event) => setAppSortOrder(event.target.value)} /></label>
-          <button className="button primary" type="submit" disabled={savingApp || !appTitle.trim()}>
-            {savingApp ? <Loader2 className="spin" size={17} aria-hidden="true" /> : <CheckCircle2 size={17} aria-hidden="true" />}{appId ? '수정' : '등록'}
-          </button>
-        </form>
-        <div className="list compact-list">
-          {asArray(apps).map((app) => (
-            <div className="admin-row" key={app.id}>
-              <div>
-                <strong>{app.title}</strong>
-                <span>{[app.eyebrow, app.href].filter(Boolean).join(' · ') || '링크 없음'}</span>
+      {isAdminUser(user) && (
+        <section className="panel">
+          <div className="section-title">
+            <h2><AppWindow size={14} aria-hidden="true" /> COMS Apps 관리</h2>
+            <button type="button" onClick={resetAppForm}><Edit3 size={15} aria-hidden="true" /> 새 앱</button>
+          </div>
+          <form className="form" onSubmit={submitApp}>
+            <label>제목<input value={appTitle} onChange={(event) => setAppTitle(event.target.value)} maxLength={120} /></label>
+            <label>부제목<input value={appEyebrow} onChange={(event) => setAppEyebrow(event.target.value)} maxLength={60} /></label>
+            <label>설명<textarea value={appBody} onChange={(event) => setAppBody(event.target.value)} rows={3} /></label>
+            <label>링크<input value={appHref} onChange={(event) => setAppHref(event.target.value)} maxLength={500} placeholder="https://" /></label>
+            <label>정렬 순서<input type="number" value={appSortOrder} onChange={(event) => setAppSortOrder(event.target.value)} /></label>
+            <button className="button primary" type="submit" disabled={savingApp || !appTitle.trim()}>
+              {savingApp ? <Loader2 className="spin" size={17} aria-hidden="true" /> : <CheckCircle2 size={17} aria-hidden="true" />}{appId ? '수정' : '등록'}
+            </button>
+          </form>
+          <div className="list compact-list">
+            {asArray(apps).map((app) => (
+              <div className="admin-row" key={app.id}>
+                <div>
+                  <strong>{app.title}</strong>
+                  <span>{[app.eyebrow, app.href].filter(Boolean).join(' · ') || '링크 없음'}</span>
+                </div>
+                <div className="admin-row-actions">
+                  <button type="button" className="icon-button" onClick={() => chooseApp(app)} aria-label="앱 수정">
+                    <Edit3 size={17} aria-hidden="true" />
+                  </button>
+                  <button type="button" className="icon-button danger" onClick={() => removeApp(app.id)} disabled={deletingAppId === app.id} aria-label="앱 삭제">
+                    {deletingAppId === app.id ? <Loader2 className="spin" size={17} aria-hidden="true" /> : <Trash2 size={17} aria-hidden="true" />}
+                  </button>
+                </div>
               </div>
-              <div className="admin-row-actions">
-                <button type="button" className="icon-button" onClick={() => chooseApp(app)} aria-label="앱 수정">
-                  <Edit3 size={17} aria-hidden="true" />
-                </button>
-                <button type="button" className="icon-button danger" onClick={() => removeApp(app.id)} disabled={deletingAppId === app.id} aria-label="앱 삭제">
-                  {deletingAppId === app.id ? <Loader2 className="spin" size={17} aria-hidden="true" /> : <Trash2 size={17} aria-hidden="true" />}
-                </button>
-              </div>
-            </div>
-          ))}
-          {asArray(apps).length === 0 && <Empty text="등록된 앱이 없습니다." />}
-        </div>
-      </section>
-      <section className="panel">
-        <div className="section-title">
-          <h2>공지 작성/수정</h2>
-          <button type="button" onClick={() => chooseNotice('')}><Edit3 size={15} aria-hidden="true" /> 새 공지</button>
-        </div>
-        <form className="form" onSubmit={submitNotice}>
-          <label>
-            수정할 공지
-            <select value={noticeId} onChange={(event) => chooseNotice(event.target.value)}>
-              <option value="">새 공지 작성</option>
-              {recentNotices.map((notice) => <option key={notice.id} value={notice.id}>{notice.title}</option>)}
-            </select>
-          </label>
-          <label>제목<input value={noticeTitle} onChange={(event) => setNoticeTitle(event.target.value)} maxLength={255} /></label>
-          <label>
-            분류
-            <select value={noticeCategory} onChange={(event) => setNoticeCategory(event.target.value)}>
-              {Object.entries(noticeCategoryLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
-            </select>
-          </label>
-          <label>내용<textarea value={noticeContent} onChange={(event) => setNoticeContent(event.target.value)} rows={5} /></label>
-          <label className="check-row"><input type="checkbox" checked={noticePinned} onChange={(event) => setNoticePinned(event.target.checked)} />중요 공지로 표시</label>
-          <button className="button primary" type="submit" disabled={savingNotice || !noticeTitle.trim() || !noticeContent.trim()}>
-            {savingNotice ? <Loader2 className="spin" size={17} aria-hidden="true" /> : <CheckCircle2 size={17} aria-hidden="true" />}저장
-          </button>
-        </form>
-      </section>
+            ))}
+            {asArray(apps).length === 0 && <Empty text="등록된 앱이 없습니다." />}
+          </div>
+        </section>
+      )}
+      {canManageContent(user) && (
+        <section className="panel">
+          <div className="section-title">
+            <h2>공지 작성/수정</h2>
+            <button type="button" onClick={() => chooseNotice('')}><Edit3 size={15} aria-hidden="true" /> 새 공지</button>
+          </div>
+          <form className="form" onSubmit={submitNotice}>
+            <label>
+              수정할 공지
+              <select value={noticeId} onChange={(event) => chooseNotice(event.target.value)}>
+                <option value="">새 공지 작성</option>
+                {recentNotices.map((notice) => <option key={notice.id} value={notice.id}>{notice.title}</option>)}
+              </select>
+            </label>
+            <label>제목<input value={noticeTitle} onChange={(event) => setNoticeTitle(event.target.value)} maxLength={255} /></label>
+            <label>
+              분류
+              <select value={noticeCategory} onChange={(event) => setNoticeCategory(event.target.value)}>
+                {Object.entries(noticeCategoryLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+              </select>
+            </label>
+            <label>내용<textarea value={noticeContent} onChange={(event) => setNoticeContent(event.target.value)} rows={5} /></label>
+            <label className="check-row"><input type="checkbox" checked={noticePinned} onChange={(event) => setNoticePinned(event.target.checked)} />중요 공지로 표시</label>
+            <button className="button primary" type="submit" disabled={savingNotice || !noticeTitle.trim() || !noticeContent.trim()}>
+              {savingNotice ? <Loader2 className="spin" size={17} aria-hidden="true" /> : <CheckCircle2 size={17} aria-hidden="true" />}저장
+            </button>
+          </form>
+        </section>
+      )}
+      {canModerateCommunity(user) && (
       <Section title="문제 글 빠른 확인">
         {recentPosts.map((post) => (
           <div className="admin-row" key={post.id}>
@@ -358,6 +365,7 @@ export default function OperationsTab({ user, notices, posts, clubActivities = [
         ))}
         {recentPosts.length === 0 && <Empty text="확인할 커뮤니티 글이 없습니다." />}
       </Section>
+      )}
       <section className="panel">
         <div className="section-title">
           <h2>회원 승인 상태</h2>
@@ -372,10 +380,12 @@ export default function OperationsTab({ user, notices, posts, clubActivities = [
           {pendingRoster.length === 0 && <Empty text="명부 기준 대기자가 없습니다." />}
         </div>
       </section>
+      {isAdminUser(user) && (
       <Section title="최근 운영 기록">
         {auditLogs.map((log) => <ListItem key={log.id} title={log.action || '운영 기록'} meta={`${log.actorName || log.actorStudentId || '운영진'} · ${formatDate(log.createdAt)}`} body={log.targetType ? `${log.targetType}${log.targetId ? ` #${log.targetId}` : ''}` : ''} />)}
         {auditLogs.length === 0 && <Empty text="최근 운영 기록이 없습니다." />}
       </Section>
+      )}
       {message && <p className="form-success">{message}</p>}
       {error && <p className="form-error">{error}</p>}
     </div>

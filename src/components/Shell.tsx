@@ -2,7 +2,7 @@ import type { CSSProperties, ReactNode } from 'react'
 import { Bell, Grid2X2, RefreshCcw, Settings, UserRound } from 'lucide-react'
 import { APP_SHELL_TABS } from '../config/appScope'
 import { DEFAULT_APP_LINKS, normalizeExternalUrl } from '../config/appLinks'
-import { isAdminUser } from '../utils/helpers'
+import { canManageContent } from '../utils/helpers'
 import { usePullToRefresh } from '../hooks/usePullToRefresh'
 import { hapticLight } from '../services/haptics'
 import type { AppLinks, CurrentUser } from '../contract/types'
@@ -21,7 +21,7 @@ type ShellProps = {
 }
 
 export function Shell({ user, activeTab, setActiveTab, unreadCount, onRefresh, refreshing, children, tabBadges = {}, onOpenSettings, appLinks }: ShellProps) {
-  const tabs = APP_SHELL_TABS.filter((tab) => !tab.adminOnly || isAdminUser(user))
+  const tabs = APP_SHELL_TABS.filter((tab) => !tab.adminOnly || canManageContent(user))
   const active = APP_SHELL_TABS.find((tab) => tab.id === activeTab)
   const hubUrl = normalizeExternalUrl(appLinks?.hub, DEFAULT_APP_LINKS.hub)
 
