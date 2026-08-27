@@ -10,6 +10,15 @@ import { Empty, Info, ListItem, Section } from '../components/ui'
 
 // Interests are stored as one comma-joined string (≤500 chars) on the profile;
 // the web edits them as 보안/웹/앱 chips plus free text, so mirror that split.
+// Mirrors the website's role ladder labels.
+const ROLE_LABELS = {
+  ADMIN: '회장',
+  VICE_PRESIDENT: '부회장',
+  OFFICER: '임원',
+  USER: '회원',
+  ASSOCIATE: '준회원',
+}
+
 const INTEREST_CHIPS = ['보안', '웹', '앱']
 
 function splitInterests(raw) {
@@ -188,7 +197,7 @@ export default function ProfileTab({
       <section className="panel">
         <Info label="이메일 인증" value={emailVerified ? '완료' : '미완료'} />
         <Info label="학과" value={user?.department || '미등록'} />
-        <Info label="권한" value={user?.role === 'ADMIN' ? '관리자' : '회원'} />
+        <Info label="권한" value={ROLE_LABELS[user?.role] || '회원'} />
         {!emailVerified && (
           <div className="email-verify">
             {!verifySent ? (
