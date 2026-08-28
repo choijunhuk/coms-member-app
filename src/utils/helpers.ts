@@ -28,7 +28,8 @@ export function isGraduateStudentId(studentId) {
 }
 
 export function canAccessAnonymousBoard(user) {
-  return user?.role === 'ADMIN' || !isGraduateStudentId(user?.studentId)
+  // 부회장 이상 = community moderator (backend CommunityAccess.isModerator 동일).
+  return canModerateCommunity(user) || !isGraduateStudentId(user?.studentId)
 }
 
 export function categoryOptionsForUser(user) {
