@@ -2,10 +2,8 @@ import assert from 'node:assert/strict'
 import {
   APP_CONFIG_PATH,
   DEFAULT_APP_CONFIG,
-  MOBILE_HOME_PATH,
   PUSH_TOKEN_PATH,
   getAppConfig,
-  getMobileHome,
   isRecoverableMobileApiError,
   registerPushToken,
 } from '../src/services/mobileApi.ts'
@@ -19,18 +17,15 @@ globalThis.fetch = async (url, options = {}) => {
   })
 }
 
-await getMobileHome()
 await getAppConfig()
 await registerPushToken({ token: 'push-token', platform: 'ios', deviceId: 'device-1' })
 
-assert.equal(MOBILE_HOME_PATH, '/api/mobile/v1/home')
 assert.equal(APP_CONFIG_PATH, '/api/mobile/v1/app-config')
 assert.equal(PUSH_TOKEN_PATH, '/api/mobile/v1/push-tokens')
-assert.equal(calls[0].url, '/api/mobile/v1/home')
-assert.equal(calls[1].url, '/api/mobile/v1/app-config')
-assert.equal(calls[2].url, '/api/mobile/v1/push-tokens')
-assert.equal(calls[2].options.method, 'POST')
-assert.deepEqual(JSON.parse(calls[2].options.body), {
+assert.equal(calls[0].url, '/api/mobile/v1/app-config')
+assert.equal(calls[1].url, '/api/mobile/v1/push-tokens')
+assert.equal(calls[1].options.method, 'POST')
+assert.deepEqual(JSON.parse(calls[1].options.body), {
   token: 'push-token',
   platform: 'ios',
   deviceId: 'device-1',
