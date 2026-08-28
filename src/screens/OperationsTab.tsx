@@ -366,20 +366,22 @@ export default function OperationsTab({ user, notices, posts, clubActivities = [
         {recentPosts.length === 0 && <Empty text="확인할 커뮤니티 글이 없습니다." />}
       </Section>
       )}
-      <section className="panel">
-        <div className="section-title">
-          <h2>회원 승인 상태</h2>
-          <button type="button" onClick={loadOperations} disabled={loadingOps}><RefreshCcw size={15} className={loadingOps ? 'spin' : ''} aria-hidden="true" /> 새로고침</button>
-        </div>
-        <div className="metric-grid">
-          <Metric icon={Users} label="가입 회원" value={members.length} />
-          <Metric icon={ShieldCheck} label="명부 대기" value={pendingRoster.length} />
-        </div>
-        <div className="list compact-list">
-          {pendingRoster.slice(0, 5).map((item) => <Info key={item.id || item.studentId || item.name} label={`${item.name || '이름 없음'} · ${item.generation || generationFromStudentId(item.studentId)}`} value={item.studentId || '졸업생'} />)}
-          {pendingRoster.length === 0 && <Empty text="명부 기준 대기자가 없습니다." />}
-        </div>
-      </section>
+      {isAdminUser(user) && (
+        <section className="panel">
+          <div className="section-title">
+            <h2>회원 승인 상태</h2>
+            <button type="button" onClick={loadOperations} disabled={loadingOps}><RefreshCcw size={15} className={loadingOps ? 'spin' : ''} aria-hidden="true" /> 새로고침</button>
+          </div>
+          <div className="metric-grid">
+            <Metric icon={Users} label="가입 회원" value={members.length} />
+            <Metric icon={ShieldCheck} label="명부 대기" value={pendingRoster.length} />
+          </div>
+          <div className="list compact-list">
+            {pendingRoster.slice(0, 5).map((item) => <Info key={item.id || item.studentId || item.name} label={`${item.name || '이름 없음'} · ${item.generation || generationFromStudentId(item.studentId)}`} value={item.studentId || '졸업생'} />)}
+            {pendingRoster.length === 0 && <Empty text="명부 기준 대기자가 없습니다." />}
+          </div>
+        </section>
+      )}
       {isAdminUser(user) && (
       <Section title="최근 운영 기록">
         {auditLogs.map((log) => <ListItem key={log.id} title={log.action || '운영 기록'} meta={`${log.actorName || log.actorStudentId || '운영진'} · ${formatDate(log.createdAt)}`} body={log.targetType ? `${log.targetType}${log.targetId ? ` #${log.targetId}` : ''}` : ''} />)}

@@ -113,15 +113,6 @@ export function canModerateCommunity(user) {
   return roleAtLeast(user, 'VICE_PRESIDENT')
 }
 
-export function normalizeHomeData(data) {
-  return {
-    notices: asArray(data?.latestNotices || data?.notices),
-    posts: asArray(data?.recentPosts || data?.posts),
-    files: asArray(data?.quickFiles || data?.files),
-    notifications: asArray(data?.notifications),
-    unreadCount: Number(data?.notificationSummary?.unreadCount ?? data?.unreadCount ?? 0),
-  }
-}
 
 export function normalizeAppConfig(data) {
   const merged = { ...DEFAULT_APP_CONFIG, ...(data || {}) }

@@ -19,10 +19,6 @@ export function isRecoverableMobileApiError(error) {
   return error?.status === 404 || error?.status === 501
 }
 
-export async function getMobileHome() {
-  const data = await request(MOBILE_HOME_PATH)
-  return parseApiResponse(MobileHomeSchema, data, '모바일 홈')
-}
 
 export async function getAppConfig() {
   const data = await request(APP_CONFIG_PATH)

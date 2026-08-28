@@ -33,7 +33,10 @@ export async function listCommunityPosts() {
     const pages = [start, start + 1, start + 2, start + 3].filter((page) => page < 50)
     const batches = await Promise.all(pages.map(fetchPage))
     batches.forEach(collect)
-    if (batches.some((batch) => batch.length < size)) break
+    // Only a short LAST page proves we've reached the end — an earlier page
+    // in the window can come back short from a concurrent deletion shift
+    // while later pages are still full (their posts would silently vanish).
+    if (batches[batches.length - 1].length < size) break
   }
   return all
 }
