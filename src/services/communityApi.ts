@@ -193,6 +193,15 @@ export function fetchLinkPreview(url) {
   return request(`/api/community/posts/tools/link-preview?url=${encodeURIComponent(url)}`)
 }
 
+// 회장 전용 — 회원 재지정(studentId) 또는 표시 이름만 변경(name), 둘 중 하나.
+// 서버는 두 필드를 배타적으로 읽으므로 web communityApi와 같은 형태로 보냅니다.
+export function updateCommunityPostAuthor(id, { studentId, name }) {
+  return request(`/api/community/posts/${id}/author`, {
+    method: 'PATCH',
+    body: JSON.stringify(studentId ? { studentId } : { name }),
+  })
+}
+
 // Admin only — pins/unpins a post to the top of the community list.
 export function pinCommunityPost(id, pinned) {
   return request(`/api/community/posts/${id}/pin`, {

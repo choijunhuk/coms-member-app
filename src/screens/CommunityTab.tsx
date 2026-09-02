@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useMemo, useState, type Dispatch, type SetStateAction } from 'react'
 import { List, useDynamicRowHeight } from 'react-window'
 import type { DynamicRowHeight, RowComponentProps } from 'react-window'
-import { AlertTriangle, Bookmark, BookmarkCheck, CornerDownRight, Eye, Pin, PinOff, Plus, Search, Send, Share2, ThumbsDown, ThumbsUp, Trash2, Pencil, Check, UserRound, X } from 'lucide-react'
+import { AlertTriangle, Bookmark, BookmarkCheck, CornerDownRight, Eye, Pin, PinOff, Plus, Search, Send, Share2, ThumbsDown, ThumbsUp, Trash2, Pencil, Check, UserPen, UserRound, X } from 'lucide-react'
 import { confirmDialog } from '../components/ConfirmDialog'
 import { asArray, formatDate } from '../utils/format'
-import { canModerateCommunity, categoryLabels, communitySortOptions, postImage, sortCommunityPosts } from '../utils/helpers'
+import { canModerateCommunity, categoryLabels, communitySortOptions, isAdminUser, postImage, sortCommunityPosts } from '../utils/helpers'
 import { postPreviewText, isTextOnlyPost, postBodyText } from '../utils/postBlocks'
 import { buildComposerContent, createEmptyPollDraft } from '../utils/pollDraft'
 import { sharePost } from '../services/nativeShare'
@@ -109,6 +109,7 @@ type CommunityTabProps = {
   pollVote: (pollId: unknown, optionIndex: number) => void
   closePoll?: (pollId: unknown) => void | Promise<void>
   pinPost?: (pinned: boolean) => void | Promise<void>
+  updatePostAuthor?: (payload: { studentId?: string; name?: string }) => void | Promise<void>
   toggleBookmark?: (id: unknown) => void | Promise<void>
   editComment?: (id: unknown, content: string) => void | Promise<void>
   removeComment?: (id: unknown) => void | Promise<void>
@@ -117,7 +118,7 @@ type CommunityTabProps = {
   retryPendingPosts?: () => void | Promise<void>
 }
 
-export default function CommunityTab({ posts, selected, comments, loading, openPost, closePost, createPost, editPost, createCommentForPost, vote, pollVote, closePoll, pinPost, toggleBookmark, editComment, removeComment, currentUser, pendingPosts = [], retryPendingPosts }: CommunityTabProps) {
+export default function CommunityTab({ posts, selected, comments, loading, openPost, closePost, createPost, editPost, createCommentForPost, vote, pollVote, closePoll, pinPost, updatePostAuthor, toggleBookmark, editComment, removeComment, currentUser, pendingPosts = [], retryPendingPosts }: CommunityTabProps) {
   const [writing, setWriting] = useState(false)
   const [comment, setComment] = useState('')
   const [query, setQuery] = useState('')
@@ -139,6 +140,14 @@ export default function CommunityTab({ posts, selected, comments, loading, openP
   const [editTitle, setEditTitle] = useState('')
   const [editContent, setEditContent] = useState('')
   const [savingEdit, setSavingEdit] = useState(false)
+  // 회장 전용 작성자 변경 — 학번을 넣으면 계정 재지정, 비우고 이름만 넣으면 표시
+  // 이름만 바뀝니다 (백엔드가 두 필드를 배타적으로 읽음). 그래서 한 줄 prompt가
+  // 아니라 두 칸짜리 폼입니다.
+  const [authorEditing, setAuthorEditing] = useState(false)
+  const [authorStudentId, setAuthorStudentId] = useState('')
+  const [authorName, setAuthorName] = useState('')
+  const [savingAuthor, setSavingAuthor] = useState(false)
+  const [authorError, setAuthorError] = useState('')
   const isAnonymousDetail = String(selected?.category) === 'ANONYMOUS'
   const ownsSelected = Boolean(selected && currentUser && (
     (selected.authorStudentId && currentUser.studentId && String(selected.authorStudentId) === String(currentUser.studentId)) ||
@@ -167,6 +176,34 @@ export default function CommunityTab({ posts, selected, comments, loading, openP
       setEditingPost(false)
     } finally {
       setSavingEdit(false)
+    }
+  }
+
+  function startAuthorEdit() {
+    if (!selected) return
+    setAuthorStudentId('')
+    setAuthorName(String(selected.authorDisplayName || selected.authorName || ''))
+    setAuthorError('')
+    setAuthorEditing(true)
+  }
+
+  async function submitAuthorEdit(event) {
+    event.preventDefault()
+    const studentId = authorStudentId.trim()
+    const name = authorName.trim()
+    if (!studentId && !name) {
+      setAuthorError('학번 또는 표시 이름 중 하나는 입력해야 합니다.')
+      return
+    }
+    setSavingAuthor(true)
+    setAuthorError('')
+    try {
+      await updatePostAuthor?.(studentId ? { studentId } : { name })
+      setAuthorEditing(false)
+    } catch (error) {
+      setAuthorError(error?.message || '작성자 변경에 실패했습니다.')
+    } finally {
+      setSavingAuthor(false)
     }
   }
 
@@ -317,7 +354,23 @@ export default function CommunityTab({ posts, selected, comments, loading, openP
                   {selected.pinned ? '고정 해제' : '상단 고정'}
                 </button>
               )}
+              {isAdminUser(currentUser) && updatePostAuthor && (
+                <button className="button secondary" onClick={startAuthorEdit}>
+                  <UserPen size={16} />작성자 변경
+                </button>
+              )}
             </div>
+            )}
+            {authorEditing && (
+              <form className="form panel" onSubmit={submitAuthorEdit}>
+                <label>학번 (입력 시 해당 회원으로 재지정)<input value={authorStudentId} onChange={(event) => setAuthorStudentId(event.target.value)} maxLength={20} placeholder="예: 2023123456" /></label>
+                <label>표시 이름 (학번을 비웠을 때만 사용)<input value={authorName} onChange={(event) => setAuthorName(event.target.value)} maxLength={60} /></label>
+                {authorError && <p className="form-error">{authorError}</p>}
+                <div className="button-row">
+                  <button type="button" className="button secondary" onClick={() => setAuthorEditing(false)}>취소</button>
+                  <button type="submit" className="button primary" disabled={savingAuthor}>{savingAuthor ? '변경 중...' : '작성자 변경'}</button>
+                </div>
+              </form>
             )}
             {reporting && <ReportDialog onClose={() => setReporting(false)} onSubmit={submitReport} />}
             <Section title={`댓글 ${asArray(comments).length}`}>

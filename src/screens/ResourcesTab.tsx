@@ -1,14 +1,15 @@
 import { useMemo, useState } from 'react'
-import { Download, Eye, Paperclip, Plus, Search, ThumbsUp, Upload, X } from 'lucide-react'
-import { createArchivePosts, downloadUrl, voteFile } from '../services/archiveApi'
+import { Download, Eye, Paperclip, Plus, Search, ThumbsUp, Trash2, Upload, UserPen, X } from 'lucide-react'
+import { createArchivePosts, deleteFile, downloadUrl, updateArchiveAuthor, voteFile } from '../services/archiveApi'
+import { confirmDialog, promptDialog } from '../components/ConfirmDialog'
 import { ArchiveCategory } from '../contract/enums'
 import { asArray, formatDate } from '../utils/format'
-import { fileCategoryLabels, latest } from '../utils/helpers'
+import { canModerateCommunity, fileCategoryLabels, latest } from '../utils/helpers'
 import { looksLikeHtml, renderMarkdownToHtml, renderSafeHtml } from '../utils/markdown'
 import { postBodyText, postPreviewText } from '../utils/postBlocks'
 import { readRecentResourceIds, rememberResource } from '../utils/resourceHistory'
 import { Detail, Empty, ListItem, Section } from '../components/ui'
-import type { ArchiveFile } from '../contract/types'
+import type { ArchiveFile, CurrentUser } from '../contract/types'
 
 // Descriptions written through the archive-post flow arrive as block JSON —
 // rendered raw they read as `[{"type":"text",...`. Normalize both list preview
@@ -92,11 +93,23 @@ function UploadForm({ onDone }: { onDone: (message: string) => void }) {
   )
 }
 
-export default function ResourcesTab({ files, onUploaded }: { files: ArchiveFile[]; onUploaded?: () => void }) {
+type ResourcesTabProps = {
+  files: ArchiveFile[]
+  currentUser?: CurrentUser | null
+  // Called after any mutation (upload, author change, delete) so the parent can
+  // refetch — the list is owned by the dashboard query, not by this screen.
+  onChanged?: () => void
+}
+
+export default function ResourcesTab({ files, currentUser, onChanged }: ResourcesTabProps) {
   const [query, setQuery] = useState('')
   const [category, setCategory] = useState('ALL')
   const [uploading, setUploading] = useState(false)
   const [uploadMessage, setUploadMessage] = useState('')
+  // 자료실 관리는 부회장 이상 (web roleAccess.canManageArchive와 같은 등급).
+  const canManageArchive = canModerateCommunity(currentUser)
+  const [archiveBusy, setArchiveBusy] = useState('')
+  const [archiveError, setArchiveError] = useState('')
   const [voteState, setVoteState] = useState<Record<string, ArchiveFile>>({})
   const [recentIds, setRecentIds] = useState<string[]>(() => readRecentResourceIds())
   const categories = useMemo(() => ['ALL', ...new Set(asArray(files).map((file) => file.category || 'GENERAL'))], [files])
@@ -122,6 +135,38 @@ export default function ResourcesTab({ files, onUploaded }: { files: ArchiveFile
     window.open(downloadUrl(file.id), '_blank', 'noopener,noreferrer')
   }
   const statsFor = (file) => voteState[file.id] || file
+  async function changeArchiveAuthor(file) {
+    const name = await promptDialog({
+      message: '자료실에 표시할 작성자 이름을 입력하세요.',
+      prompt: { defaultValue: String(file.uploaderName || ''), placeholder: '작성자 이름', maxLength: 60 },
+      confirmText: '변경',
+    })
+    if (!name) return
+    setArchiveBusy('author')
+    setArchiveError('')
+    try {
+      await updateArchiveAuthor(file.id, name)
+      onChanged?.()
+    } catch (error) {
+      setArchiveError(error?.message || '작성자 변경에 실패했습니다.')
+    } finally {
+      setArchiveBusy('')
+    }
+  }
+  async function removeArchiveFile(file) {
+    if (!(await confirmDialog({ message: '이 자료를 삭제할까요? 되돌릴 수 없습니다.', tone: 'danger', confirmText: '삭제' }))) return
+    setArchiveBusy('delete')
+    setArchiveError('')
+    try {
+      await deleteFile(file.id)
+      setSelectedId(null)
+      onChanged?.()
+    } catch (error) {
+      setArchiveError(error?.message || '자료 삭제에 실패했습니다.')
+    } finally {
+      setArchiveBusy('')
+    }
+  }
   const toggleVote = async (file) => {
     const current = statsFor(file)
     const nextValue = current.myVote ? 0 : 1
@@ -150,7 +195,18 @@ export default function ResourcesTab({ files, onUploaded }: { files: ArchiveFile
             <button type="button" className="button primary compact" onClick={() => downloadFile(selected)}>
               <Download size={15} aria-hidden="true" /> {selected.originalName || '파일 다운로드'}
             </button>
+            {canManageArchive && (
+              <>
+                <button type="button" className="button secondary compact" onClick={() => changeArchiveAuthor(selected)} disabled={Boolean(archiveBusy)}>
+                  <UserPen size={15} aria-hidden="true" /> 작성자 변경
+                </button>
+                <button type="button" className="button danger compact" onClick={() => removeArchiveFile(selected)} disabled={Boolean(archiveBusy)}>
+                  <Trash2 size={15} aria-hidden="true" /> 삭제
+                </button>
+              </>
+            )}
           </div>
+          {archiveError && <p className="form-error">{archiveError}</p>}
           <div className="stats">
             <span><Eye size={14} />{stats.viewCount || 0}</span>
             <span
@@ -173,7 +229,7 @@ export default function ResourcesTab({ files, onUploaded }: { files: ArchiveFile
         <UploadForm onDone={(message) => {
           setUploading(false)
           setUploadMessage(message)
-          onUploaded?.()
+          onChanged?.()
         }} />
       )}
       {uploadMessage && <div className="offline-banner" role="status">{uploadMessage}<button type="button" className="link-button" onClick={() => setUploadMessage('')}>닫기</button></div>}

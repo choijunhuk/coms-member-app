@@ -1,11 +1,13 @@
 import { useMemo, useState } from 'react'
-import { Eye, Search, ThumbsUp } from 'lucide-react'
+import { Eye, Pin, PinOff, Search, ThumbsUp, Trash2, UserPen } from 'lucide-react'
+import { confirmDialog, promptDialog } from '../components/ConfirmDialog'
 import { formatDate, plainText } from '../utils/format'
+import { canManageContent, isAdminUser } from '../utils/helpers'
 import { contentPreview } from '../utils/postBlocks'
 import { useInfiniteList } from '../hooks/useInfiniteList'
 import { Detail, Empty, ListItem, LoadingScreen, Section } from '../components/ui'
 import PostContent from './community/PostContent'
-import type { Notice } from '../contract/types'
+import type { CurrentUser, Notice } from '../contract/types'
 
 const NOTICE_CATEGORY_LABELS: Record<string, string> = {
   GENERAL: '전체',
@@ -37,13 +39,60 @@ type NoticesTabProps = {
   openNotice: (id: unknown) => void
   closeNotice: () => void
   voteNotice?: (value: number) => void | Promise<void>
+  currentUser?: CurrentUser | null
+  pinNotice?: (pinned: boolean) => void | Promise<void>
+  deleteNotice?: () => void | Promise<void>
+  updateNoticeAuthor?: (name: string) => void | Promise<void>
 }
 
-export default function NoticesTab({ notices, selected, loading, openNotice, closeNotice, voteNotice }: NoticesTabProps) {
+export default function NoticesTab({ notices, selected, loading, openNotice, closeNotice, voteNotice, currentUser, pinNotice, deleteNotice, updateNoticeAuthor }: NoticesTabProps) {
   const [query, setQuery] = useState('')
   const [category, setCategory] = useState('ALL')
   const [voting, setVoting] = useState(false)
   const [voteError, setVoteError] = useState('')
+  // One busy flag for the officer actions: they all mutate the same notice, so
+  // they must not run concurrently (a pin racing a delete leaves a dead detail).
+  const [officerBusy, setOfficerBusy] = useState('')
+  const [officerError, setOfficerError] = useState('')
+
+  // 임원 이상: 고정/삭제. 회장: 작성자 변경 (web Notices.tsx와 같은 게이트).
+  const canManageNotice = canManageContent(currentUser)
+  const canChangeAuthor = isAdminUser(currentUser)
+
+  async function runOfficerAction(kind, action) {
+    if (officerBusy) return
+    setOfficerError('')
+    setOfficerBusy(kind)
+    try {
+      await action()
+    } catch (error) {
+      setOfficerError(error?.message || '요청을 처리하지 못했습니다. 잠시 후 다시 시도해주세요.')
+    } finally {
+      setOfficerBusy('')
+    }
+  }
+
+  async function togglePin() {
+    if (!pinNotice || !selected) return
+    await runOfficerAction('pin', () => pinNotice(!selected.pinned))
+  }
+
+  async function removeNotice() {
+    if (!deleteNotice) return
+    if (!(await confirmDialog({ message: '이 공지를 삭제할까요? 되돌릴 수 없습니다.', tone: 'danger', confirmText: '삭제' }))) return
+    await runOfficerAction('delete', () => deleteNotice())
+  }
+
+  async function changeAuthor() {
+    if (!updateNoticeAuthor || !selected) return
+    const name = await promptDialog({
+      message: '공지에 표시할 작성자 이름을 입력하세요.',
+      prompt: { defaultValue: String(selected.author || ''), placeholder: '작성자 이름', maxLength: 100 },
+      confirmText: '변경',
+    })
+    if (!name) return
+    await runOfficerAction('author', () => updateNoticeAuthor(name))
+  }
 
   async function submitVote() {
     if (!voteNotice || voting) return
@@ -93,6 +142,27 @@ export default function NoticesTab({ notices, selected, loading, openNotice, clo
           </div>
         )}
         {voteError && <p className="form-error">{voteError}</p>}
+        {(canManageNotice || canChangeAuthor) && (
+          <div className="button-row">
+            {canManageNotice && pinNotice && (
+              <button type="button" className="button secondary" onClick={togglePin} disabled={Boolean(officerBusy)}>
+                {selected.pinned ? <PinOff size={16} aria-hidden="true" /> : <Pin size={16} aria-hidden="true" />}
+                {selected.pinned ? '고정 해제' : '상단 고정'}
+              </button>
+            )}
+            {canChangeAuthor && updateNoticeAuthor && (
+              <button type="button" className="button secondary" onClick={changeAuthor} disabled={Boolean(officerBusy)}>
+                <UserPen size={16} aria-hidden="true" /> 작성자 변경
+              </button>
+            )}
+            {canManageNotice && deleteNotice && (
+              <button type="button" className="button danger" onClick={removeNotice} disabled={Boolean(officerBusy)}>
+                <Trash2 size={16} aria-hidden="true" /> 삭제
+              </button>
+            )}
+          </div>
+        )}
+        {officerError && <p className="form-error">{officerError}</p>}
       </Detail>
     )
   }
