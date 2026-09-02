@@ -17,6 +17,23 @@ export function logoutUser() {
   return requestNoContent('/api/auth/logout', { method: 'POST' })
 }
 
+// 비밀번호 찾기, two steps: request mails a 6-digit code, confirm consumes it.
+// The request response is deliberately the same whether or not the address has
+// an account, so this must never branch on it to reveal membership.
+export function requestPasswordReset(payload) {
+  return request('/api/auth/password-reset/request', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  })
+}
+
+export function confirmPasswordReset(payload) {
+  return request('/api/auth/password-reset/confirm', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  })
+}
+
 export function changePassword(currentPassword, newPassword) {
   return requestNoContent('/api/auth/password', {
     method: 'PATCH',

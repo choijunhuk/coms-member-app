@@ -2,7 +2,7 @@ import { request } from './apiClient'
 import { DEFAULT_APP_LINKS, normalizeAppLinks } from '../config/appLinks'
 import { ActivityCategory } from '../contract/enums'
 import { enumLabels } from '../contract/labels'
-import { ClubActivityListSchema, parseApiResponse } from './responseSchemas'
+import { ClubActivityListSchema, ScheduleOccurrenceListSchema, parseApiResponse } from './responseSchemas'
 
 export const CLUB_ACTIVITIES_PATH = '/api/club-activities'
 
@@ -130,4 +130,45 @@ export function schedulesForMonth(records, year, month) {
       return date && date.getFullYear() === year && date.getMonth() === month
     })
     .sort((a, b) => Number(parseActivityDate(a.eventDate)) - Number(parseActivityDate(b.eventDate)))
+}
+
+// ─── Recurring 정기 일정 ──────────────────────────────────────────────────────
+// The server expands a recurrence rule into one entry per occurrence for the
+// month asked for, so the client never has to understand the rule itself.
+// `month` is 1-12, matching the endpoint (NOT JS's 0-11).
+export async function listScheduleOccurrences(year, month) {
+  const data = await request(`${CLUB_ACTIVITIES_PATH}/schedule?year=${Number(year)}&month=${Number(month)}`)
+  return parseApiResponse(ScheduleOccurrenceListSchema, data, '정기 일정')
+}
+
+function timeRangeLabel(startTime, endTime) {
+  const start = String(startTime || '').slice(0, 5)
+  const end = String(endTime || '').slice(0, 5)
+  if (start && end) return `${start}~${end}`
+  return start
+}
+
+// Occurrences arrive in a different shape from one-off SCHEDULE activities, so
+// normalise both into one date-sorted list. Without this the month view showed
+// only one-offs and a member reading the calendar never saw the weekly 정기
+// 모임 at all. Canceled occurrences are dropped — they are not happening.
+export function mergeMonthSchedule(schedules, occurrences) {
+  const oneOff = (schedules || []).map((item) => ({ ...item, recurring: false }))
+  const recurring = (occurrences || [])
+    .filter((occurrence) => occurrence?.date && !occurrence.canceled)
+    .map((occurrence) => ({
+      // Namespaced so a recurring id can never collide with an activity id.
+      id: `recurring-${occurrence.recurringScheduleId ?? 'x'}-${occurrence.date}`,
+      title: occurrence.title || '정기 일정',
+      eventDate: occurrence.date,
+      description: occurrence.location || '',
+      timeLabel: timeRangeLabel(occurrence.startTime, occurrence.endTime),
+      recurring: true,
+    }))
+
+  return [...oneOff, ...recurring].sort((a, b) => {
+    const byDate = String(a.eventDate || '').localeCompare(String(b.eventDate || ''))
+    if (byDate !== 0) return byDate
+    return String(a.timeLabel || '').localeCompare(String(b.timeLabel || ''))
+  })
 }

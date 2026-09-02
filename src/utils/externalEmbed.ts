@@ -40,18 +40,24 @@ export function externalBlockFromUrl(value, extra = {}) {
   }
   if (parsed.protocol !== 'https:' && parsed.protocol !== 'http:') return null
 
+  // `extra` is spread FIRST so the validated fields below always win. Spread
+  // last, a link preview or a YouTube search result could overwrite `url` and
+  // `embedUrl` with whatever it carried — including a javascript: or data: URL
+  // that never went through the protocol check above — and the composer would
+  // embed it. Presentational metadata (title, thumbnail, description) still
+  // overrides the placeholder defaults because those are set before the spread.
   const videoId = youtubeVideoId(raw)
   if (videoId) {
     return {
       type: 'externalEmbed',
       provider: 'youtube',
       kind: 'youtube',
-      url: `https://www.youtube.com/watch?v=${videoId}`,
-      embedUrl: `https://www.youtube.com/embed/${videoId}`,
       title: '',
       width: 75,
       align: 'center',
       ...extra,
+      url: `https://www.youtube.com/watch?v=${videoId}`,
+      embedUrl: `https://www.youtube.com/embed/${videoId}`,
     }
   }
 
@@ -59,10 +65,10 @@ export function externalBlockFromUrl(value, extra = {}) {
     type: 'externalEmbed',
     provider: 'external',
     kind: 'link',
-    url: raw,
     title: raw,
     width: 75,
     align: 'center',
     ...extra,
+    url: raw,
   }
 }

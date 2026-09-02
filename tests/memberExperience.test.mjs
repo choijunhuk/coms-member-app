@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict'
 import { networkBannerMessage } from '../src/utils/networkStatus.ts'
+import { generationLabel } from '../src/utils/format.ts'
 import { sortCommunityPosts } from '../src/utils/helpers.ts'
 import { pollResultRows, pollSummaryText } from '../src/utils/pollResults.ts'
 import { registerPushTokenWithRetry } from '../src/utils/pushRegistration.ts'
@@ -64,5 +65,18 @@ assert.deepEqual(sortCommunityPosts(sortPosts, 'views').map((p) => p.id), [3, 2,
 // Ties fall back to newest-first; unknown mode behaves like latest.
 assert.deepEqual(sortCommunityPosts([{ id: 'a', createdAt: '2026-01-01' }, { id: 'b', createdAt: '2026-01-02' }], 'nope').map((p) => p.id), ['b', 'a'])
 assert.deepEqual(sortCommunityPosts(null, 'latest'), [])
+
+// 기수: the server's own number wins. Deriving it from the 학번 is a guess that
+// breaks for 졸업생 synthetic ids, transfers, and roster hand-corrections
+// (website #431) — so it is only the fallback when the server sent nothing.
+assert.equal(generationLabel(59, '2025000001'), '59기')
+assert.equal(generationLabel('59', '2025000001'), '59기')
+assert.equal(generationLabel(null, '2025000001'), '59기')
+assert.equal(generationLabel(undefined, 'G2020-14'), '54기')
+// A server value that disagrees with the 학번 is still authoritative.
+assert.equal(generationLabel(42, '2025000001'), '42기')
+// Junk falls through to the 학번, and an unusable 학번 says so rather than lying.
+assert.equal(generationLabel(0, '2025000001'), '59기')
+assert.equal(generationLabel('없음', 'nope'), '기수 미상')
 
 console.log('member experience contract passed')

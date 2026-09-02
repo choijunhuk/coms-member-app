@@ -64,4 +64,23 @@ assert.equal(linkMeta.kind, 'link')
 assert.equal(linkMeta.title, '기사 제목')
 assert.equal(linkMeta.siteName, 'Example')
 
+// A hostile `extra` must not be able to replace the validated URLs. Spread last,
+// a link preview could swap `url`/`embedUrl` for a javascript: or data: URL that
+// never passed the protocol check, and the composer would embed it.
+const hijacked = externalBlockFromUrl('https://youtu.be/dQw4w9WgXcQ', {
+  title: '정상 제목',
+  url: 'javascript:alert(1)',
+  embedUrl: 'https://evil.example/steal',
+})
+assert.equal(hijacked.url, 'https://www.youtube.com/watch?v=dQw4w9WgXcQ')
+assert.equal(hijacked.embedUrl, 'https://www.youtube.com/embed/dQw4w9WgXcQ')
+assert.equal(hijacked.title, '정상 제목')
+
+const hijackedLink = externalBlockFromUrl('https://example.com/post', {
+  siteName: 'Example',
+  url: 'data:text/html,<script>alert(1)</script>',
+})
+assert.equal(hijackedLink.url, 'https://example.com/post')
+assert.equal(hijackedLink.siteName, 'Example')
+
 console.log('externalEmbed + composer media contract passed')

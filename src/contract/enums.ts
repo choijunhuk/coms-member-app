@@ -60,8 +60,11 @@ export const ActivityKind = /** @type {const} */ ({
   SCHEDULE: "SCHEDULE",
 });
 
-// Member.Role
+// Member.Role — declaration order mirrors the backend ladder (lowest first).
 export const MemberRole = /** @type {const} */ ({
+  ASSOCIATE: "ASSOCIATE",
   USER: "USER",
+  OFFICER: "OFFICER",
+  VICE_PRESIDENT: "VICE_PRESIDENT",
   ADMIN: "ADMIN",
 });

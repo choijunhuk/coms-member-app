@@ -57,10 +57,15 @@ export async function setUserContext(user) {
       Sentry.setUser(null)
       return
     }
-    Sentry.setUser({
-      id: String(user.id || user.studentId || 'member'),
-      username: user.name || undefined,
-    })
+    // Opaque id ONLY. The name went to Sentry as `username`, and the studentId
+    // stood in whenever id was missing — both are member PII that a crash
+    // report has no use for. The internal id is enough to correlate events,
+    // and it is already meaningless outside our own database.
+    if (!user.id) {
+      Sentry.setUser(null)
+      return
+    }
+    Sentry.setUser({ id: String(user.id) })
   } catch {
     // ignore
   }

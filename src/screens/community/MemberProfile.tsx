@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Award, FileText, MessageSquare, ThumbsUp } from 'lucide-react'
 import { getMemberReputation, listPostsByAuthor } from '../../services/communityApi'
-import { displayStudentId, generationFromStudentId } from '../../utils/format'
+import { displayStudentId, generationLabel } from '../../utils/format'
 import { postImage } from '../../utils/helpers'
 import { postPreviewText } from '../../utils/postBlocks'
 import { Detail, Empty, ListItem, LoadingScreen, Metric, Section } from '../../components/ui'
@@ -9,6 +9,7 @@ import type { CommunityPost } from '../../contract/types'
 
 type Reputation = {
   name?: string
+  generation?: number | string | null
   tierLabel?: string
   score?: number
   breakdown?: { posts?: number; comments?: number; upvotes?: number }
@@ -50,7 +51,7 @@ export default function MemberProfile({ studentId, initialName, onBack, openPost
   const breakdown = reputation?.breakdown || {}
 
   return (
-    <Detail title={memberName} meta={`${generationFromStudentId(studentId)} · ${displayStudentId(studentId)}`} onBack={onBack}>
+    <Detail title={memberName} meta={`${generationLabel(reputation?.generation, studentId)} · ${displayStudentId(studentId)}`} onBack={onBack}>
       {loading ? <LoadingScreen label="회원 정보를 불러오는 중입니다." /> : (
         <div className="stack">
           {error && <Empty text={error} />}

@@ -56,6 +56,11 @@ export async function readStoredValueAsync(key) {
 export function writeStoredValue(key, value) {
   const normalized = String(value)
   memoryCache.set(key, normalized)
+  // A key we just wrote is authoritative in the cache, so mark it hydrated. Without
+  // this, a later hydrateStoredValues would still consider the key unhydrated, read
+  // the older on-disk value back (the async Preferences.set below may not have
+  // landed yet) and overwrite the fresh one — the setting silently reverted.
+  hydratedKeys.add(key)
   if (!shouldUseNativePreferences()) {
     localStorageFallback()?.setItem(key, normalized)
     return
@@ -95,22 +100,28 @@ export async function removeStoredValueAsync(key) {
   await Preferences.remove({ key })
 }
 
-export async function removeStoredValuesByPrefix(prefix) {
+// `keep` survives the wipe. Logout clears everything under the prefix except the
+// installation device id: that id is what the push-token endpoints key a device
+// on, so regenerating it on every logout would orphan the server's token rows.
+export async function removeStoredValuesByPrefix(prefix, keep: Iterable<string> = []) {
+  const kept = new Set<string>(keep)
+  const doomed = (key) => Boolean(key?.startsWith(prefix)) && !kept.has(key)
+
   const storage = localStorageFallback()
   if (storage) {
     const keys = []
     for (let i = 0; i < storage.length; i += 1) {
       const key = storage.key(i)
-      if (key?.startsWith(prefix)) keys.push(key)
+      if (doomed(key)) keys.push(key)
     }
     keys.forEach((key) => storage.removeItem(key))
   }
 
   for (const key of [...memoryCache.keys()]) {
-    if (key.startsWith(prefix)) memoryCache.delete(key)
+    if (doomed(key)) memoryCache.delete(key)
   }
 
   if (!shouldUseNativePreferences()) return
   const { keys } = await Preferences.keys()
-  await Promise.all(keys.filter((key) => key.startsWith(prefix)).map((key) => Preferences.remove({ key })))
+  await Promise.all(keys.filter(doomed).map((key) => Preferences.remove({ key })))
 }

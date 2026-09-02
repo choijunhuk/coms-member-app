@@ -2,6 +2,7 @@ import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } fro
 import { ShieldCheck } from 'lucide-react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { getCurrentUser, logoutUser, withdrawSelf } from './services/authApi'
+import { CurrentUserSchema, degradeInvalidApiResponse } from './services/responseSchemas'
 import { listFiles } from './services/archiveApi'
 import { listClubActivities } from './services/clubActivityApi'
 import { listApps } from './services/appCatalogApi'
@@ -33,10 +34,11 @@ import {
   getAppConfig,
   isRecoverableMobileApiError,
   registerPushToken,
+  unregisterPushToken,
 } from './services/mobileApi'
 import { nativePlatform, openNotificationSettings, readAppVersion, readPushPermissionState, requestPushRegistration, resetPushRegistration, setupAppStateListener, setupBackButtonListener, setupDeepLinkListener } from './services/nativeBridge'
 import { isBiometricAvailable } from './services/biometric'
-import { getNotice, listNotices } from './services/noticeApi'
+import { getNotice, listNotices, voteNotice } from './services/noticeApi'
 import { getNotificationSummary, listNotifications, markAllNotificationsRead, markNotificationRead } from './services/notificationApi'
 import { asArray } from './utils/format'
 import { canManageContent, normalizeAppConfig } from './utils/helpers'
@@ -50,9 +52,9 @@ import { RECENT_RESOURCES_KEY } from './utils/resourceHistory'
 import { hydrateStoredValues, removeStoredValuesByPrefix } from './utils/deviceStorage'
 import { reportError, setUserContext } from './services/observability'
 import { onSessionExpired } from './services/apiClient'
-import { purgePersistedCache } from './services/queryClient'
+import { DASHBOARD_QUERY_KEY, purgePersistedCache } from './services/queryClient'
 import { registerPushTokenWithRetry } from './utils/pushRegistration'
-import { getInstallationDeviceId } from './utils/installationDeviceId'
+import { INSTALLATION_DEVICE_ID_KEY, getInstallationDeviceId } from './utils/installationDeviceId'
 import { pushStatusFromPermission } from './utils/pushPermissionStatus'
 import { DEFAULT_IDLE_LOCK_THRESHOLD_MS, SLOW_SYNC_NOTICE_DELAY_MS } from './config/appTiming'
 import { useAppState } from './hooks/useAppState'
@@ -78,7 +80,6 @@ import BiometricLockScreen from './screens/BiometricLockScreen'
 import PrivacyPolicyScreen from './screens/PrivacyPolicyScreen'
 import SettingsScreen from './screens/SettingsScreen'
 
-const DASHBOARD_QUERY_KEY = ['member-app', 'dashboard']
 const MEMBER_STORAGE_KEYS = [
   ...PREFERENCE_STORAGE_KEYS,
   BOOKMARKS_KEY,
@@ -108,10 +109,10 @@ const EMPTY_DASHBOARD = {
 }
 
 async function fetchDashboard() {
-  // Always fetch the full notice/post/file lists so the Community and Notices tabs
-  // can show every entry, not just the small "recent" slice the mobile home aggregate
-  // returns. Mobile home is still consulted in parallel for unreadCount and the
-  // pre-shaped notifications block, but we prefer the full lists when they arrive.
+  // Fetch the full notice/post/file lists directly. The /api/mobile/v1/home
+  // aggregate is NOT consulted: it only returns a small "recent" slice, so the
+  // Community and Notices tabs would show a fraction of their entries, and the
+  // unreadCount and notifications it also carried are fetched here anyway.
   // Keep the per-request fallback so partial data still renders, but flag when any
   // of these fail so the UI can surface a non-blocking warning instead of silently
   // showing empty tabs during a backend outage.
@@ -203,7 +204,18 @@ export default function App() {
     try {
       const current = await getCurrentUser()
       setUser(current)
-    } catch {
+    } catch (error) {
+      // A shape/enum drift on /api/auth/me is a CLIENT validation failure, not
+      // an auth failure. Treating it as one bricked every member whose role the
+      // vendored enum did not know yet: they were bounced back to the login
+      // screen forever. Degrade instead — keep the session, drop the field we
+      // could not validate — and report so the drift is still visible.
+      const degraded = degradeInvalidApiResponse(CurrentUserSchema, error)
+      if (degraded) {
+        reportError(error, { area: 'restore-session-invalid-response' })
+        setUser(degraded)
+        return
+      }
       setUser(null)
       setPushPermission(null)
       // No active session — any persisted cache belongs to a previous user or an expired login.
@@ -326,14 +338,56 @@ export default function App() {
     }
   }, [setUser])
 
+  // The one definition of "this device no longer holds a session". Logout and
+  // session-expiry had drifted into two different partial teardowns: expiry left
+  // the push registration, the queued offline posts and every coms.* preference
+  // behind, so the next member to sign in on the device inherited them.
+  // Everything under the coms. prefix goes EXCEPT the installation device id,
+  // which identifies the device (not the member) to the push-token endpoints.
+  const clearLocalSession = useCallback(async () => {
+    setUser(null)
+    setPushStatus('idle')
+    setPushPermission(null)
+    setPendingCommunityPosts([])
+    await resetPushRegistration()
+    queryClient.cancelQueries()
+    queryClient.clear()
+    await purgePersistedCache()
+    await removeStoredValuesByPrefix('coms.', [INSTALLATION_DEVICE_ID_KEY])
+  }, [queryClient, setPendingCommunityPosts, setPushPermission, setPushStatus, setUser])
+
+  // Best-effort push-token retirement. Runs before the server logout (which
+  // revokes the cookie the DELETE needs) and swallows everything, 404 included:
+  // the backend endpoint ships separately, and a member must always be able to
+  // log out even when it is missing or the network is gone.
+  const retirePushToken = useCallback(async () => {
+    try {
+      await unregisterPushToken({
+        platform: nativePlatform(),
+        deviceId: await getInstallationDeviceId(),
+      })
+    } catch (error) {
+      reportError(error, { area: 'push-token-unregister' })
+    }
+  }, [])
+
   // A 401 that survives the refresh means the session is gone — drop to the
   // login screen instead of leaving a logged-in shell where every panel errors.
+  // Re-entrancy guard: the push-token DELETE below is itself a refreshable
+  // request, so its own 401 would call this handler again and recurse forever.
+  const sessionTeardownRef = useRef(false)
   useEffect(() => onSessionExpired(() => {
-    setUser(null)
-    setPushPermission(null)
-    queryClient.clear()
-    void purgePersistedCache()
-  }), [queryClient, setPushPermission, setUser])
+    if (sessionTeardownRef.current) return
+    sessionTeardownRef.current = true
+    void (async () => {
+      try {
+        await retirePushToken()
+        await clearLocalSession()
+      } finally {
+        sessionTeardownRef.current = false
+      }
+    })()
+  }), [clearLocalSession, retirePushToken])
 
   useEffect(() => {
     let cancelled = false
@@ -784,6 +838,44 @@ export default function App() {
     await openPost(selectedPost.id)
   }
 
+  const noticeVoteMutation = useMutation({
+    mutationFn: ({ noticeId, value }: { noticeId: unknown; value: number }) => voteNotice(noticeId, value),
+    onSuccess: () => { void hapticLight() },
+  })
+
+  // 공지 추천 (web parity). Optimistic: the round trip is long enough on mobile
+  // data that the count looked stuck otherwise. Rolled back if the vote does not
+  // land, then reconciled against the server, which owns the real total.
+  async function voteOnNotice(value) {
+    const noticeId = selectedNotice?.id
+    if (!noticeId) return
+    const sameNotice = (notice) => String(notice?.id) === String(noticeId)
+    const shiftUpvotes = (delta) => {
+      const bump = (notice) => ({ ...notice, upvotes: Math.max(0, Number(notice.upvotes || 0) + delta) })
+      setSelectedNotice((prev) => (prev && sameNotice(prev) ? bump(prev) : prev))
+      patchDashboard((prev) => ({
+        ...prev,
+        notices: prev.notices.map((notice) => (sameNotice(notice) ? bump(notice) : notice)),
+      }))
+    }
+
+    shiftUpvotes(value)
+    try {
+      await noticeVoteMutation.mutateAsync({ noticeId, value })
+    } catch (error) {
+      shiftUpvotes(-value)
+      throw error
+    }
+
+    const fresh = await getNotice(noticeId).catch(() => null)
+    if (!fresh) return
+    setSelectedNotice((prev) => (prev && sameNotice(prev) ? fresh : prev))
+    patchDashboard((prev) => ({
+      ...prev,
+      notices: prev.notices.map((notice) => (sameNotice(notice) ? { ...notice, upvotes: fresh.upvotes } : notice)),
+    }))
+  }
+
   async function toggleBookmark(postId) {
     if (!postId) return
     const result = await bookmarkMutation.mutateAsync({ postId })
@@ -883,6 +975,9 @@ export default function App() {
 
   async function handleLogout() {
     setAccountActionError('')
+    // Retire the push token first: the server logout revokes the cookie this
+    // call authenticates with, so afterwards it could only ever 401.
+    await retirePushToken()
     try {
       await logoutUser()
     } catch (error) {
@@ -890,17 +985,12 @@ export default function App() {
       setAccountActionError(error?.message || '로그아웃에 실패했습니다. 네트워크 상태를 확인한 뒤 다시 시도해주세요.')
       throw error
     }
-    setUser(null)
-    setPushStatus('idle')
-    setPushPermission(null)
-    await resetPushRegistration()
-    queryClient.cancelQueries()
-    queryClient.clear()
-    await purgePersistedCache()
+    await clearLocalSession()
   }
 
   async function handleWithdraw() {
     setAccountActionError('')
+    await retirePushToken()
     try {
       await withdrawSelf()
     } catch (error) {
@@ -908,26 +998,20 @@ export default function App() {
       setAccountActionError(error?.message || '회원 탈퇴에 실패했습니다. 계정 상태는 변경되지 않았습니다.')
       throw error
     }
-    setUser(null)
-    setPushStatus('idle')
-    await resetPushRegistration()
-    queryClient.cancelQueries()
-    queryClient.clear()
-    await purgePersistedCache()
+    await clearLocalSession()
+    // The account is gone, so the installation id has nothing left to identify.
     await removeStoredValuesByPrefix('coms.')
   }
 
   async function handleWipeDevice() {
-    setPushStatus('idle')
-    await resetPushRegistration()
-    queryClient.cancelQueries()
-    queryClient.clear()
-    await purgePersistedCache()
+    await retirePushToken()
+    await clearLocalSession()
+    // "기기에서 지우기" means everything, installation id included.
     await removeStoredValuesByPrefix('coms.')
     try {
       await logoutUser()
-    } finally {
-      setUser(null)
+    } catch (error) {
+      reportError(error, { area: 'wipe-device-logout' })
     }
   }
 
@@ -955,6 +1039,17 @@ export default function App() {
         currentVersion={appVersion}
         minimumVersion={appConfig.minimumSupportedVersion}
         updateUrl={appConfig.updateUrl}
+        onLogout={user ? async () => {
+          await retirePushToken()
+          // Best-effort: this screen has no way to surface an error, and the
+          // member must be able to sign out of a device they cannot update.
+          try {
+            await logoutUser()
+          } catch (error) {
+            reportError(error, { area: 'forced-update-logout' })
+          }
+          await clearLocalSession()
+        } : undefined}
       />
     )
   }
@@ -1009,7 +1104,7 @@ export default function App() {
     </div>
   )
   else if (activeTab === 'activity') content = <ActivityTab clubActivities={clubActivities} apps={apps} appLinks={appConfig.links} />
-  else if (activeTab === 'notices') content = <NoticesTab notices={notices} selected={selectedNotice} loading={noticeLoading} openNotice={openNotice} closeNotice={() => { detailSeqRef.current += 1; setSelectedNotice(null) }} />
+  else if (activeTab === 'notices') content = <NoticesTab notices={notices} selected={selectedNotice} loading={noticeLoading} openNotice={openNotice} closeNotice={() => { detailSeqRef.current += 1; setSelectedNotice(null) }} voteNotice={voteOnNotice} />
   else if (activeTab === 'community') content = <CommunityTab posts={posts} selected={selectedPost} comments={comments} loading={postLoading} openPost={openPost} closePost={() => { detailSeqRef.current += 1; setSelectedPost(null); setComments([]) }} createPost={createPost} editPost={editPostForId} createCommentForPost={createCommentForPost} editComment={editCommentForPost} removeComment={removeCommentForPost} vote={vote} pollVote={pollVote} closePoll={closePoll} pinPost={pinPost} toggleBookmark={toggleBookmark} currentUser={user} pendingPosts={pendingCommunityPosts} retryPendingPosts={flushPendingCommunityPosts} />
   else if (activeTab === 'resources') content = <ResourcesTab files={files} onUploaded={() => queryClient.invalidateQueries({ queryKey: DASHBOARD_QUERY_KEY })} />
   else if (activeTab === 'notifications') content = <NotificationsTab notifications={notifications} unreadCount={unreadCount} pushStatus={pushStatus} pushPermission={pushPermission} refreshPushPermission={refreshPushPermission} appConfig={appConfig} enablePush={enablePush} onOpenPushSettings={openPushSettings} markRead={markRead} markAllRead={markAllRead} openRoute={openRoute} />

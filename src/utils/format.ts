@@ -63,6 +63,16 @@ export function preview(value, limit = 90) {
 // COM's 1기 = 1967년 입학생 기준. 학번은 10자리, 앞 4자리가 입학연도.
 const COMS_FOUNDING_YEAR = 1967
 
+// Prefer the 기수 the server sent. Deriving it from the 학번 is only a guess:
+// it breaks for 졸업생 with a synthetic id, for anyone who transferred in, and
+// for members the roster has hand-corrected. Fall back to the guess only when
+// the server did not send one.
+export function generationLabel(generation, studentId) {
+  const value = Number(generation)
+  if (Number.isFinite(value) && value > 0) return `${value}기`
+  return generationFromStudentId(studentId)
+}
+
 export function generationFromStudentId(studentId) {
   // Two id shapes: 10-digit 학번, or the graduate synthetic id G{입학연도}-{명부번호}
   // minted at graduate signup — both carry the admission year up front.

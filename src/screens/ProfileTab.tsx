@@ -2,23 +2,14 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { Bookmark, LogOut, MailCheck, MessageCircle, RotateCcw, ShieldAlert, UserPen, UserX } from 'lucide-react'
 import { confirmDialog } from '../components/ConfirmDialog'
 import { changePassword, confirmEmailVerification, requestEmailVerification, updateProfile } from '../services/authApi'
-import { displayStudentId, formatDate, generationFromStudentId, preview } from '../utils/format'
+import { displayStudentId, formatDate, generationLabel, preview } from '../utils/format'
 import { passwordPolicyMessage, validPassword } from '../utils/passwordPolicy'
-import { categoryLabels, latest } from '../utils/helpers'
+import { ROLE_LABELS, categoryLabels, latest } from '../utils/helpers'
 import { postPreviewText } from '../utils/postBlocks'
 import { Empty, Info, ListItem, Section } from '../components/ui'
 
 // Interests are stored as one comma-joined string (≤500 chars) on the profile;
 // the web edits them as 보안/웹/앱 chips plus free text, so mirror that split.
-// Mirrors the website's role ladder labels.
-const ROLE_LABELS = {
-  ADMIN: '회장',
-  VICE_PRESIDENT: '부회장',
-  OFFICER: '임원',
-  USER: '회원',
-  ASSOCIATE: '준회원',
-}
-
 const INTEREST_CHIPS = ['보안', '웹', '앱']
 
 function splitInterests(raw) {
@@ -193,7 +184,7 @@ export default function ProfileTab({
 
   return (
     <div className="stack">
-      <section className="profile-card"><div className="avatar">{(user?.name || 'C').slice(0, 1)}</div><div><h2>{user?.name || '회원'}</h2><p>{displayStudentId(user?.studentId) || '학번 없음'} · {generationFromStudentId(user?.studentId)}</p></div></section>
+      <section className="profile-card"><div className="avatar">{(user?.name || 'C').slice(0, 1)}</div><div><h2>{user?.name || '회원'}</h2><p>{displayStudentId(user?.studentId) || '학번 없음'} · {generationLabel(user?.generation, user?.studentId)}</p></div></section>
       <section className="panel">
         <Info label="이메일 인증" value={emailVerified ? '완료' : '미완료'} />
         <Info label="학과" value={user?.department || '미등록'} />

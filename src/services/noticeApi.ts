@@ -24,3 +24,10 @@ export function updateNotice(id, payload) {
     body: JSON.stringify(payload),
   })
 }
+
+export function voteNotice(id, value) {
+  return request(`/api/notices/${id}/vote`, {
+    method: 'POST',
+    body: JSON.stringify({ value }),
+  })
+}
