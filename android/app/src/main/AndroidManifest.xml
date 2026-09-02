@@ -24,11 +24,27 @@
                 <category android:name="android.intent.category.BROWSABLE" />
                 <data android:scheme="@string/custom_url_scheme" />
             </intent-filter>
+            <!--
+                App Links, scoped to exactly the paths mobileRoutes.routeFromUrl
+                can resolve. The filter used to claim the whole coms.kw.ac.kr
+                host, so every other page on the site — signup, admin, anything
+                added later — opened in the app, which had no route for it and
+                dropped the member on the home tab instead of the page they
+                tapped. Keep this list in sync with routeFromSegments.
+            -->
             <intent-filter android:autoVerify="true">
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
-                <data android:scheme="https" android:host="coms.kw.ac.kr" />
+                <data android:scheme="https" android:host="coms.kw.ac.kr" android:pathPrefix="/notices" />
+                <data android:scheme="https" android:host="coms.kw.ac.kr" android:pathPrefix="/community" />
+                <data android:scheme="https" android:host="coms.kw.ac.kr" android:pathPrefix="/notifications" />
+                <data android:scheme="https" android:host="coms.kw.ac.kr" android:pathPrefix="/resources" />
+                <data android:scheme="https" android:host="coms.kw.ac.kr" android:pathPrefix="/files" />
+                <data android:scheme="https" android:host="coms.kw.ac.kr" android:pathPrefix="/archive" />
+                <data android:scheme="https" android:host="coms.kw.ac.kr" android:pathPrefix="/activity-log" />
+                <data android:scheme="https" android:host="coms.kw.ac.kr" android:pathPrefix="/monthly-calendar" />
+                <data android:scheme="https" android:host="coms.kw.ac.kr" android:pathPrefix="/activity" />
             </intent-filter>
         </activity>
 
