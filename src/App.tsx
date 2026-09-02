@@ -52,7 +52,7 @@ import { RECENT_RESOURCES_KEY } from './utils/resourceHistory'
 import { hydrateStoredValues, removeStoredValuesByPrefix } from './utils/deviceStorage'
 import { reportError, setUserContext } from './services/observability'
 import { onSessionExpired } from './services/apiClient'
-import { purgePersistedCache } from './services/queryClient'
+import { DASHBOARD_QUERY_KEY, purgePersistedCache } from './services/queryClient'
 import { registerPushTokenWithRetry } from './utils/pushRegistration'
 import { INSTALLATION_DEVICE_ID_KEY, getInstallationDeviceId } from './utils/installationDeviceId'
 import { pushStatusFromPermission } from './utils/pushPermissionStatus'
@@ -80,7 +80,6 @@ import BiometricLockScreen from './screens/BiometricLockScreen'
 import PrivacyPolicyScreen from './screens/PrivacyPolicyScreen'
 import SettingsScreen from './screens/SettingsScreen'
 
-const DASHBOARD_QUERY_KEY = ['member-app', 'dashboard']
 const MEMBER_STORAGE_KEYS = [
   ...PREFERENCE_STORAGE_KEYS,
   BOOKMARKS_KEY,
@@ -1002,6 +1001,17 @@ export default function App() {
         currentVersion={appVersion}
         minimumVersion={appConfig.minimumSupportedVersion}
         updateUrl={appConfig.updateUrl}
+        onLogout={user ? async () => {
+          await retirePushToken()
+          // Best-effort: this screen has no way to surface an error, and the
+          // member must be able to sign out of a device they cannot update.
+          try {
+            await logoutUser()
+          } catch (error) {
+            reportError(error, { area: 'forced-update-logout' })
+          }
+          await clearLocalSession()
+        } : undefined}
       />
     )
   }

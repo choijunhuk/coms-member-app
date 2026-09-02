@@ -4,6 +4,8 @@ import type { ApiError } from './apiClient'
 
 export const QUERY_CACHE_STORAGE_KEY = 'coms-member-app-query-cache:v1'
 
+export const DASHBOARD_QUERY_KEY = ['member-app', 'dashboard']
+
 export const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
@@ -25,25 +27,49 @@ const PII_QUERY_KEYS: ReadonlyArray<ReadonlyArray<string>> = [
   ['member-app', 'deleted-community-posts'],
 ]
 
-function shouldExcludeFromPersistence(queryKey: unknown): boolean {
+function matchesQueryKey(prefix: ReadonlyArray<string>, queryKey: unknown): boolean {
   if (!Array.isArray(queryKey)) return false
-  return PII_QUERY_KEYS.some(
-    (piiKey) =>
-      piiKey.length <= queryKey.length &&
-      piiKey.every((segment, i) => segment === queryKey[i]),
-  )
+  return prefix.length <= queryKey.length && prefix.every((segment, i) => segment === queryKey[i])
+}
+
+function shouldExcludeFromPersistence(queryKey: unknown): boolean {
+  return PII_QUERY_KEYS.some((piiKey) => matchesQueryKey(piiKey, queryKey))
+}
+
+// Fields dropped before a query is written to disk because a stale copy would
+// change what the app DOES, not merely what it shows. appConfig carries
+// minimumSupportedVersion: restored from a 24h-old cache it can hold the whole
+// app behind the forced-update screen even after the server lowered the floor,
+// and that screen has no way to fetch a fresher one. Without it a cold launch
+// falls back to DEFAULT_APP_CONFIG, which gates nothing, until the live fetch
+// lands — the dashboard's notices/posts/files still restore for offline use.
+const VOLATILE_QUERY_FIELDS: ReadonlyArray<{
+  queryKey: ReadonlyArray<string>
+  fields: ReadonlyArray<string>
+}> = [
+  { queryKey: DASHBOARD_QUERY_KEY, fields: ['appConfig'] },
+]
+
+function stripVolatileFields(query) {
+  const match = VOLATILE_QUERY_FIELDS.find((entry) => matchesQueryKey(entry.queryKey, query.queryKey))
+  const data = query?.state?.data
+  if (!match || !data || typeof data !== 'object') return query
+  const trimmed = { ...data }
+  for (const field of match.fields) delete trimmed[field]
+  return { ...query, state: { ...query.state, data: trimmed } }
 }
 
 export const queryPersister = {
   persistClient: async (client) => {
-    // Strip PII queries before writing; the persisted shape is otherwise identical.
+    // Strip PII queries and volatile fields before writing; the persisted shape
+    // is otherwise identical.
     const safeClient = {
       ...client,
       clientState: {
         ...client.clientState,
-        queries: client.clientState.queries.filter(
-          (q) => !shouldExcludeFromPersistence(q.queryKey),
-        ),
+        queries: client.clientState.queries
+          .filter((q) => !shouldExcludeFromPersistence(q.queryKey))
+          .map(stripVolatileFields),
       },
     }
     await writeStoredValueAsync(QUERY_CACHE_STORAGE_KEY, JSON.stringify(safeClient))

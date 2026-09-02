@@ -1,7 +1,14 @@
-import { Download } from 'lucide-react'
+import { Download, LogOut } from 'lucide-react'
 import { DEFAULT_APP_LINKS, normalizeExternalUrl } from '../config/appLinks'
 
-export default function ForcedUpdateScreen({ currentVersion, minimumVersion, updateUrl }: { currentVersion?: string | null; minimumVersion?: string | null; updateUrl?: string | null }) {
+type ForcedUpdateScreenProps = {
+  currentVersion?: string | null
+  minimumVersion?: string | null
+  updateUrl?: string | null
+  onLogout?: () => void | Promise<void>
+}
+
+export default function ForcedUpdateScreen({ currentVersion, minimumVersion, updateUrl, onLogout }: ForcedUpdateScreenProps) {
   const href = normalizeExternalUrl(updateUrl, DEFAULT_APP_LINKS.update)
   return (
     <main className="center-screen">
@@ -14,6 +21,13 @@ export default function ForcedUpdateScreen({ currentVersion, minimumVersion, upd
         <a className="button primary" href={href} target="_blank" rel="noreferrer">
           <Download size={17} aria-hidden="true" /> 업데이트 받기
         </a>
+        {/* 이 화면은 앱 전체를 가로막습니다. 로그아웃이 없으면 공용 기기에
+            로그인된 계정을 내릴 방법이 전혀 없습니다. */}
+        {onLogout && (
+          <button type="button" className="button secondary" onClick={() => { void onLogout() }}>
+            <LogOut size={17} aria-hidden="true" /> 로그아웃
+          </button>
+        )}
       </section>
     </main>
   )
