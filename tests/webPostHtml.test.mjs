@@ -48,4 +48,58 @@ for (const payload of [
 const quoted = renderSafeHtml('<a href="https://a.b/&quot;onmouseover=&quot;alert(1)">x</a>')
 assert.ok(!/onmouseover=[^"']/.test(quoted), quoted)
 
+// --- inline styling from web TipTap (span/div/font) ---
+// A coloured, highlighted, centred web post used to flatten to grey
+// left-aligned text on the app because these tags were dropped entirely.
+const coloured = renderSafeHtml('<p><span style="color:#ff0000">빨강</span></p>')
+assert.equal(coloured, '<p><span style="color:#ff0000">빨강</span></p>')
+
+assert.equal(
+  renderSafeHtml('<span style="background-color: rgb(255, 230, 0); font-weight: 700">형광</span>'),
+  '<span style="background-color:rgb(255, 230, 0);font-weight:700">형광</span>',
+)
+assert.equal(
+  renderSafeHtml('<div style="text-align:center">가운데</div>'),
+  '<div style="text-align:center">가운데</div>',
+)
+assert.equal(
+  renderSafeHtml('<font style="font-size: 18px">큰 글씨</font>'),
+  '<font style="font-size:18px">큰 글씨</font>',
+)
+// Quoted font families arrive entity-encoded; unquoted multi-word families are
+// valid CSS, so the quotes are dropped rather than smuggled through.
+assert.equal(
+  renderSafeHtml(`<span style="font-family: 'Noto Sans KR', sans-serif">본문</span>`),
+  '<span style="font-family:Noto Sans KR, sans-serif">본문</span>',
+)
+
+// Properties outside the eight-item allow-list are dropped, tag survives.
+assert.equal(renderSafeHtml('<span style="position:fixed;top:0;color:blue">x</span>'), '<span style="color:blue">x</span>')
+// Nothing valid left = no style attribute at all.
+assert.equal(renderSafeHtml('<span style="position:absolute">x</span>'), '<span>x</span>')
+
+// --- the style attribute must not become a new injection sink ---
+for (const payload of [
+  '<span style="background:url(javascript:alert(1))">x</span>',
+  '<span style="background-color:url(javascript:alert(1))">x</span>',
+  '<span style="color:expression(alert(1))">x</span>',
+  '<span style="width:expression(alert(1))">x</span>',
+  `<span style="color:red" onclick="alert(1)">x</span>`,
+  `<span style="color:red&quot; onclick=&quot;alert(1)">x</span>`,
+  '<div style="behavior:url(#default#time2)">x</div>',
+  `<span style="font-family:&quot;;background:url(javascript:alert(1));&quot;">x</span>`,
+]) {
+  const out = renderSafeHtml(payload)
+  assert.ok(!/javascript:/i.test(out), `javascript: url survived: ${payload} -> ${out}`)
+  assert.ok(!/expression\s*\(/i.test(out), `expression() survived: ${payload} -> ${out}`)
+  assert.ok(!/url\s*\(/i.test(out), `url() survived: ${payload} -> ${out}`)
+  assert.ok(!/\son\w+=/i.test(out), `event handler survived: ${payload} -> ${out}`)
+  assert.ok(!/behavior/i.test(out), `behavior survived: ${payload} -> ${out}`)
+}
+
+// A style-less span/div still opens (it may carry nothing but structure).
+assert.equal(renderSafeHtml('<span>plain</span>'), '<span>plain</span>')
+// ...and the tags outside the styled set still lose every attribute.
+assert.equal(renderSafeHtml('<p style="color:red">a</p>'), '<p>a</p>')
+
 console.log('web post html contract passed')

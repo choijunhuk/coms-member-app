@@ -41,6 +41,53 @@ export function renderPlainTextWithEmoji(input) {
 
 const SAFE_HTML_TAGS = ['p', 'br', 'strong', 'b', 'em', 'i', 'u', 's', 'ul', 'ol', 'li', 'blockquote', 'code', 'pre', 'mark', 'h1', 'h2', 'h3']
 
+// Web TipTap carries inline styling on span/div/font — text colour, highlight,
+// font family/size, alignment. Dropping those tags flattened a coloured, centred
+// post into grey left-aligned text on the app, so re-open them WITH a style
+// attribute. The attribute is REBUILT from the properties below, never copied:
+// each declaration must name an allowed property and match its value pattern,
+// so url(), expression(), and anything smuggled past the attribute delimiter
+// simply fails to match and is dropped. Mirrors the website's sanitizeHtml
+// allow-list (utils/sanitizeHtml.ts) so both clients render the same subset.
+const STYLED_HTML_TAGS = ['span', 'div', 'font']
+
+const COLOR_VALUE = /^(#[0-9a-f]{3,8}|rgba?\([\d\s.,%]+\)|[a-z]+)$/i
+const ALLOWED_STYLE_PROPS = new Map([
+  ['background-color', COLOR_VALUE],
+  ['color', COLOR_VALUE],
+  ['font-family', /^[\w\s,-]+$/],
+  ['font-size', /^\d+(\.\d+)?(px|em|rem|pt|%)$/i],
+  ['font-style', /^[a-z]+$/i],
+  ['font-weight', /^(\d{3}|[a-z]+)$/i],
+  ['text-align', /^[a-z]+$/i],
+  ['text-decoration', /^[a-z\s-]+$/i],
+])
+
+function safeStyleAttribute(attrs) {
+  // Greedy to the last delimiter on purpose: over-capturing a following
+  // attribute is harmless (its text fails the per-declaration checks below),
+  // while stopping early would truncate a quoted font-family.
+  const raw = /style=&quot;([\s\S]*)&quot;/i.exec(attrs)?.[1]
+  if (!raw) return ''
+
+  // Drop quote entities BEFORE splitting: `&#39;` ends in a semicolon, so a
+  // quoted font family would otherwise be shattered across declarations. Font
+  // names need no quotes here — unquoted multi-word families ("font-family:
+  // Noto Sans KR") are valid CSS.
+  const declarations = []
+  for (const part of raw.replace(/&#39;|&quot;/g, '').split(';')) {
+    const separator = part.indexOf(':')
+    if (separator < 0) continue
+    const prop = part.slice(0, separator).trim().toLowerCase()
+    const pattern = ALLOWED_STYLE_PROPS.get(prop)
+    if (!pattern) continue
+    const value = part.slice(separator + 1).trim()
+    if (!value || !pattern.test(value)) continue
+    declarations.push(`${prop}:${value}`)
+  }
+  return declarations.length > 0 ? ` style="${declarations.join(';')}"` : ''
+}
+
 export function looksLikeHtml(input) {
   return /<([a-z][a-z0-9]*)\b[^>]*>/i.test(String(input || ''))
 }
@@ -56,6 +103,14 @@ export function renderSafeHtml(input) {
     // the closing bracket are matched but discarded.
     html = html
       .replace(new RegExp(`&lt;${tag}(?=[\\s&/])((?:(?!&gt;).)*?)/?&gt;`, 'gi'), tag === 'br' ? '<br />' : `<${tag}>`)
+      .replace(new RegExp(`&lt;/${tag}&gt;`, 'gi'), `</${tag}>`)
+  }
+  for (const tag of STYLED_HTML_TAGS) {
+    html = html
+      .replace(
+        new RegExp(`&lt;${tag}(?=[\\s&/])((?:(?!&gt;).)*?)/?&gt;`, 'gi'),
+        (full, attrs) => `<${tag}${safeStyleAttribute(attrs)}>`,
+      )
       .replace(new RegExp(`&lt;/${tag}&gt;`, 'gi'), `</${tag}>`)
   }
   html = html.replace(/&lt;a\s((?:(?!&gt;).)*?)&gt;([\s\S]*?)&lt;\/a&gt;/gi, (full, attrs, label) => {
