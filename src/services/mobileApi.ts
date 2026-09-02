@@ -1,8 +1,7 @@
 import { request } from './apiClient'
 import { DEFAULT_APP_LINKS } from '../config/appLinks'
-import { AppConfigSchema, MobileHomeSchema, parseApiResponse } from './responseSchemas'
+import { AppConfigSchema, parseApiResponse } from './responseSchemas'
 
-export const MOBILE_HOME_PATH = '/api/mobile/v1/home'
 export const APP_CONFIG_PATH = '/api/mobile/v1/app-config'
 export const PUSH_TOKEN_PATH = '/api/mobile/v1/push-tokens'
 

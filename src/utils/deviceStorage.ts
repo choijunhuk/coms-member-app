@@ -56,6 +56,11 @@ export async function readStoredValueAsync(key) {
 export function writeStoredValue(key, value) {
   const normalized = String(value)
   memoryCache.set(key, normalized)
+  // A key we just wrote is authoritative in the cache, so mark it hydrated. Without
+  // this, a later hydrateStoredValues would still consider the key unhydrated, read
+  // the older on-disk value back (the async Preferences.set below may not have
+  // landed yet) and overwrite the fresh one — the setting silently reverted.
+  hydratedKeys.add(key)
   if (!shouldUseNativePreferences()) {
     localStorageFallback()?.setItem(key, normalized)
     return

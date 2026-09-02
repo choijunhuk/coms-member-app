@@ -110,10 +110,10 @@ const EMPTY_DASHBOARD = {
 }
 
 async function fetchDashboard() {
-  // Always fetch the full notice/post/file lists so the Community and Notices tabs
-  // can show every entry, not just the small "recent" slice the mobile home aggregate
-  // returns. Mobile home is still consulted in parallel for unreadCount and the
-  // pre-shaped notifications block, but we prefer the full lists when they arrive.
+  // Fetch the full notice/post/file lists directly. The /api/mobile/v1/home
+  // aggregate is NOT consulted: it only returns a small "recent" slice, so the
+  // Community and Notices tabs would show a fraction of their entries, and the
+  // unreadCount and notifications it also carried are fetched here anyway.
   // Keep the per-request fallback so partial data still renders, but flag when any
   // of these fail so the UI can surface a non-blocking warning instead of silently
   // showing empty tabs during a backend outage.
