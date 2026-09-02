@@ -15,6 +15,7 @@ export const CurrentUserSchema = z.looseObject({
   name: z.string().nullish(),
   email: z.string().nullish(),
   role: MemberRoleSchema.nullish(),
+  generation: numericValue,
 })
 
 export const MobileHomeSchema = z.looseObject({
@@ -176,13 +177,47 @@ export const NotificationSchema = z.looseObject({
 })
 export const NotificationListSchema = z.array(NotificationSchema)
 
+export type InvalidApiResponseError = ApiError & { data?: unknown }
+
+// Salvage a usable value out of an INVALID_API_RESPONSE by dropping ONLY the
+// top-level fields zod rejected and re-validating the rest. Lets a caller
+// degrade on contract drift (an unknown enum member, say) instead of treating
+// a client-side validation failure as a server/auth failure.
+// Returns null when the payload cannot be salvaged — no object to work with,
+// a nested/whole-object failure, or still invalid once the bad fields are
+// gone — so callers keep their hard-failure path for genuinely broken data.
+export function degradeInvalidApiResponse(schema, error) {
+  const invalid: InvalidApiResponseError = error
+  if (invalid?.code !== 'INVALID_API_RESPONSE') return null
+  const data = invalid.data
+  if (!data || typeof data !== 'object' || Array.isArray(data)) return null
+
+  const issues = (invalid.cause as { issues?: Array<{ path?: Array<PropertyKey> }> })?.issues
+  if (!Array.isArray(issues) || issues.length === 0) return null
+
+  const salvaged = { ...(data as Record<string, unknown>) }
+  for (const issue of issues) {
+    const path = issue?.path
+    // Exactly one path segment = a top-level field we can drop. A deeper path
+    // or an empty one means the failure is structural, not a stray field.
+    if (path?.length !== 1 || typeof path[0] !== 'string') return null
+    delete salvaged[path[0]]
+  }
+
+  const result = schema.safeParse(salvaged)
+  return result.success ? result.data : null
+}
+
 export function parseApiResponse(schema, data, label) {
   const result = schema.safeParse(data)
   if (result.success) return result.data
 
-  const error: ApiError = new Error(`${label} 응답 형식이 올바르지 않습니다.`)
+  const error: InvalidApiResponseError = new Error(`${label} 응답 형식이 올바르지 않습니다.`)
   error.code = 'INVALID_API_RESPONSE'
   error.status = 0
   error.cause = result.error
+  // Keep the raw payload on the error so callers that can degrade gracefully
+  // (e.g. session restore on enum drift) still have the server's data.
+  error.data = data
   throw error
 }

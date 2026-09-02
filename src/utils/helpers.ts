@@ -2,7 +2,7 @@ import { apiUrl } from '../services/apiClient'
 import { DEFAULT_APP_CONFIG } from '../services/mobileApi'
 import { normalizeAppLinks, normalizeExternalUrl } from '../config/appLinks'
 import { asArray } from './format'
-import { ArchiveCategory, CommunityCategory, NoticeCategory } from '../contract/enums'
+import { ArchiveCategory, CommunityCategory, MemberRole, NoticeCategory } from '../contract/enums'
 import { enumLabels } from '../contract/labels'
 
 // Keys bound to the canonical CommunityPost.Category enum (drift-guarded).
@@ -19,6 +19,16 @@ export const noticeCategoryLabels = enumLabels(NoticeCategory, {
   [NoticeCategory.PROMOTION]: '홍보',
   [NoticeCategory.SMALL_GROUP]: '소모임',
   [NoticeCategory.JOB]: '취업공고',
+})
+
+// Keys bound to the canonical Member.Role enum (drift-guarded). Mirrors the
+// website's roleAccess.ROLE_LABELS so both clients name the ladder identically.
+export const ROLE_LABELS = enumLabels(MemberRole, {
+  [MemberRole.ADMIN]: '회장',
+  [MemberRole.VICE_PRESIDENT]: '부회장',
+  [MemberRole.OFFICER]: '임원',
+  [MemberRole.USER]: '회원',
+  [MemberRole.ASSOCIATE]: '준회원',
 })
 
 export function isGraduateStudentId(studentId) {

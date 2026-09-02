@@ -2,6 +2,7 @@ import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } fro
 import { ShieldCheck } from 'lucide-react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { getCurrentUser, logoutUser, withdrawSelf } from './services/authApi'
+import { CurrentUserSchema, degradeInvalidApiResponse } from './services/responseSchemas'
 import { listFiles } from './services/archiveApi'
 import { listClubActivities } from './services/clubActivityApi'
 import { listApps } from './services/appCatalogApi'
@@ -203,7 +204,18 @@ export default function App() {
     try {
       const current = await getCurrentUser()
       setUser(current)
-    } catch {
+    } catch (error) {
+      // A shape/enum drift on /api/auth/me is a CLIENT validation failure, not
+      // an auth failure. Treating it as one bricked every member whose role the
+      // vendored enum did not know yet: they were bounced back to the login
+      // screen forever. Degrade instead — keep the session, drop the field we
+      // could not validate — and report so the drift is still visible.
+      const degraded = degradeInvalidApiResponse(CurrentUserSchema, error)
+      if (degraded) {
+        reportError(error, { area: 'restore-session-invalid-response' })
+        setUser(degraded)
+        return
+      }
       setUser(null)
       setPushPermission(null)
       // No active session — any persisted cache belongs to a previous user or an expired login.
