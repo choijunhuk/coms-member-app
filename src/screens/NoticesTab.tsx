@@ -36,11 +36,27 @@ type NoticesTabProps = {
   loading?: boolean
   openNotice: (id: unknown) => void
   closeNotice: () => void
+  voteNotice?: (value: number) => void | Promise<void>
 }
 
-export default function NoticesTab({ notices, selected, loading, openNotice, closeNotice }: NoticesTabProps) {
+export default function NoticesTab({ notices, selected, loading, openNotice, closeNotice, voteNotice }: NoticesTabProps) {
   const [query, setQuery] = useState('')
   const [category, setCategory] = useState('ALL')
+  const [voting, setVoting] = useState(false)
+  const [voteError, setVoteError] = useState('')
+
+  async function submitVote() {
+    if (!voteNotice || voting) return
+    setVoteError('')
+    setVoting(true)
+    try {
+      await voteNotice(1)
+    } catch (error) {
+      setVoteError(error?.message || '추천에 실패했습니다. 잠시 후 다시 시도해주세요.')
+    } finally {
+      setVoting(false)
+    }
+  }
 
   const availableCategories = useMemo(() => {
     const set = new Set<string>()
@@ -69,6 +85,14 @@ export default function NoticesTab({ notices, selected, loading, openNotice, clo
         {selected.pinned && <span className="badge">중요 공지</span>}
         <div className="stats"><span><Eye size={14} />{selected.viewCount || 0}</span><span><ThumbsUp size={14} />{selected.upvotes || 0}</span></div>
         {loading ? <LoadingScreen label="공지 상세를 불러오는 중입니다." /> : <PostContent post={selected} pollVote={() => {}} />}
+        {voteNotice && (
+          <div className="button-row">
+            <button type="button" className="button secondary" onClick={submitVote} disabled={voting}>
+              <ThumbsUp size={16} aria-hidden="true" /> {voting ? '추천하는 중...' : '추천'}
+            </button>
+          </div>
+        )}
+        {voteError && <p className="form-error">{voteError}</p>}
       </Detail>
     )
   }

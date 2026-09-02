@@ -38,7 +38,7 @@ import {
 } from './services/mobileApi'
 import { nativePlatform, openNotificationSettings, readAppVersion, readPushPermissionState, requestPushRegistration, resetPushRegistration, setupAppStateListener, setupBackButtonListener, setupDeepLinkListener } from './services/nativeBridge'
 import { isBiometricAvailable } from './services/biometric'
-import { getNotice, listNotices } from './services/noticeApi'
+import { getNotice, listNotices, voteNotice } from './services/noticeApi'
 import { getNotificationSummary, listNotifications, markAllNotificationsRead, markNotificationRead } from './services/notificationApi'
 import { asArray } from './utils/format'
 import { canManageContent, normalizeAppConfig } from './utils/helpers'
@@ -838,6 +838,44 @@ export default function App() {
     await openPost(selectedPost.id)
   }
 
+  const noticeVoteMutation = useMutation({
+    mutationFn: ({ noticeId, value }: { noticeId: unknown; value: number }) => voteNotice(noticeId, value),
+    onSuccess: () => { void hapticLight() },
+  })
+
+  // 공지 추천 (web parity). Optimistic: the round trip is long enough on mobile
+  // data that the count looked stuck otherwise. Rolled back if the vote does not
+  // land, then reconciled against the server, which owns the real total.
+  async function voteOnNotice(value) {
+    const noticeId = selectedNotice?.id
+    if (!noticeId) return
+    const sameNotice = (notice) => String(notice?.id) === String(noticeId)
+    const shiftUpvotes = (delta) => {
+      const bump = (notice) => ({ ...notice, upvotes: Math.max(0, Number(notice.upvotes || 0) + delta) })
+      setSelectedNotice((prev) => (prev && sameNotice(prev) ? bump(prev) : prev))
+      patchDashboard((prev) => ({
+        ...prev,
+        notices: prev.notices.map((notice) => (sameNotice(notice) ? bump(notice) : notice)),
+      }))
+    }
+
+    shiftUpvotes(value)
+    try {
+      await noticeVoteMutation.mutateAsync({ noticeId, value })
+    } catch (error) {
+      shiftUpvotes(-value)
+      throw error
+    }
+
+    const fresh = await getNotice(noticeId).catch(() => null)
+    if (!fresh) return
+    setSelectedNotice((prev) => (prev && sameNotice(prev) ? fresh : prev))
+    patchDashboard((prev) => ({
+      ...prev,
+      notices: prev.notices.map((notice) => (sameNotice(notice) ? { ...notice, upvotes: fresh.upvotes } : notice)),
+    }))
+  }
+
   async function toggleBookmark(postId) {
     if (!postId) return
     const result = await bookmarkMutation.mutateAsync({ postId })
@@ -1066,7 +1104,7 @@ export default function App() {
     </div>
   )
   else if (activeTab === 'activity') content = <ActivityTab clubActivities={clubActivities} apps={apps} appLinks={appConfig.links} />
-  else if (activeTab === 'notices') content = <NoticesTab notices={notices} selected={selectedNotice} loading={noticeLoading} openNotice={openNotice} closeNotice={() => { detailSeqRef.current += 1; setSelectedNotice(null) }} />
+  else if (activeTab === 'notices') content = <NoticesTab notices={notices} selected={selectedNotice} loading={noticeLoading} openNotice={openNotice} closeNotice={() => { detailSeqRef.current += 1; setSelectedNotice(null) }} voteNotice={voteOnNotice} />
   else if (activeTab === 'community') content = <CommunityTab posts={posts} selected={selectedPost} comments={comments} loading={postLoading} openPost={openPost} closePost={() => { detailSeqRef.current += 1; setSelectedPost(null); setComments([]) }} createPost={createPost} editPost={editPostForId} createCommentForPost={createCommentForPost} editComment={editCommentForPost} removeComment={removeCommentForPost} vote={vote} pollVote={pollVote} closePoll={closePoll} pinPost={pinPost} toggleBookmark={toggleBookmark} currentUser={user} pendingPosts={pendingCommunityPosts} retryPendingPosts={flushPendingCommunityPosts} />
   else if (activeTab === 'resources') content = <ResourcesTab files={files} onUploaded={() => queryClient.invalidateQueries({ queryKey: DASHBOARD_QUERY_KEY })} />
   else if (activeTab === 'notifications') content = <NotificationsTab notifications={notifications} unreadCount={unreadCount} pushStatus={pushStatus} pushPermission={pushPermission} refreshPushPermission={refreshPushPermission} appConfig={appConfig} enablePush={enablePush} onOpenPushSettings={openPushSettings} markRead={markRead} markAllRead={markAllRead} openRoute={openRoute} />
