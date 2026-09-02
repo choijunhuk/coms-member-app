@@ -1,4 +1,5 @@
 import { QueryClient } from '@tanstack/react-query'
+import { CommunityCategory } from '../contract/enums'
 import { readStoredValueAsync, removeStoredValueAsync, writeStoredValueAsync } from '../utils/deviceStorage'
 import type { ApiError } from './apiClient'
 
@@ -59,17 +60,32 @@ function stripVolatileFields(query) {
   return { ...query, state: { ...query.state, data: trimmed } }
 }
 
+// 익명 게시판 글은 "작성자를 모른다"는 것 하나로 보호됩니다. 그 글이 24시간짜리
+// 디스크 캐시에 평문으로 남으면, 기기를 잠깐 빌려 간 사람이나 백업을 뒤진 사람이
+// 앱에 로그인하지 않고도 읽을 수 있습니다. 인메모리 캐시는 그대로라 앱을 쓰는
+// 동안에는 평소와 똑같이 보이고, 콜드 런치 때만 서버에서 다시 받아옵니다.
+// (secure-storage 네이티브 플러그인 도입은 보류 — 익명 글만 빼는 게 최소 수정.)
+function stripAnonymousPosts(query) {
+  if (!matchesQueryKey(DASHBOARD_QUERY_KEY, query.queryKey)) return query
+  const data = query?.state?.data
+  if (!data || typeof data !== 'object' || !Array.isArray(data.posts)) return query
+  const posts = data.posts.filter((post) => String(post?.category) !== CommunityCategory.ANONYMOUS)
+  if (posts.length === data.posts.length) return query
+  return { ...query, state: { ...query.state, data: { ...data, posts } } }
+}
+
 export const queryPersister = {
   persistClient: async (client) => {
-    // Strip PII queries and volatile fields before writing; the persisted shape
-    // is otherwise identical.
+    // Strip PII queries, volatile fields and anonymous-board posts before
+    // writing; the persisted shape is otherwise identical.
     const safeClient = {
       ...client,
       clientState: {
         ...client.clientState,
         queries: client.clientState.queries
           .filter((q) => !shouldExcludeFromPersistence(q.queryKey))
-          .map(stripVolatileFields),
+          .map(stripVolatileFields)
+          .map(stripAnonymousPosts),
       },
     }
     await writeStoredValueAsync(QUERY_CACHE_STORAGE_KEY, JSON.stringify(safeClient))
