@@ -2292,3 +2292,54 @@ a:focus-visible,
   margin-top: 0.45rem;
   font-size: 0.74rem;
 }
+
+/* 직급 태그 — 웹 RoleTag의 amber/violet/sky 계열을 앱 배지 문법으로 옮긴 것.
+   임원 이상에게만 붙습니다(RoleTag.tsx가 그 아래 등급은 렌더하지 않음). */
+.role-tag {
+  display: inline-flex;
+  width: fit-content;
+  align-items: center;
+  border-radius: 999px;
+  padding: 0.1rem 0.4rem;
+  font-size: 0.64rem;
+  font-weight: 900;
+  line-height: 1.4;
+  white-space: nowrap;
+}
+
+.role-tag-admin {
+  background: #fef3c7;
+  color: #b45309;
+}
+
+.role-tag-vice-president {
+  background: #ede9fe;
+  color: #6d28d9;
+}
+
+.role-tag-officer {
+  background: #e0f2fe;
+  color: #0369a1;
+}
+
+[data-theme='dark'] .role-tag-admin {
+  background: rgba(245, 158, 11, 0.18);
+  color: #fbbf24;
+}
+
+[data-theme='dark'] .role-tag-vice-president {
+  background: rgba(139, 92, 246, 0.18);
+  color: #c4b5fd;
+}
+
+[data-theme='dark'] .role-tag-officer {
+  background: rgba(14, 165, 233, 0.18);
+  color: #7dd3fc;
+}
+
+/* 목록 메타줄에서 이름과 태그를 한 줄에 정렬 */
+.item-meta-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+}

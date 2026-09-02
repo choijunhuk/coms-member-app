@@ -11,6 +11,7 @@ import { sharePost } from '../services/nativeShare'
 import { hapticLight, hapticSuccess } from '../services/haptics'
 import { Detail, Empty, ListItem, LoadingScreen, Section } from '../components/ui'
 import EmojiText from '../components/EmojiText'
+import RoleTag from '../components/RoleTag'
 import Composer from './community/Composer'
 import MemberProfile from './community/MemberProfile'
 import PostContent from './community/PostContent'
@@ -46,11 +47,19 @@ type PostListItemProps = {
 
 function PostListItem({ post, openPost, toggleBookmark }: PostListItemProps) {
   const bookmarked = Boolean(post.bookmarked)
+  // 익명 글은 서버가 작성자와 authorRole을 모두 비워서 내려줍니다.
+  const authorLabel = String(post.authorDisplayName || post.authorName || '')
   return (
     <div className="post-list-row">
       <ListItem
         title={post.title}
-        meta={`${categoryLabels[post.category] || '자유'} · 댓글 ${post.commentCount || 0}`}
+        meta={(
+          <span className="item-meta-row">
+            {`${categoryLabels[post.category] || '자유'} · 댓글 ${post.commentCount || 0}`}
+            {authorLabel && <>{` · ${authorLabel}`}</>}
+            <RoleTag role={post.authorRole} />
+          </span>
+        )}
         body={postPreviewText(post)}
         image={postImage(post)}
         pinned={Boolean(post.pinned)}
@@ -264,11 +273,17 @@ export default function CommunityTab({ posts, selected, comments, loading, openP
             <div className="stats"><span><Eye size={14} />{selected.viewCount || 0}</span><span><ThumbsUp size={14} />{selected.upvotes || 0}</span><span><ThumbsDown size={14} />{selected.downvotes || 0}</span></div>
             {!isAnonymousDetail && (selected.authorDisplayName || selected.authorName) && (
               selected.authorStudentId ? (
-                <button type="button" className="link-button author-link" onClick={() => openMemberProfile(selected)}>
-                  <UserRound size={14} aria-hidden="true" />{String(selected.authorDisplayName || selected.authorName)} 프로필 보기
-                </button>
+                <span className="item-meta-row">
+                  <button type="button" className="link-button author-link" onClick={() => openMemberProfile(selected)}>
+                    <UserRound size={14} aria-hidden="true" />{String(selected.authorDisplayName || selected.authorName)} 프로필 보기
+                  </button>
+                  <RoleTag role={selected.authorRole} />
+                </span>
               ) : (
-                <p className="item-meta">{String(selected.authorDisplayName || selected.authorName)}</p>
+                <p className="item-meta item-meta-row">
+                  {String(selected.authorDisplayName || selected.authorName)}
+                  <RoleTag role={selected.authorRole} />
+                </p>
               )
             )}
             {editingPost ? (

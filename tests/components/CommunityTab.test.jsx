@@ -92,4 +92,45 @@ describe('CommunityTab', () => {
       files: [],
     }))
   })
+
+  // 임원 이상 작성자에게만 직급 칩을 답니다(web #424). 익명 글은 서버가
+  // authorRole을 null로 내려주므로 칩이 붙으면 익명성이 새는 것입니다.
+  test('tags 임원 이상 authors in the list and leaves everyone else untagged', () => {
+    renderCommunity({
+      posts: [
+        { id: 21, title: '회장 글', category: 'GENERAL', authorName: '회장님', authorRole: 'ADMIN' },
+        { id: 22, title: '부회장 글', category: 'GENERAL', authorName: '부회장님', authorRole: 'VICE_PRESIDENT' },
+        { id: 23, title: '임원 글', category: 'GENERAL', authorName: '임원님', authorRole: 'OFFICER' },
+        { id: 24, title: '회원 글', category: 'GENERAL', authorName: '회원님', authorRole: 'USER' },
+        { id: 25, title: '준회원 글', category: 'GENERAL', authorName: '준회원님', authorRole: 'ASSOCIATE' },
+        { id: 26, title: '익명 글', category: 'ANONYMOUS', authorRole: null },
+      ],
+    })
+
+    expect(screen.getByText('회장')).toBeTruthy()
+    expect(screen.getByText('부회장')).toBeTruthy()
+    expect(screen.getByText('임원')).toBeTruthy()
+    expect(screen.queryByText('회원')).toBeNull()
+    expect(screen.queryByText('준회원')).toBeNull()
+
+    const anonymousRow = screen.getByText('익명 글').closest('button')
+    expect(anonymousRow.querySelector('.role-tag')).toBeNull()
+  })
+
+  test('tags the author in the detail view', () => {
+    renderCommunity({
+      selected: { id: 31, title: '공지성 글', category: 'GENERAL', authorName: '임원님', authorRole: 'OFFICER' },
+    })
+
+    const tag = document.querySelector('.role-tag')
+    expect(tag.textContent).toBe('임원')
+    expect(tag.classList.contains('role-tag-officer')).toBe(true)
+  })
+
+  // 알 수 없는 직급이 내려와도 목록이 죽지 않고 칩만 사라져야 합니다.
+  test('renders nothing for an unrecognised role', () => {
+    renderCommunity({ posts: [{ id: 41, title: '표류 글', category: 'GENERAL', authorName: '아무개', authorRole: 'TREASURER' }] })
+    expect(screen.getByText('표류 글')).toBeTruthy()
+    expect(document.querySelector('.role-tag')).toBeNull()
+  })
 })
