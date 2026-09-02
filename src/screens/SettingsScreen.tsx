@@ -20,6 +20,7 @@ import {
   writeIdleLock,
 } from '../utils/preferences'
 import { bundleVersion } from '../utils/version'
+import { useSiteSettings } from '../hooks/useSiteSettings'
 
 const THEME_OPTIONS = [
   { id: 'system', label: '시스템', icon: Smartphone },
@@ -48,6 +49,7 @@ export default function SettingsScreen({
   const [notifDirty, setNotifDirty] = useState(false)
   const [busy, setBusy] = useState('')
   const version = useMemo(() => bundleVersion(), [])
+  const site = useSiteSettings()
 
   useEffect(() => {
     let cancelled = false
@@ -245,6 +247,12 @@ export default function SettingsScreen({
             <span>개인정보 처리방침</span>
             <ChevronRight size={14} aria-hidden="true" />
           </button>
+          {site.contactLinks.map((link) => (
+            <a key={link.href} className="settings-row" href={link.href} target="_blank" rel="noopener noreferrer">
+              <span>{link.label}</span>
+              <ChevronRight size={14} aria-hidden="true" />
+            </a>
+          ))}
           <div className="settings-row" style={{ pointerEvents: 'none' }}>
             <span>앱 버전</span>
             <span className="muted">v{version}</span>

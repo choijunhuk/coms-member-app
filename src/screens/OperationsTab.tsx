@@ -5,7 +5,7 @@ import { categoryLabel, createClubActivity } from '../services/clubActivityApi'
 import { createApp, deleteApp, updateApp } from '../services/appCatalogApi'
 import { deleteCommunityPost } from '../services/communityApi'
 import { createNotice, updateNotice } from '../services/noticeApi'
-import { asArray, formatDate, generationFromStudentId, plainText } from '../utils/format'
+import { asArray, formatDate, generationLabel, plainText } from '../utils/format'
 import { canManageContent, canModerateCommunity, categoryLabels, isAdminUser, latest, noticeCategoryLabels } from '../utils/helpers'
 import { validateHttpUrl } from '../utils/urlValidation'
 import { Empty, Info, ListItem, Metric, Section } from '../components/ui'
@@ -377,7 +377,7 @@ export default function OperationsTab({ user, notices, posts, clubActivities = [
             <Metric icon={ShieldCheck} label="명부 대기" value={pendingRoster.length} />
           </div>
           <div className="list compact-list">
-            {pendingRoster.slice(0, 5).map((item) => <Info key={item.id || item.studentId || item.name} label={`${item.name || '이름 없음'} · ${item.generation || generationFromStudentId(item.studentId)}`} value={item.studentId || '졸업생'} />)}
+            {pendingRoster.slice(0, 5).map((item) => <Info key={item.id || item.studentId || item.name} label={`${item.name || '이름 없음'} · ${generationLabel(item.generation, item.studentId)}`} value={item.studentId || '졸업생'} />)}
             {pendingRoster.length === 0 && <Empty text="명부 기준 대기자가 없습니다." />}
           </div>
         </section>

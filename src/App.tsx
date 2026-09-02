@@ -25,6 +25,7 @@ import {
   pinCommunityPost,
   toggleCommunityPostBookmark,
   updateComment,
+  updateCommunityPostAuthor,
   voteCommunityPoll,
   voteCommunityPost,
 } from './services/communityApi'
@@ -38,7 +39,7 @@ import {
 } from './services/mobileApi'
 import { nativePlatform, openNotificationSettings, readAppVersion, readPushPermissionState, requestPushRegistration, resetPushRegistration, setupAppStateListener, setupBackButtonListener, setupDeepLinkListener } from './services/nativeBridge'
 import { isBiometricAvailable } from './services/biometric'
-import { getNotice, listNotices, voteNotice } from './services/noticeApi'
+import { deleteNotice, getNotice, listNotices, pinNotice, updateNoticeAuthor, voteNotice } from './services/noticeApi'
 import { getNotificationSummary, listNotifications, markAllNotificationsRead, markNotificationRead } from './services/notificationApi'
 import { asArray } from './utils/format'
 import { canManageContent, normalizeAppConfig } from './utils/helpers'
@@ -876,6 +877,47 @@ export default function App() {
     }))
   }
 
+  // ─── 운영진 공지 조작 (임원 이상: 고정/삭제, 회장: 작성자 변경) ─────────────
+  // Each re-reads the notice from the server rather than patching locally: the
+  // response shape of the PATCH endpoints is the notice, but a follow-up GET is
+  // the only thing that also settles server-side side effects (pin ordering).
+  const reloadSelectedNotice = useCallback(async (noticeId) => {
+    const fresh = await getNotice(noticeId).catch(() => null)
+    if (fresh) setSelectedNotice((prev) => (prev && String(prev.id) === String(noticeId) ? fresh : prev))
+    refreshDashboard()
+  }, [refreshDashboard, setSelectedNotice])
+
+  async function pinSelectedNotice(pinned) {
+    const noticeId = selectedNotice?.id
+    if (!noticeId) return
+    await pinNotice(noticeId, pinned)
+    await reloadSelectedNotice(noticeId)
+  }
+
+  async function removeSelectedNotice() {
+    const noticeId = selectedNotice?.id
+    if (!noticeId) return
+    await deleteNotice(noticeId)
+    detailSeqRef.current += 1
+    setSelectedNotice(null)
+    refreshDashboard()
+  }
+
+  async function changeSelectedNoticeAuthor(name) {
+    const noticeId = selectedNotice?.id
+    if (!noticeId) return
+    await updateNoticeAuthor(noticeId, name)
+    await reloadSelectedNotice(noticeId)
+  }
+
+  // 회장 전용 커뮤니티 작성자 변경: studentId면 계정 재지정, name이면 표시 이름만.
+  async function changeSelectedPostAuthor(payload) {
+    if (!selectedPost?.id) return
+    await updateCommunityPostAuthor(selectedPost.id, payload)
+    await openPost(selectedPost.id)
+    refreshDashboard()
+  }
+
   async function toggleBookmark(postId) {
     if (!postId) return
     const result = await bookmarkMutation.mutateAsync({ postId })
@@ -1104,9 +1146,9 @@ export default function App() {
     </div>
   )
   else if (activeTab === 'activity') content = <ActivityTab clubActivities={clubActivities} apps={apps} appLinks={appConfig.links} />
-  else if (activeTab === 'notices') content = <NoticesTab notices={notices} selected={selectedNotice} loading={noticeLoading} openNotice={openNotice} closeNotice={() => { detailSeqRef.current += 1; setSelectedNotice(null) }} voteNotice={voteOnNotice} />
-  else if (activeTab === 'community') content = <CommunityTab posts={posts} selected={selectedPost} comments={comments} loading={postLoading} openPost={openPost} closePost={() => { detailSeqRef.current += 1; setSelectedPost(null); setComments([]) }} createPost={createPost} editPost={editPostForId} createCommentForPost={createCommentForPost} editComment={editCommentForPost} removeComment={removeCommentForPost} vote={vote} pollVote={pollVote} closePoll={closePoll} pinPost={pinPost} toggleBookmark={toggleBookmark} currentUser={user} pendingPosts={pendingCommunityPosts} retryPendingPosts={flushPendingCommunityPosts} />
-  else if (activeTab === 'resources') content = <ResourcesTab files={files} onUploaded={() => queryClient.invalidateQueries({ queryKey: DASHBOARD_QUERY_KEY })} />
+  else if (activeTab === 'notices') content = <NoticesTab notices={notices} selected={selectedNotice} loading={noticeLoading} openNotice={openNotice} closeNotice={() => { detailSeqRef.current += 1; setSelectedNotice(null) }} voteNotice={voteOnNotice} currentUser={user} pinNotice={pinSelectedNotice} deleteNotice={removeSelectedNotice} updateNoticeAuthor={changeSelectedNoticeAuthor} />
+  else if (activeTab === 'community') content = <CommunityTab posts={posts} selected={selectedPost} comments={comments} loading={postLoading} openPost={openPost} closePost={() => { detailSeqRef.current += 1; setSelectedPost(null); setComments([]) }} createPost={createPost} editPost={editPostForId} createCommentForPost={createCommentForPost} editComment={editCommentForPost} removeComment={removeCommentForPost} vote={vote} pollVote={pollVote} closePoll={closePoll} pinPost={pinPost} updatePostAuthor={changeSelectedPostAuthor} toggleBookmark={toggleBookmark} currentUser={user} pendingPosts={pendingCommunityPosts} retryPendingPosts={flushPendingCommunityPosts} />
+  else if (activeTab === 'resources') content = <ResourcesTab files={files} currentUser={user} onChanged={refreshDashboard} />
   else if (activeTab === 'notifications') content = <NotificationsTab notifications={notifications} unreadCount={unreadCount} pushStatus={pushStatus} pushPermission={pushPermission} refreshPushPermission={refreshPushPermission} appConfig={appConfig} enablePush={enablePush} onOpenPushSettings={openPushSettings} markRead={markRead} markAllRead={markAllRead} openRoute={openRoute} />
   else if (activeTab === 'operations') content = <OperationsTab user={user} notices={notices} posts={posts} clubActivities={clubActivities} apps={apps} loadDashboard={refreshDashboard} />
   else content = (

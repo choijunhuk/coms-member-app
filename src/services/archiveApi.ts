@@ -1,4 +1,4 @@
-import { apiUrl, request } from './apiClient'
+import { apiUrl, request, requestNoContent } from './apiClient'
 import { FileListSchema, FileSchema, parseApiResponse } from './responseSchemas'
 
 export async function listFiles() {
@@ -16,6 +16,21 @@ export async function voteFile(id, value) {
     body: JSON.stringify({ value }),
   })
   return parseApiResponse(FileSchema, data, '자료 투표')
+}
+
+// 부회장 이상 (web roleAccess.canManageArchive) — 자료에 표시할 업로더 이름만 바꿉니다.
+export function updateArchiveAuthor(id, uploaderName) {
+  return request(`/api/files/${id}/author`, {
+    method: 'PATCH',
+    body: JSON.stringify({ uploaderName }),
+  })
+}
+
+// 부회장 이상. 빈 본문으로 응답하므로 JSON 파싱을 요구하지 않습니다.
+export function deleteFile(id) {
+  return requestNoContent(`/api/files/${id}`, {
+    method: 'DELETE',
+  })
 }
 
 export function createArchivePost({ title, description, category, file }) {
