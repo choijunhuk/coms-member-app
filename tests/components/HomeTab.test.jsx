@@ -1,8 +1,18 @@
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { afterEach, describe, expect, test, vi } from 'vitest'
 import HomeTab from '../../src/screens/HomeTab.tsx'
 
 afterEach(cleanup)
+
+// HomeTab now reads 사이트 설정 and 정기 일정 through react-query. Both are
+// additive decorations that must fall back silently, so the harness fails every
+// request: what renders below is what a member sees with the server unreachable.
+function renderWithQuery(ui) {
+  globalThis.fetch = vi.fn(async () => { throw new Error('offline') })
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+  return render(<QueryClientProvider client={client}>{ui}</QueryClientProvider>)
+}
 
 describe('HomeTab', () => {
   test('renders dashboard sections and opens linked content', () => {
@@ -10,7 +20,7 @@ describe('HomeTab', () => {
     const openPost = vi.fn()
     const setActiveTab = vi.fn()
 
-    render(
+    renderWithQuery(
       <HomeTab
         notices={[{
           id: 1,
@@ -50,6 +60,9 @@ describe('HomeTab', () => {
 
     expect(screen.getByRole('heading', { name: '오늘 볼 일정, 활동, 공지, 자료를 한 화면에서 확인합니다.' })).toBeTruthy()
     expect(screen.getByText('정기 세미나')).toBeTruthy()
+    // 서버 값이 없어도 하드코딩 폴백 문구가 그대로 보입니다.
+    expect(screen.getByText('Today COMS')).toBeTruthy()
+    expect(screen.getByText('모집 안내')).toBeTruthy()
 
     fireEvent.click(screen.getByRole('button', { name: /알림 테스트/ }))
     expect(openNotice).toHaveBeenCalledWith(1)

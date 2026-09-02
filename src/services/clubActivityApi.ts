@@ -159,6 +159,10 @@ export function mergeMonthSchedule(schedules, occurrences) {
     .map((occurrence) => ({
       // Namespaced so a recurring id can never collide with an activity id.
       id: `recurring-${occurrence.recurringScheduleId ?? 'x'}-${occurrence.date}`,
+      // An occurrence IS a schedule, so it must carry the kind the schedule
+      // filters (nextSchedules/schedulesForMonth) select on — without it the
+      // home tab's 다가오는 일정 silently dropped every 정기 일정.
+      kind: 'SCHEDULE',
       title: occurrence.title || '정기 일정',
       eventDate: occurrence.date,
       description: occurrence.location || '',

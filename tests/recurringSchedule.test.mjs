@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
-import { listScheduleOccurrences, mergeMonthSchedule, schedulesForMonth } from '../src/services/clubActivityApi.ts'
+import { listScheduleOccurrences, mergeMonthSchedule, nextSchedules, schedulesForMonth } from '../src/services/clubActivityApi.ts'
 
 const calls = []
 globalThis.fetch = async (url, options = {}) => {
@@ -57,5 +57,35 @@ assert.match(tabSource, /listScheduleOccurrences\(year, month \+ 1\)/)
 assert.match(tabSource, /retry: false/)
 assert.match(tabSource, /asArray\(occurrencesQuery\.data\)/)
 assert.match(tabSource, /정기 일정/)
+
+// ─── 홈 탭 "다가오는 일정" 병합 ───────────────────────────────────────────────
+// nextSchedules filters on kind === 'SCHEDULE', so an occurrence without that
+// field is silently dropped — which is exactly how the home tab lost every
+// 정기 일정 before this. Assert the kind survives the merge.
+assert.equal(merged[0].kind, 'SCHEDULE')
+
+const homeMerged = mergeMonthSchedule(activities, [
+  { date: '2026-09-09', recurringScheduleId: 3, title: '정기 모임', startTime: '19:00:00', endTime: '21:00:00', location: '동아리방' },
+  { date: '2026-10-07', recurringScheduleId: 3, title: '다음 달 정기 모임', startTime: '19:00:00' },
+  { date: '2026-09-02', recurringScheduleId: 3, title: '지나간 모임' },
+])
+const upcoming = nextSchedules(homeMerged, new Date(2026, 8, 5), 2)
+// 지난 일정과 ACTIVITY 기록은 빠지고, 일회성과 정기 일정이 날짜순으로 섞입니다.
+assert.deepEqual(upcoming.map((item) => item.title), ['정기 모임', '개강 총회'])
+assert.equal(upcoming[0].recurring, true)
+assert.equal(upcoming[1].recurring, false)
+// 달을 넘어가는 일정도 같은 목록에 들어옵니다 (홈 탭이 두 달을 조회하는 이유).
+assert.deepEqual(
+  nextSchedules(homeMerged, new Date(2026, 8, 20), 2).map((item) => item.title),
+  ['다음 달 정기 모임'],
+)
+
+const homeSource = readFileSync('src/screens/HomeTab.tsx', 'utf8')
+assert.match(homeSource, /mergeMonthSchedule\(clubActivities, asArray\(occurrencesQuery\.data\)\)/)
+assert.match(homeSource, /nextSchedules\(/)
+// 이번 달 + 다음 달 두 번을 펼쳐 오지 않으면 월말에 목록이 비어 보입니다.
+assert.match(homeSource, /reference\.getMonth\(\) \+ 1/)
+assert.match(homeSource, /months\.map\(\(item\) => listScheduleOccurrences\(item\.year, item\.month\)\)/)
+assert.match(homeSource, /retry: false/)
 
 console.log('recurring schedule contract passed')
