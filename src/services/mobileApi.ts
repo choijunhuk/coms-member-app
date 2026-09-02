@@ -31,3 +31,14 @@ export function registerPushToken(payload) {
     body: JSON.stringify(payload),
   })
 }
+
+// Retire this device's push token server-side. Keyed on the same installation
+// deviceId the POST registers under, so the backend can drop the row even when
+// the FCM/APNs token itself is no longer retrievable (logout revokes it first).
+// Callers treat every failure as non-fatal — logout must never be blocked by it.
+export function unregisterPushToken(payload) {
+  return request(PUSH_TOKEN_PATH, {
+    method: 'DELETE',
+    body: JSON.stringify(payload),
+  })
+}

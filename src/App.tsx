@@ -34,6 +34,7 @@ import {
   getAppConfig,
   isRecoverableMobileApiError,
   registerPushToken,
+  unregisterPushToken,
 } from './services/mobileApi'
 import { nativePlatform, openNotificationSettings, readAppVersion, readPushPermissionState, requestPushRegistration, resetPushRegistration, setupAppStateListener, setupBackButtonListener, setupDeepLinkListener } from './services/nativeBridge'
 import { isBiometricAvailable } from './services/biometric'
@@ -53,7 +54,7 @@ import { reportError, setUserContext } from './services/observability'
 import { onSessionExpired } from './services/apiClient'
 import { purgePersistedCache } from './services/queryClient'
 import { registerPushTokenWithRetry } from './utils/pushRegistration'
-import { getInstallationDeviceId } from './utils/installationDeviceId'
+import { INSTALLATION_DEVICE_ID_KEY, getInstallationDeviceId } from './utils/installationDeviceId'
 import { pushStatusFromPermission } from './utils/pushPermissionStatus'
 import { DEFAULT_IDLE_LOCK_THRESHOLD_MS, SLOW_SYNC_NOTICE_DELAY_MS } from './config/appTiming'
 import { useAppState } from './hooks/useAppState'
@@ -338,14 +339,56 @@ export default function App() {
     }
   }, [setUser])
 
+  // The one definition of "this device no longer holds a session". Logout and
+  // session-expiry had drifted into two different partial teardowns: expiry left
+  // the push registration, the queued offline posts and every coms.* preference
+  // behind, so the next member to sign in on the device inherited them.
+  // Everything under the coms. prefix goes EXCEPT the installation device id,
+  // which identifies the device (not the member) to the push-token endpoints.
+  const clearLocalSession = useCallback(async () => {
+    setUser(null)
+    setPushStatus('idle')
+    setPushPermission(null)
+    setPendingCommunityPosts([])
+    await resetPushRegistration()
+    queryClient.cancelQueries()
+    queryClient.clear()
+    await purgePersistedCache()
+    await removeStoredValuesByPrefix('coms.', [INSTALLATION_DEVICE_ID_KEY])
+  }, [queryClient, setPendingCommunityPosts, setPushPermission, setPushStatus, setUser])
+
+  // Best-effort push-token retirement. Runs before the server logout (which
+  // revokes the cookie the DELETE needs) and swallows everything, 404 included:
+  // the backend endpoint ships separately, and a member must always be able to
+  // log out even when it is missing or the network is gone.
+  const retirePushToken = useCallback(async () => {
+    try {
+      await unregisterPushToken({
+        platform: nativePlatform(),
+        deviceId: await getInstallationDeviceId(),
+      })
+    } catch (error) {
+      reportError(error, { area: 'push-token-unregister' })
+    }
+  }, [])
+
   // A 401 that survives the refresh means the session is gone — drop to the
   // login screen instead of leaving a logged-in shell where every panel errors.
+  // Re-entrancy guard: the push-token DELETE below is itself a refreshable
+  // request, so its own 401 would call this handler again and recurse forever.
+  const sessionTeardownRef = useRef(false)
   useEffect(() => onSessionExpired(() => {
-    setUser(null)
-    setPushPermission(null)
-    queryClient.clear()
-    void purgePersistedCache()
-  }), [queryClient, setPushPermission, setUser])
+    if (sessionTeardownRef.current) return
+    sessionTeardownRef.current = true
+    void (async () => {
+      try {
+        await retirePushToken()
+        await clearLocalSession()
+      } finally {
+        sessionTeardownRef.current = false
+      }
+    })()
+  }), [clearLocalSession, retirePushToken])
 
   useEffect(() => {
     let cancelled = false
@@ -895,6 +938,9 @@ export default function App() {
 
   async function handleLogout() {
     setAccountActionError('')
+    // Retire the push token first: the server logout revokes the cookie this
+    // call authenticates with, so afterwards it could only ever 401.
+    await retirePushToken()
     try {
       await logoutUser()
     } catch (error) {
@@ -902,17 +948,12 @@ export default function App() {
       setAccountActionError(error?.message || '로그아웃에 실패했습니다. 네트워크 상태를 확인한 뒤 다시 시도해주세요.')
       throw error
     }
-    setUser(null)
-    setPushStatus('idle')
-    setPushPermission(null)
-    await resetPushRegistration()
-    queryClient.cancelQueries()
-    queryClient.clear()
-    await purgePersistedCache()
+    await clearLocalSession()
   }
 
   async function handleWithdraw() {
     setAccountActionError('')
+    await retirePushToken()
     try {
       await withdrawSelf()
     } catch (error) {
@@ -920,26 +961,20 @@ export default function App() {
       setAccountActionError(error?.message || '회원 탈퇴에 실패했습니다. 계정 상태는 변경되지 않았습니다.')
       throw error
     }
-    setUser(null)
-    setPushStatus('idle')
-    await resetPushRegistration()
-    queryClient.cancelQueries()
-    queryClient.clear()
-    await purgePersistedCache()
+    await clearLocalSession()
+    // The account is gone, so the installation id has nothing left to identify.
     await removeStoredValuesByPrefix('coms.')
   }
 
   async function handleWipeDevice() {
-    setPushStatus('idle')
-    await resetPushRegistration()
-    queryClient.cancelQueries()
-    queryClient.clear()
-    await purgePersistedCache()
+    await retirePushToken()
+    await clearLocalSession()
+    // "기기에서 지우기" means everything, installation id included.
     await removeStoredValuesByPrefix('coms.')
     try {
       await logoutUser()
-    } finally {
-      setUser(null)
+    } catch (error) {
+      reportError(error, { area: 'wipe-device-logout' })
     }
   }
 
