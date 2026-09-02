@@ -8,6 +8,7 @@ import {
   shouldQueueCommunityPostError,
   writePendingCommunityPosts,
 } from '../src/utils/communityPostQueue.ts'
+import { createRequestTimeoutError } from '../src/services/apiClient.ts'
 
 function createLocalStorage() {
   const store = new Map()
@@ -63,7 +64,20 @@ assert.deepEqual(queue, [])
 
 assert.equal(shouldQueueCommunityPostError(new TypeError('Failed to fetch')), true)
 assert.equal(shouldQueueCommunityPostError({ status: 0 }), true)
-assert.equal(shouldQueueCommunityPostError({ code: 'REQUEST_TIMEOUT' }), true)
+
+// A REQUEST_TIMEOUT is never queued, even while navigator reports offline: the
+// 30s abort is client-side, so the server may already have committed the post
+// and replaying it posts a duplicate. createRequestTimeoutError also sets
+// status 0, so the code check has to win over the transport-failure check.
+assert.equal(shouldQueueCommunityPostError({ status: 0, code: 'REQUEST_TIMEOUT' }), false)
+assert.equal(shouldQueueCommunityPostError(createRequestTimeoutError(30_000)), false)
+
+// ...and it is not silently dropped from the queue either — it surfaces to the
+// composer, which shows the error and lets the member decide.
+const timedOut = await enqueuePendingCommunityPost(payload)
+const timeoutOutcome = await resolvePendingCommunityPostFlushFailure(timedOut[0], createRequestTimeoutError(30_000))
+assert.equal(timeoutOutcome.action, 'discarded')
+assert.deepEqual(await readPendingCommunityPosts(), [])
 
 Object.defineProperty(globalThis, 'navigator', {
   value: { onLine: true },

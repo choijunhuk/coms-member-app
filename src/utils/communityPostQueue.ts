@@ -84,7 +84,14 @@ export async function resolvePendingCommunityPostFlushFailure(item, error) {
   }
 }
 
+// Only a request that PROVABLY never reached the server may be queued for
+// replay. A REQUEST_TIMEOUT does not qualify: the 30s abort fires client-side
+// long before a slow backend gives up, so the post is often already committed —
+// replaying it posted a duplicate. The composer surfaces the timeout instead
+// and the member decides. status 0 without a code (transport failure) and a
+// TypeError from fetch both mean the request never left the device.
 export function shouldQueueCommunityPostError(error) {
+  if (error?.code === 'REQUEST_TIMEOUT') return false
   if (typeof navigator !== 'undefined' && navigator.onLine === false) return true
-  return error?.status === 0 || error?.code === 'REQUEST_TIMEOUT' || error?.name === 'TypeError'
+  return error?.status === 0 || error?.name === 'TypeError'
 }
