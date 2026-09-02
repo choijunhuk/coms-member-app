@@ -35,7 +35,11 @@ android {
     }
     buildTypes {
         release {
-            minifyEnabled false
+            // R8 (code shrink + resource shrink). Capacitor reaches its plugins
+            // by reflection from JS, so proguard-rules.pro pins every plugin
+            // entry point by hand — nothing below the bridge may be renamed.
+            minifyEnabled true
+            shrinkResources true
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
             if (releaseKeystorePath != null && file(releaseKeystorePath).exists()) {
                 signingConfig signingConfigs.release
