@@ -136,6 +136,19 @@ export const ClubActivitySchema = z.looseObject({
 })
 export const ClubActivityListSchema = z.array(ClubActivitySchema)
 
+// Recurring 정기 일정, already expanded into one entry per occurrence by the
+// server for the requested month.
+export const ScheduleOccurrenceSchema = z.looseObject({
+  date: z.string().nullish(),
+  recurringScheduleId: idValue,
+  title: z.string().nullish(),
+  startTime: z.string().nullish(),
+  endTime: z.string().nullish(),
+  location: z.string().nullish(),
+  canceled: z.boolean().nullish(),
+})
+export const ScheduleOccurrenceListSchema = z.array(ScheduleOccurrenceSchema)
+
 // --- notices ---
 
 export const NoticeSchema = z.looseObject({

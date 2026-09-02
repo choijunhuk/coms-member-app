@@ -10,6 +10,8 @@ import {
   categoryLabel,
   companionServicesForLinks,
   formatActivityDate,
+  listScheduleOccurrences,
+  mergeMonthSchedule,
   recentActivities,
   schedulesForMonth,
 } from '../services/clubActivityApi'
@@ -67,7 +69,18 @@ export default function ActivityTab({ clubActivities, apps, appLinks }: Activity
   const [year, setYear] = useState(now.getFullYear())
   const [month, setMonth] = useState(now.getMonth())
   const activities = useMemo(() => recentActivities(clubActivities, 12), [clubActivities])
-  const monthSchedules = useMemo(() => schedulesForMonth(clubActivities, year, month), [clubActivities, year, month])
+  // 정기 일정 come from their own endpoint, already expanded per occurrence for
+  // the month on screen. They are additive to the one-off list, so a failure
+  // must not blank the month — hence no retry and a plain empty fallback.
+  const occurrencesQuery = useQuery({
+    queryKey: ['member-app', 'schedule-occurrences', year, month + 1],
+    queryFn: () => listScheduleOccurrences(year, month + 1),
+    retry: false,
+  })
+  const monthSchedules = useMemo(
+    () => mergeMonthSchedule(schedulesForMonth(clubActivities, year, month), asArray(occurrencesQuery.data)),
+    [clubActivities, year, month, occurrencesQuery.data],
+  )
   const services = useMemo<ServiceCard[]>(() => (
     Array.isArray(apps) && apps.length > 0 ? apps : companionServicesForLinks(appLinks)
   ), [appLinks, apps])
@@ -120,7 +133,14 @@ export default function ActivityTab({ clubActivities, apps, appLinks }: Activity
         </div>
         <div className="list compact-list">
           {monthSchedules.map((item) => (
-            <ListItem key={item.id} title={item.title} meta={`${formatActivityDate(item.eventDate)} · ${categoryLabel(item.category)}`} body={item.description} />
+            <ListItem
+              key={item.id}
+              title={item.title}
+              meta={item.recurring
+                ? `${formatActivityDate(item.eventDate)} · 정기 일정${item.timeLabel ? ` · ${item.timeLabel}` : ''}`
+                : `${formatActivityDate(item.eventDate)} · ${categoryLabel(item.category)}`}
+              body={item.description}
+            />
           ))}
           {monthSchedules.length === 0 && <Empty text="선택한 달에 등록된 일정이 없습니다." />}
         </div>
