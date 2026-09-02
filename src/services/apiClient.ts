@@ -83,12 +83,31 @@ async function parseError(response) {
   }
 }
 
+// Single-flight the refresh (same pattern as the website): when several
+// requests 401 at once they must share ONE /api/auth/refresh call. Otherwise
+// each fires its own, which with refresh-token rotation is wasteful and can
+// interleave Set-Cookie writes so the last (already-rotated) token wins.
+let refreshInFlight: Promise<boolean> | null = null
+
 async function refreshSession() {
-  const response = await fetchWithTimeout(apiUrl('/api/auth/refresh'), {
-    method: 'POST',
-    credentials: 'include',
-  })
-  return response.ok
+  if (refreshInFlight) return refreshInFlight
+  refreshInFlight = (async () => {
+    try {
+      const response = await fetchWithTimeout(apiUrl('/api/auth/refresh'), {
+        method: 'POST',
+        credentials: 'include',
+      })
+      return response.ok
+    } catch {
+      // A network error or the 30s timeout must not escape as the request's
+      // rejection — that masked the original 401 and skipped the expiry
+      // handler, leaving a logged-in shell no one could get out of.
+      return false
+    } finally {
+      refreshInFlight = null
+    }
+  })()
+  return refreshInFlight
 }
 
 // Notified when a 401 survives the token refresh — i.e. the session is truly
@@ -115,12 +134,14 @@ export async function request(path, options: RequestOptions = {}) {
   // the session-expired handler and log the user out on a typo. /api/auth/me
   // and /api/auth/profile 401 only on a dead session, so they stay refreshable.
   const canRefresh = path === '/api/auth/me' || path === '/api/auth/profile' || !path.includes('/api/auth/')
-  if ((response.status === 401 || response.status === 403) && canRefresh) {
+  // ONLY 401 refreshes. A 403 is an authorization decision about a session the
+  // server accepted — refreshing it burns a token rotation on every permission
+  // denial and can never turn the 403 into a 200.
+  if (response.status === 401 && canRefresh) {
     if (await refreshSession()) {
       response = await fetchOnce()
     }
-    // 401 after (failed or replayed) refresh = expired session. 403 is excluded:
-    // it can be a plain permission denial for a signed-in member.
+    // 401 after (failed or replayed) refresh = expired session.
     if (response.status === 401) {
       sessionExpiredHandler?.()
     }
