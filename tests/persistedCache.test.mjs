@@ -1,17 +1,26 @@
 import assert from 'node:assert/strict'
+import { readFileSync } from 'node:fs'
+import { QueryClient, dehydrate } from '@tanstack/react-query'
 
 const store = new Map()
+let writes = 0
 globalThis.window = {
   localStorage: {
     get length() { return store.size },
     key: (index) => Array.from(store.keys())[index] ?? null,
     getItem: (key) => (store.has(key) ? store.get(key) : null),
-    setItem: (key, value) => store.set(key, String(value)),
+    setItem: (key, value) => { writes += 1; store.set(key, String(value)) },
     removeItem: (key) => store.delete(key),
   },
 }
 
-const { DASHBOARD_QUERY_KEY, QUERY_CACHE_STORAGE_KEY, queryPersister } = await import('../src/services/queryClient.ts')
+const {
+  DASHBOARD_QUERY_KEY,
+  QUERY_CACHE_STORAGE_KEY,
+  configureQueryPersister,
+  queryPersister,
+  shouldPersistQuery,
+} = await import('../src/services/queryClient.ts')
 
 const dashboardData = {
   appConfig: { minimumSupportedVersion: '9.9.9' },
@@ -69,5 +78,29 @@ await queryPersister.persistClient({
   clientState: { mutations: [], queries: [{ queryKey: DASHBOARD_QUERY_KEY, queryHash: 'dash', state: { data: cleanData, dataUpdatedAt: 1 } }] },
 })
 assert.deepEqual(JSON.parse(store.get(QUERY_CACHE_STORAGE_KEY)).clientState.queries[0].state.data.posts, cleanData.posts)
+
+// Dehydration must use the same privacy decision as the defensive persister
+// filter, so excluded PII never reaches serialization in the first place.
+const queryClient = new QueryClient()
+queryClient.setQueryData(['member-app', 'deleted-community-posts'], [{ id: 99 }])
+queryClient.setQueryData(['member-app', 'site-settings'], { semesterLabel: '2026 2학기' })
+const dehydrated = dehydrate(queryClient, { shouldDehydrateQuery: shouldPersistQuery })
+assert.deepEqual(dehydrated.queries.map((query) => query.queryKey), [['member-app', 'site-settings']])
+
+// Rapid cache events collapse into one storage write carrying the latest state.
+configureQueryPersister({ throttleTime: 20 })
+const writesBeforeThrottle = writes
+void queryPersister.persistClient({ ...client, timestamp: 2 })
+void queryPersister.persistClient({ ...client, timestamp: 3 })
+assert.equal(writes, writesBeforeThrottle)
+await new Promise((resolve) => setTimeout(resolve, 35))
+assert.equal(writes, writesBeforeThrottle + 1)
+assert.equal(JSON.parse(store.get(QUERY_CACHE_STORAGE_KEY)).timestamp, 3)
+configureQueryPersister({ throttleTime: 0 })
+
+// main.tsx owns the production tuning while reusing the exported predicate.
+const mainSource = readFileSync('src/main.tsx', 'utf8')
+assert.match(mainSource, /configureQueryPersister\(\{ throttleTime: 2_000 \}\)/)
+assert.match(mainSource, /shouldDehydrateQuery: shouldPersistQuery/)
 
 console.log('persisted cache contract passed')

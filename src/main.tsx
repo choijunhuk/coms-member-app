@@ -4,12 +4,13 @@ import { QueryClientProvider } from '@tanstack/react-query'
 import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client'
 import App from './App'
 import { ConfirmHost } from './components/ConfirmDialog'
-import { queryClient, queryPersister } from './services/queryClient'
+import { configureQueryPersister, queryClient, queryPersister, shouldPersistQuery } from './services/queryClient'
 import { initObservability } from './services/observability'
 import { bundleVersion } from './utils/version'
 import './styles.css'
 
 void initObservability({ release: `coms-member-app@${bundleVersion()}` })
+configureQueryPersister({ throttleTime: 2_000 })
 
 const root = createRoot(document.getElementById('root'))
 
@@ -18,7 +19,11 @@ if (queryPersister) {
     <StrictMode>
       <PersistQueryClientProvider
         client={queryClient}
-        persistOptions={{ persister: queryPersister, maxAge: 24 * 60 * 60 * 1000 }}
+        persistOptions={{
+          persister: queryPersister,
+          maxAge: 24 * 60 * 60 * 1000,
+          dehydrateOptions: { shouldDehydrateQuery: shouldPersistQuery },
+        }}
       >
         <App />
         <ConfirmHost />
