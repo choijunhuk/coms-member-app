@@ -2293,6 +2293,235 @@ a:focus-visible,
   font-size: 0.74rem;
 }
 
+/* Public sponsor wall — the page stays inside the app's editorial card system;
+   backend colours are confined to semantic chips and the hero accent. */
+.sponsor-home-card {
+  padding: 0;
+  overflow: hidden;
+}
+
+.sponsor-home-action {
+  display: grid;
+  width: 100%;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.7rem;
+  border: 0;
+  background: transparent;
+  color: var(--app-text);
+  padding: 0.8rem 0.9rem;
+  text-align: left;
+}
+
+.sponsor-home-action > svg:first-child {
+  color: var(--app-accent-text);
+}
+
+.sponsor-home-action span {
+  display: grid;
+  gap: 0.15rem;
+}
+
+.sponsor-home-action strong {
+  font-size: 0.9rem;
+}
+
+.sponsor-home-action small {
+  color: var(--app-muted);
+  font-size: 0.75rem;
+}
+
+.sponsors-content,
+.sponsor-tiers {
+  display: grid;
+  gap: 0.9rem;
+}
+
+.sponsor-hero {
+  position: relative;
+  display: grid;
+  gap: 0.45rem;
+  border-top: 3px solid var(--sponsor-accent-color);
+}
+
+.sponsor-hero > svg {
+  color: var(--sponsor-accent-color);
+}
+
+.sponsor-hero h2 {
+  margin-top: 0;
+}
+
+.sponsor-counts {
+  width: fit-content;
+  border-radius: 999px;
+  background: var(--app-surface-soft);
+  padding: 0.3rem 0.55rem;
+  font-size: 0.75rem !important;
+  font-weight: 700 !important;
+}
+
+.sponsor-banner {
+  width: 100%;
+  max-height: 17rem;
+  border: 1px solid var(--app-hairline);
+  border-radius: 16px;
+  object-fit: cover;
+}
+
+.sponsor-intro {
+  line-height: 1.75;
+}
+
+.sponsor-tier {
+  display: grid;
+  gap: 0.65rem;
+}
+
+.sponsor-tier-header {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: start;
+  gap: 0.6rem;
+  padding-inline: 0.15rem;
+}
+
+.sponsor-tier-chip {
+  width: 0.7rem;
+  height: 1.8rem;
+  border-radius: 999px;
+  background: var(--sponsor-tier-color);
+}
+
+.sponsor-tier-header h2,
+.sponsor-tier-header p {
+  margin: 0;
+}
+
+.sponsor-tier-header h2 {
+  font-size: 1rem;
+}
+
+.sponsor-tier-header p {
+  margin-top: 0.15rem;
+  color: var(--app-muted);
+  font-size: 0.78rem;
+  line-height: 1.45;
+}
+
+.sponsor-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.55rem;
+}
+
+.sponsors-layout-list .sponsor-grid {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.sponsor-card {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.65rem;
+  border: 1px solid var(--app-hairline);
+  border-radius: 14px;
+  background: var(--app-surface);
+  color: var(--app-text);
+  padding: 0.75rem;
+  text-decoration: none;
+}
+
+.sponsor-avatar {
+  display: grid;
+  width: 2.6rem;
+  height: 2.6rem;
+  place-items: center;
+  overflow: hidden;
+  border: 1px solid var(--app-hairline);
+  border-radius: 50%;
+  background: var(--app-surface-soft);
+  color: var(--sponsor-accent-color);
+  font-weight: 800;
+}
+
+.sponsor-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.sponsor-card-copy {
+  display: grid;
+  min-width: 0;
+  gap: 0.2rem;
+}
+
+.sponsor-card-copy strong {
+  overflow: hidden;
+  font-size: 0.88rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sponsor-description,
+.sponsor-period {
+  color: var(--app-muted);
+  font-size: 0.74rem;
+  line-height: 1.45;
+}
+
+.sponsor-description p {
+  margin-bottom: 0;
+}
+
+.sponsor-link-icon {
+  color: var(--app-subtle);
+}
+
+.sponsor-status {
+  display: grid;
+  justify-items: center;
+  gap: 0.6rem;
+  color: var(--app-muted);
+  text-align: center;
+}
+
+.sponsor-status p {
+  margin: 0;
+}
+
+.sponsor-how-to {
+  display: grid;
+  gap: 0.7rem;
+}
+
+.sponsor-bank-note {
+  margin: 0;
+  border-radius: 10px;
+  background: var(--app-surface-soft);
+  color: var(--app-muted);
+  padding: 0.65rem 0.75rem;
+  font-size: 0.78rem;
+}
+
+.sponsor-thanks {
+  margin: 0;
+  padding: 0.25rem 0.75rem 0.5rem;
+  color: var(--app-muted);
+  font-size: 0.86rem;
+  line-height: 1.6;
+  text-align: center;
+  text-wrap: balance;
+}
+
+@media (max-width: 430px) {
+  .sponsor-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
 /* 직급 태그 — 웹 RoleTag의 amber/violet/sky 계열을 앱 배지 문법으로 옮긴 것.
    임원 이상에게만 붙습니다(RoleTag.tsx가 그 아래 등급은 렌더하지 않음). */
 .role-tag {

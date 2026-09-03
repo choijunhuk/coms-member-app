@@ -1,12 +1,13 @@
 import { useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { Bell, CalendarDays, MessageCircle, ShieldCheck, Sparkles } from 'lucide-react'
+import { Bell, CalendarDays, ChevronRight, HeartHandshake, MessageCircle, ShieldCheck, Sparkles } from 'lucide-react'
 import { downloadUrl } from '../services/archiveApi'
 import { formatActivityDate, listScheduleOccurrences, mergeMonthSchedule, nextSchedules, recentActivities } from '../services/clubActivityApi'
 import { asArray, formatDate } from '../utils/format'
 import { categoryLabels, fileCategoryLabels, latest, postImage } from '../utils/helpers'
 import { postPreviewText, contentPreview } from '../utils/postBlocks'
 import { useSiteSettings } from '../hooks/useSiteSettings'
+import { SPONSOR_PAGE_QUERY_KEY, getSponsorPage } from '../services/sponsorsApi'
 import { ListItem, Metric, Section } from '../components/ui'
 import ClubRoomCard from '../components/ClubRoomCard'
 import type { ClubActivity, ArchiveFile, CommunityPost, Notice } from '../contract/types'
@@ -30,14 +31,20 @@ type HomeTabProps = {
   openNotice: (id: unknown) => void
   openPost: (id: unknown) => void
   setActiveTab: (tabId: string) => void
+  onShowSponsors?: () => void
 }
 
-export default function HomeTab({ notices, posts, files, unreadCount, clubActivities = [], openNotice, openPost, setActiveTab }: HomeTabProps) {
+export default function HomeTab({ notices, posts, files, unreadCount, clubActivities = [], openNotice, openPost, setActiveTab, onShowSponsors }: HomeTabProps) {
   const site = useSiteSettings()
   const recentNotices = latest(notices, 'createdAt').slice(0, 3)
   const recentPosts = latest(posts, 'createdAt').slice(0, 3)
   const recentFiles = latest(files, 'uploadedAt').slice(0, 2)
   const latestActivities = recentActivities(clubActivities, 2)
+  const sponsorPageQuery = useQuery({
+    queryKey: SPONSOR_PAGE_QUERY_KEY,
+    queryFn: getSponsorPage,
+    retry: false,
+  })
 
   // 정기 일정은 별도 엔드포인트에서 월 단위로 펼쳐져 옵니다. 부가 정보이므로
   // 실패해도 일회성 일정 목록을 비우면 안 됩니다 — 재시도 없이 빈 배열로.
@@ -63,6 +70,15 @@ export default function HomeTab({ notices, posts, files, unreadCount, clubActivi
         <span className="badge">{site.recruitmentStatus}</span>
       </section>
       <ClubRoomCard />
+      {Number(sponsorPageQuery.data?.sponsorCount || 0) > 0 && (
+        <section className="panel sponsor-home-card">
+          <button type="button" className="sponsor-home-action" onClick={onShowSponsors}>
+            <HeartHandshake size={20} aria-hidden="true" />
+            <span><strong>후원해주신 분들</strong><small>{sponsorPageQuery.data.sponsorCount}명의 소중한 이름을 만나보세요.</small></span>
+            <ChevronRight size={17} aria-hidden="true" />
+          </button>
+        </section>
+      )}
       <div className="metric-grid">
         <Metric icon={Bell} label="공지" value={recentNotices.length} />
         <Metric icon={CalendarDays} label="예정" value={upcomingSchedules.length} />

@@ -26,6 +26,7 @@ export function useAppState() {
   const [biometricReady, setBiometricReady] = useState(false)
   const [showPrivacy, setShowPrivacy] = useState(false)
   const [showSettings, setShowSettings] = useState(false)
+  const [showSponsors, setShowSponsors] = useState(false)
   const [selectedNotice, setSelectedNotice] = useState(null)
   const [noticeLoading, setNoticeLoading] = useState(false)
   const [selectedPost, setSelectedPost] = useState(null)
@@ -64,6 +65,8 @@ export function useAppState() {
     setShowPrivacy,
     showSettings,
     setShowSettings,
+    showSponsors,
+    setShowSponsors,
     selectedNotice,
     setSelectedNotice,
     noticeLoading,

@@ -96,6 +96,7 @@ const ResourcesTab = lazy(() => import('./screens/ResourcesTab'))
 const NotificationsTab = lazy(() => import('./screens/NotificationsTab'))
 const OperationsTab = lazy(() => import('./screens/OperationsTab'))
 const ProfileTab = lazy(() => import('./screens/ProfileTab'))
+const SponsorsScreen = lazy(() => import('./screens/SponsorsScreen'))
 
 const EMPTY_DASHBOARD = {
   appConfig: DEFAULT_APP_CONFIG,
@@ -178,6 +179,8 @@ export default function App() {
     setShowPrivacy,
     showSettings,
     setShowSettings,
+    showSponsors,
+    setShowSponsors,
     selectedNotice,
     setSelectedNotice,
     noticeLoading,
@@ -350,12 +353,13 @@ export default function App() {
     setPushStatus('idle')
     setPushPermission(null)
     setPendingCommunityPosts([])
+    setShowSponsors(false)
     await resetPushRegistration()
     queryClient.cancelQueries()
     queryClient.clear()
     await purgePersistedCache()
     await removeStoredValuesByPrefix('coms.', [INSTALLATION_DEVICE_ID_KEY])
-  }, [queryClient, setPendingCommunityPosts, setPushPermission, setPushStatus, setUser])
+  }, [queryClient, setPendingCommunityPosts, setPushPermission, setPushStatus, setShowSponsors, setUser])
 
   // Best-effort push-token retirement. Runs before the server logout (which
   // revokes the cookie the DELETE needs) and swallows everything, 404 included:
@@ -687,6 +691,11 @@ export default function App() {
     let cleanup = () => {}
     let mounted = true
     setupBackButtonListener(() => {
+      if (showSponsors) {
+        setShowSponsors(false)
+        setShowSettings(true)
+        return true
+      }
       if (showSettings) {
         setShowSettings(false)
         return true
@@ -719,7 +728,7 @@ export default function App() {
       mounted = false
       cleanup()
     }
-  }, [activeTab, selectedNotice, selectedPost, setActiveTab, setComments, setSelectedNotice, setSelectedPost, setShowPrivacy, setShowSettings, showPrivacy, showSettings, user])
+  }, [activeTab, selectedNotice, selectedPost, setActiveTab, setComments, setSelectedNotice, setSelectedPost, setShowPrivacy, setShowSettings, setShowSponsors, showPrivacy, showSettings, showSponsors, user])
 
   const createPostMutation = useMutation({
     mutationFn: async ({ payload, images, videos, files, extras }: { payload: any; images?: unknown[]; videos?: unknown[]; files?: unknown[]; extras?: any }) => {
@@ -1096,11 +1105,19 @@ export default function App() {
     )
   }
   if (showPrivacy) return <PrivacyPolicyScreen onBack={() => setShowPrivacy(false)} />
+  if (showSponsors && user) {
+    return (
+      <Suspense fallback={<LoadingScreen label="후원자 화면을 준비 중입니다." />}>
+        <SponsorsScreen onBack={() => { setShowSponsors(false); setShowSettings(true) }} />
+      </Suspense>
+    )
+  }
   if (showSettings && user) {
     return (
       <SettingsScreen
         themePreference={themePreference}
         onChangeTheme={applyTheme}
+        onShowSponsors={() => { setShowSettings(false); setShowSponsors(true) }}
         onShowPrivacy={() => { setShowSettings(false); setShowPrivacy(true) }}
         onWipeDevice={async () => { await handleWipeDevice(); setShowSettings(false) }}
         onWithdraw={async () => { await handleWithdraw(); setShowSettings(false) }}
@@ -1142,7 +1159,7 @@ export default function App() {
           onDismiss={dismissOnboarding}
         />
       )}
-      <HomeTab notices={notices} posts={posts} files={files} clubActivities={clubActivities} unreadCount={unreadCount} openNotice={openNotice} openPost={openPost} setActiveTab={changeTab} />
+      <HomeTab notices={notices} posts={posts} files={files} clubActivities={clubActivities} unreadCount={unreadCount} openNotice={openNotice} openPost={openPost} setActiveTab={changeTab} onShowSponsors={() => setShowSponsors(true)} />
     </div>
   )
   else if (activeTab === 'activity') content = <ActivityTab clubActivities={clubActivities} apps={apps} appLinks={appConfig.links} />

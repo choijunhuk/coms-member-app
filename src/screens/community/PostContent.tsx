@@ -4,13 +4,10 @@ import { asArray, plainTextLines } from '../../utils/format'
 import { mediaSrc } from '../../utils/helpers'
 import { looksLikeHtml, renderMarkdownToHtml, renderSafeHtml } from '../../utils/markdown'
 import { postBlocks } from '../../utils/postBlocks'
+import { safeExternalHref } from '../../utils/urlValidation'
 import PollBlock from './PollBlock'
 import Polls from './Polls'
 import type { CommunityPost } from '../../contract/types'
-
-function safeExternalHref(url) {
-  return /^https?:\/\//i.test(String(url || '')) ? url : ''
-}
 
 function collectImageUrls(blocks) {
   const urls = []

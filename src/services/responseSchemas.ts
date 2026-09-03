@@ -190,6 +190,63 @@ export const NotificationSchema = z.looseObject({
 })
 export const NotificationListSchema = z.array(NotificationSchema)
 
+// --- public sponsors ---
+
+export const SponsorSchema = z.looseObject({
+  // Anonymous sponsors deliberately have no public database identifier.
+  id: z.number().nullable(),
+  name: z.string().nullish(),
+  tierId: z.number().nullish(),
+  logoUrl: z.string().nullish(),
+  linkUrl: z.string().nullish(),
+  description: z.string().nullish(),
+  sinceDate: z.string().nullish(),
+  untilDate: z.string().nullish(),
+  anonymous: z.boolean().nullish(),
+})
+
+export const SponsorTierSchema = z.looseObject({
+  id: z.number(),
+  name: z.string().nullish(),
+  color: z.string().nullish(),
+  description: z.string().nullish(),
+  sortOrder: z.number().nullish(),
+  sponsors: z.array(SponsorSchema),
+})
+export const SponsorTierListSchema = z.array(SponsorTierSchema)
+
+export const SponsorHowToSectionSchema = z.looseObject({
+  title: z.string().nullish(),
+  bodyHtml: z.string().nullish(),
+  contactEmail: z.string().nullish(),
+  contactLink: z.string().nullish(),
+  bankNote: z.string().nullish(),
+})
+
+export const SponsorPageSettingsSchema = z.looseObject({
+  heroTitle: z.string().nullish(),
+  heroSubtitle: z.string().nullish(),
+  bannerImageId: z.number().nullish(),
+  introHtml: z.string().nullish(),
+  accentColor: z.string().nullish(),
+  layout: z.string().nullish(),
+  showTierLabels: z.boolean().nullish(),
+  thankYouMessage: z.string().nullish(),
+  howToSection: SponsorHowToSectionSchema.nullish(),
+  showCounts: z.boolean().nullish(),
+})
+
+export const SponsorPageResponseSchema = z.looseObject({
+  settings: SponsorPageSettingsSchema,
+  bannerImageUrl: z.string().nullish(),
+  sponsorCount: z.number().nullish(),
+  tierCount: z.number().nullish(),
+})
+
+export type Sponsor = z.infer<typeof SponsorSchema>
+export type SponsorTier = z.infer<typeof SponsorTierSchema>
+export type SponsorPageResponse = z.infer<typeof SponsorPageResponseSchema>
+
 export type InvalidApiResponseError = ApiError & { data?: unknown }
 
 // Salvage a usable value out of an INVALID_API_RESPONSE by dropping ONLY the
