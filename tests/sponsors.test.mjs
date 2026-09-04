@@ -121,3 +121,10 @@ assert.equal(safeExternalHref('javascript:alert(1)'), '')
 assert.equal(safeExternalHref('data:text/html,x'), '')
 
 console.log('sponsors contract passed')
+
+{
+  const { sponsorInitial } = await import('../src/utils/sponsorInitial.ts')
+  assert.equal(sponsorInitial('60기 박채현'), '박')
+  assert.equal(sponsorInitial('광운대'), '광')
+  assert.equal(sponsorInitial('  '), '후')
+}

@@ -11,6 +11,7 @@ import type { Sponsor, SponsorTier } from '../services/responseSchemas'
 import { mediaSrc } from '../utils/helpers'
 import { looksLikeHtml, renderSafeHtml } from '../utils/markdown'
 import { safeExternalHref } from '../utils/urlValidation'
+import { sponsorInitial } from '../utils/sponsorInitial'
 
 const FALLBACK_TIER_COLOR = '#86868b'
 const SAFE_COLOR = /^(#[0-9a-f]{3,8}|rgba?\([\d\s.,%]+\)|[a-z]+)$/i
@@ -61,7 +62,7 @@ function SponsorCard({ sponsor }: { sponsor: Sponsor }) {
       <span className="sponsor-avatar" aria-hidden="true">
         {logoUrl
           ? <img src={logoUrl} alt="" loading="lazy" decoding="async" />
-          : <span>{name.trim().charAt(0) || '후'}</span>}
+          : <span>{sponsorInitial(name)}</span>}
       </span>
       <span className="sponsor-card-copy">
         <strong>{name}</strong>
