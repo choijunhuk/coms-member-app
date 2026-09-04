@@ -47,6 +47,14 @@ export async function emojify(htmlOrText) {
   }
 }
 
+// Starts (or joins) the same idempotent lazy load as emojify/EmojiText, without
+// needing a string to parse. Used by useTwemoji so any consumer of emojifySync
+// can trigger the load and know when to re-render.
+export async function ensureTwemojiLoaded(): Promise<boolean> {
+  const parse = await loadTwemoji()
+  return parse !== null
+}
+
 // Sync variant used inside renderMarkdownToHtml. It never starts the dynamic
 // import: EmojiText owns the lazy-load boundary and re-renders when ready.
 export function emojifySync(htmlOrText) {

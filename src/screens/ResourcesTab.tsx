@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import { Download, Eye, Paperclip, Plus, Search, ThumbsUp, Trash2, Upload, UserPen, X } from 'lucide-react'
+import { useTwemoji } from '../hooks/useTwemoji'
 import { createArchivePosts, deleteFile, downloadUrl, updateArchiveAuthor, voteFile } from '../services/archiveApi'
 import { confirmDialog, promptDialog } from '../components/ConfirmDialog'
 import { ArchiveCategory } from '../contract/enums'
@@ -102,6 +103,10 @@ type ResourcesTabProps = {
 }
 
 export default function ResourcesTab({ files, currentUser, onChanged }: ResourcesTabProps) {
+  // Re-renders once the shared Twemoji parser finishes loading, so shortcodes
+  // in a file description (rendered via descriptionBodyHtml below) twemoji-ify
+  // even if this is the first screen to need them.
+  useTwemoji()
   const [query, setQuery] = useState('')
   const [category, setCategory] = useState('ALL')
   const [uploading, setUploading] = useState(false)

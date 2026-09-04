@@ -25,6 +25,13 @@ try {
   assert.match(first, /<img/)
   assert.match(second, /<img/)
   assert.equal(readFileSync(markerPath, 'utf8').trim().split('\n').length, 1)
+
+  // ensureTwemojiLoaded backs useTwemoji (the hook EmojiText, PostContent and
+  // ResourcesTab all call so their emojifySync output twemoji-ifies once the
+  // parser lands, whichever of them mounts first). It must join the same
+  // cached load rather than starting a second one.
+  assert.equal(await emoji.ensureTwemojiLoaded(), true)
+  assert.equal(readFileSync(markerPath, 'utf8').trim().split('\n').length, 1)
 } finally {
   rmSync(tempDir, { recursive: true, force: true })
 }
