@@ -1,16 +1,14 @@
 import { useEffect, useState } from 'react'
 import { ChevronLeft, ChevronRight, Download, X } from 'lucide-react'
+import { useTwemoji } from '../../hooks/useTwemoji'
 import { asArray, plainTextLines } from '../../utils/format'
 import { mediaSrc } from '../../utils/helpers'
 import { looksLikeHtml, renderMarkdownToHtml, renderSafeHtml } from '../../utils/markdown'
 import { postBlocks } from '../../utils/postBlocks'
+import { safeExternalHref } from '../../utils/urlValidation'
 import PollBlock from './PollBlock'
 import Polls from './Polls'
 import type { CommunityPost } from '../../contract/types'
-
-function safeExternalHref(url) {
-  return /^https?:\/\//i.test(String(url || '')) ? url : ''
-}
 
 function collectImageUrls(blocks) {
   const urls = []
@@ -22,6 +20,10 @@ function collectImageUrls(blocks) {
 }
 
 export default function PostContent({ post, pollVote, closePoll }: { post: CommunityPost; pollVote: (pollId: unknown, optionIndex: number) => void; closePoll?: (pollId: unknown) => void | Promise<void> }) {
+  // Re-renders once the shared Twemoji parser finishes loading, so shortcodes
+  // in post text (rendered via renderMarkdownToHtml/renderSafeHtml below)
+  // twemoji-ify even if this is the first screen to need them.
+  useTwemoji()
   const blocks = postBlocks(post)
   const hasPollBlock = blocks.some((block) => block.type === 'poll')
   const images = collectImageUrls(blocks)

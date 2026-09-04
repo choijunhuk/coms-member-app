@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { ArrowLeft, BellRing, Bookmark, ChevronRight, Eraser, FileText, Fingerprint, Hand, LogOut, Moon, Smartphone, Sun, Type, UserX } from 'lucide-react'
+import { ArrowLeft, BellRing, Bookmark, ChevronRight, Eraser, FileText, Fingerprint, Hand, HeartHandshake, LogOut, Moon, Smartphone, Sun, Type, UserX } from 'lucide-react'
 import { confirmDialog } from '../components/ConfirmDialog'
 import { Switch } from '../components/ui'
 import { updateProfile } from '../services/authApi'
@@ -32,6 +32,7 @@ export default function SettingsScreen({
   themePreference,
   onChangeTheme,
   onShowPrivacy,
+  onShowSponsors,
   onWipeDevice,
   onWithdraw,
   onLogout,
@@ -243,6 +244,10 @@ export default function SettingsScreen({
 
         <section className="panel">
           <div className="section-title"><h2><FileText size={14} aria-hidden="true" /> 정보</h2></div>
+          <button type="button" className="settings-row" onClick={onShowSponsors}>
+            <span><HeartHandshake size={16} aria-hidden="true" /> 후원자</span>
+            <ChevronRight size={14} aria-hidden="true" />
+          </button>
           <button type="button" className="settings-row" onClick={onShowPrivacy}>
             <span>개인정보 처리방침</span>
             <ChevronRight size={14} aria-hidden="true" />

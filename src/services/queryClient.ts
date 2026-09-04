@@ -37,6 +37,13 @@ function shouldExcludeFromPersistence(queryKey: unknown): boolean {
   return PII_QUERY_KEYS.some((piiKey) => matchesQueryKey(piiKey, queryKey))
 }
 
+// Shared by TanStack's dehydration pass and the persister's defensive filter.
+// Accepting the small queryKey shape keeps it compatible with both a live Query
+// and the serialized query entries passed directly to persistClient in tests.
+export function shouldPersistQuery(query: { queryKey: unknown }): boolean {
+  return !shouldExcludeFromPersistence(query?.queryKey)
+}
+
 // Fields dropped before a query is written to disk because a stale copy would
 // change what the app DOES, not merely what it shows. appConfig carries
 // minimumSupportedVersion: restored from a 24h-old cache it can hold the whole
@@ -74,27 +81,77 @@ function stripAnonymousPosts(query) {
   return { ...query, state: { ...query.state, data: { ...data, posts } } }
 }
 
+function safePersistedClient(client) {
+  return {
+    ...client,
+    clientState: {
+      ...client.clientState,
+      queries: client.clientState.queries
+        .filter(shouldPersistQuery)
+        .map(stripVolatileFields)
+        .map(stripAnonymousPosts),
+    },
+  }
+}
+
+let persistThrottleTime = 0
+let pendingPersistClient = null
+let persistTimer: ReturnType<typeof setTimeout> | null = null
+let pendingPersistWaiters: Array<{ resolve: () => void; reject: (error: unknown) => void }> = []
+
+async function writePersistedClient(client) {
+  await writeStoredValueAsync(QUERY_CACHE_STORAGE_KEY, JSON.stringify(safePersistedClient(client)))
+}
+
+function cancelPendingPersist() {
+  if (persistTimer) clearTimeout(persistTimer)
+  persistTimer = null
+  pendingPersistClient = null
+  const waiters = pendingPersistWaiters
+  pendingPersistWaiters = []
+  for (const waiter of waiters) waiter.resolve()
+}
+
+export function configureQueryPersister({ throttleTime = 0 } = {}) {
+  persistThrottleTime = Number.isFinite(throttleTime) ? Math.max(0, throttleTime) : 0
+  return queryPersister
+}
+
 export const queryPersister = {
   persistClient: async (client) => {
     // Strip PII queries, volatile fields and anonymous-board posts before
-    // writing; the persisted shape is otherwise identical.
-    const safeClient = {
-      ...client,
-      clientState: {
-        ...client.clientState,
-        queries: client.clientState.queries
-          .filter((q) => !shouldExcludeFromPersistence(q.queryKey))
-          .map(stripVolatileFields)
-          .map(stripAnonymousPosts),
-      },
+    // writing; the persisted shape is otherwise identical. The app configures
+    // a short throttle so bursts of cache notifications produce one disk write.
+    if (persistThrottleTime === 0) {
+      await writePersistedClient(client)
+      return
     }
-    await writeStoredValueAsync(QUERY_CACHE_STORAGE_KEY, JSON.stringify(safeClient))
+
+    pendingPersistClient = client
+    await new Promise<void>((resolve, reject) => {
+      pendingPersistWaiters.push({ resolve, reject })
+      if (persistTimer) return
+      persistTimer = setTimeout(async () => {
+        const latestClient = pendingPersistClient
+        const waiters = pendingPersistWaiters
+        persistTimer = null
+        pendingPersistClient = null
+        pendingPersistWaiters = []
+        try {
+          await writePersistedClient(latestClient)
+          for (const waiter of waiters) waiter.resolve()
+        } catch (error) {
+          for (const waiter of waiters) waiter.reject(error)
+        }
+      }, persistThrottleTime)
+    })
   },
   restoreClient: async () => {
     const raw = await readStoredValueAsync(QUERY_CACHE_STORAGE_KEY)
     return raw ? JSON.parse(raw) : undefined
   },
   removeClient: async () => {
+    cancelPendingPersist()
     await removeStoredValueAsync(QUERY_CACHE_STORAGE_KEY)
   },
 }

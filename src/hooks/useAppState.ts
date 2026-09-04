@@ -11,6 +11,14 @@ function shouldLockOnBoot() {
   return IDLE_LOCK_FEATURE_ENABLED && isNativeRuntime() && resolveIdleLockMs(readIdleLock()) !== null
 }
 
+// Sponsors can be opened from Home or from Settings; back (hardware or in-screen)
+// must return to wherever it was opened from rather than always landing on
+// Settings. Exported as a pure function so the mapping is unit-testable
+// without mounting the app.
+export function sponsorsBackTarget(origin) {
+  return origin === 'home' ? 'home' : 'settings'
+}
+
 export function useAppState() {
   const [user, setUser] = useState(null)
   const [authLoading, setAuthLoading] = useState(true)
@@ -26,6 +34,8 @@ export function useAppState() {
   const [biometricReady, setBiometricReady] = useState(false)
   const [showPrivacy, setShowPrivacy] = useState(false)
   const [showSettings, setShowSettings] = useState(false)
+  const [showSponsors, setShowSponsors] = useState(false)
+  const [sponsorsOrigin, setSponsorsOrigin] = useState('settings')
   const [selectedNotice, setSelectedNotice] = useState(null)
   const [noticeLoading, setNoticeLoading] = useState(false)
   const [selectedPost, setSelectedPost] = useState(null)
@@ -64,6 +74,10 @@ export function useAppState() {
     setShowPrivacy,
     showSettings,
     setShowSettings,
+    showSponsors,
+    setShowSponsors,
+    sponsorsOrigin,
+    setSponsorsOrigin,
     selectedNotice,
     setSelectedNotice,
     noticeLoading,

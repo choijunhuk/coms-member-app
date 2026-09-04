@@ -1,5 +1,10 @@
 const HTTP_URL_RE = /^https?:\/\/[^\s/$.?#].[^\s]*$/i
 
+export function safeExternalHref(value) {
+  const href = String(value || '').trim()
+  return /^https?:\/\//i.test(href) ? href : ''
+}
+
 export function validateHttpUrl(value, { allowEmpty = false } = {}) {
   const raw = String(value || '').trim()
   if (!raw) {

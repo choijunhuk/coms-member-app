@@ -58,7 +58,7 @@ import { registerPushTokenWithRetry } from './utils/pushRegistration'
 import { INSTALLATION_DEVICE_ID_KEY, getInstallationDeviceId } from './utils/installationDeviceId'
 import { pushStatusFromPermission } from './utils/pushPermissionStatus'
 import { DEFAULT_IDLE_LOCK_THRESHOLD_MS, SLOW_SYNC_NOTICE_DELAY_MS } from './config/appTiming'
-import { useAppState } from './hooks/useAppState'
+import { sponsorsBackTarget, useAppState } from './hooks/useAppState'
 import {
   COMMUNITY_POST_QUEUE_KEY,
   enqueuePendingCommunityPost,
@@ -96,6 +96,7 @@ const ResourcesTab = lazy(() => import('./screens/ResourcesTab'))
 const NotificationsTab = lazy(() => import('./screens/NotificationsTab'))
 const OperationsTab = lazy(() => import('./screens/OperationsTab'))
 const ProfileTab = lazy(() => import('./screens/ProfileTab'))
+const SponsorsScreen = lazy(() => import('./screens/SponsorsScreen'))
 
 const EMPTY_DASHBOARD = {
   appConfig: DEFAULT_APP_CONFIG,
@@ -178,6 +179,10 @@ export default function App() {
     setShowPrivacy,
     showSettings,
     setShowSettings,
+    showSponsors,
+    setShowSponsors,
+    sponsorsOrigin,
+    setSponsorsOrigin,
     selectedNotice,
     setSelectedNotice,
     noticeLoading,
@@ -350,12 +355,13 @@ export default function App() {
     setPushStatus('idle')
     setPushPermission(null)
     setPendingCommunityPosts([])
+    setShowSponsors(false)
     await resetPushRegistration()
     queryClient.cancelQueries()
     queryClient.clear()
     await purgePersistedCache()
     await removeStoredValuesByPrefix('coms.', [INSTALLATION_DEVICE_ID_KEY])
-  }, [queryClient, setPendingCommunityPosts, setPushPermission, setPushStatus, setUser])
+  }, [queryClient, setPendingCommunityPosts, setPushPermission, setPushStatus, setShowSponsors, setUser])
 
   // Best-effort push-token retirement. Runs before the server logout (which
   // revokes the cookie the DELETE needs) and swallows everything, 404 included:
@@ -682,11 +688,22 @@ export default function App() {
     }
   }, [openRoute, user])
 
+  // Sponsors can be opened from Home or from Settings; back (hardware or in-screen)
+  // must return to wherever it was opened from, not always Settings.
+  const closeSponsors = useCallback(() => {
+    setShowSponsors(false)
+    if (sponsorsBackTarget(sponsorsOrigin) === 'settings') setShowSettings(true)
+  }, [setShowSettings, setShowSponsors, sponsorsOrigin])
+
   useEffect(() => {
     if (!user) return undefined
     let cleanup = () => {}
     let mounted = true
     setupBackButtonListener(() => {
+      if (showSponsors) {
+        closeSponsors()
+        return true
+      }
       if (showSettings) {
         setShowSettings(false)
         return true
@@ -719,7 +736,7 @@ export default function App() {
       mounted = false
       cleanup()
     }
-  }, [activeTab, selectedNotice, selectedPost, setActiveTab, setComments, setSelectedNotice, setSelectedPost, setShowPrivacy, setShowSettings, showPrivacy, showSettings, user])
+  }, [activeTab, closeSponsors, selectedNotice, selectedPost, setActiveTab, setComments, setSelectedNotice, setSelectedPost, setShowPrivacy, setShowSettings, showPrivacy, showSettings, showSponsors, user])
 
   const createPostMutation = useMutation({
     mutationFn: async ({ payload, images, videos, files, extras }: { payload: any; images?: unknown[]; videos?: unknown[]; files?: unknown[]; extras?: any }) => {
@@ -1096,11 +1113,19 @@ export default function App() {
     )
   }
   if (showPrivacy) return <PrivacyPolicyScreen onBack={() => setShowPrivacy(false)} />
+  if (showSponsors && user) {
+    return (
+      <Suspense fallback={<LoadingScreen label="후원자 화면을 준비 중입니다." />}>
+        <SponsorsScreen onBack={closeSponsors} />
+      </Suspense>
+    )
+  }
   if (showSettings && user) {
     return (
       <SettingsScreen
         themePreference={themePreference}
         onChangeTheme={applyTheme}
+        onShowSponsors={() => { setShowSettings(false); setSponsorsOrigin('settings'); setShowSponsors(true) }}
         onShowPrivacy={() => { setShowSettings(false); setShowPrivacy(true) }}
         onWipeDevice={async () => { await handleWipeDevice(); setShowSettings(false) }}
         onWithdraw={async () => { await handleWithdraw(); setShowSettings(false) }}
@@ -1142,7 +1167,7 @@ export default function App() {
           onDismiss={dismissOnboarding}
         />
       )}
-      <HomeTab notices={notices} posts={posts} files={files} clubActivities={clubActivities} unreadCount={unreadCount} openNotice={openNotice} openPost={openPost} setActiveTab={changeTab} />
+      <HomeTab notices={notices} posts={posts} files={files} clubActivities={clubActivities} unreadCount={unreadCount} openNotice={openNotice} openPost={openPost} setActiveTab={changeTab} onShowSponsors={() => { setSponsorsOrigin('home'); setShowSponsors(true) }} />
     </div>
   )
   else if (activeTab === 'activity') content = <ActivityTab clubActivities={clubActivities} apps={apps} appLinks={appConfig.links} />

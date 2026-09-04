@@ -73,4 +73,40 @@ describe('HomeTab', () => {
     fireEvent.click(screen.getByRole('button', { name: '열기' }))
     expect(setActiveTab).toHaveBeenCalledWith('resources')
   })
+
+  test('shows the sponsor card only when the public page reports sponsors', async () => {
+    globalThis.fetch = vi.fn(async (url) => {
+      const value = String(url)
+      if (value === '/api/sponsors/page') {
+        return new Response(JSON.stringify({ settings: {}, sponsorCount: 3, tierCount: 1 }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        })
+      }
+      return new Response(JSON.stringify(value.includes('schedule-occurrences') ? [] : {}), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      })
+    })
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    const onShowSponsors = vi.fn()
+
+    render(
+      <QueryClientProvider client={client}>
+        <HomeTab
+          notices={[]}
+          posts={[]}
+          files={[]}
+          unreadCount={0}
+          openNotice={() => {}}
+          openPost={() => {}}
+          setActiveTab={() => {}}
+          onShowSponsors={onShowSponsors}
+        />
+      </QueryClientProvider>,
+    )
+
+    fireEvent.click(await screen.findByRole('button', { name: /후원해주신 분들/ }))
+    expect(onShowSponsors).toHaveBeenCalledOnce()
+  })
 })
