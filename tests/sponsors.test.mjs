@@ -42,6 +42,26 @@ const tiersFixture = [
     ],
     futureField: true,
   },
+  {
+    id: null,
+    name: '',
+    color: null,
+    description: null,
+    sortOrder: 2147483647,
+    sponsors: [
+      {
+        id: 30,
+        name: '이음 문구점',
+        tierId: null,
+        logoUrl: null,
+        linkUrl: null,
+        description: null,
+        sinceDate: null,
+        untilDate: null,
+        anonymous: false,
+      },
+    ],
+  },
 ]
 
 const pageFixture = {
@@ -73,6 +93,9 @@ const parsedTiers = parseApiResponse(SponsorTierListSchema, tiersFixture, '후�
 assert.equal(parsedTiers[0].sponsors[1].id, null)
 assert.equal(parsedTiers[0].sponsors[0].futureField, 'preserved')
 assert.equal(parsedTiers[0].futureField, true)
+assert.equal(parsedTiers[1].id, null)
+assert.equal(parsedTiers[1].name, '')
+assert.equal(parsedTiers[1].sponsors[0].name, '이음 문구점')
 
 const parsedPage = parseApiResponse(SponsorPageResponseSchema, pageFixture, '후원자 페이지')
 assert.equal(parsedPage.settings.heroTitle, '함께 만드는 COMS')

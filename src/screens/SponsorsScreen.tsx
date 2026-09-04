@@ -79,6 +79,8 @@ function SponsorCard({ sponsor }: { sponsor: Sponsor }) {
 
 function SponsorTierSection({ tier, showLabel }: { tier: SponsorTier; showLabel: boolean }) {
   if (tier.sponsors.length === 0) return null
+  // The backend's trailing untiered group (id null, name '') has no chip/label to show.
+  showLabel = showLabel && tier.id != null
   const colorStyle = {
     '--sponsor-tier-color': safeColor(tier.color),
   } as CSSProperties
@@ -167,7 +169,7 @@ export default function SponsorsScreen({ onBack }: { onBack: () => void }) {
         )}
         {sponsors.length > 0 && (
           <div className="sponsor-tiers">
-            {tiers.map((tier) => <SponsorTierSection key={tier.id} tier={tier} showLabel={settings?.showTierLabels !== false} />)}
+            {tiers.map((tier) => <SponsorTierSection key={tier.id ?? 'untiered'} tier={tier} showLabel={settings?.showTierLabels !== false} />)}
           </div>
         )}
 

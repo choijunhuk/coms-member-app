@@ -206,7 +206,8 @@ export const SponsorSchema = z.looseObject({
 })
 
 export const SponsorTierSchema = z.looseObject({
-  id: z.number(),
+  // The backend groups sponsors with no tier into a trailing untiered group with id null.
+  id: z.nullable(z.number()),
   name: z.nullish(z.string()),
   color: z.nullish(z.string()),
   description: z.nullish(z.string()),
