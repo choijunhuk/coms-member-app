@@ -6,16 +6,22 @@
 type TwemojiParse = (input: string, options?: Record<string, unknown>) => string
 
 let twemojiPromise: Promise<TwemojiParse | null> | null = null
+let parser: TwemojiParse | null = null
 
 async function loadTwemoji(): Promise<TwemojiParse | null> {
   if (twemojiPromise) return twemojiPromise
   twemojiPromise = (async () => {
     try {
       const mod = await import('twemoji') as Record<string, unknown>
-      const parser = mod?.default || mod?.parse
-      if (typeof parser === 'function') return parser as TwemojiParse
-      const nested = (parser as Record<string, unknown> | undefined)?.parse
-      return typeof nested === 'function' ? (nested as TwemojiParse) : null
+      const candidate = mod?.default || mod?.parse
+      const resolved = typeof candidate === 'function'
+        ? candidate as TwemojiParse
+        : (candidate as Record<string, unknown> | undefined)?.parse
+      if (typeof resolved === 'function') {
+        parser = resolved as TwemojiParse
+        return parser
+      }
+      return null
     } catch {
       return null
     }
@@ -41,15 +47,8 @@ export async function emojify(htmlOrText) {
   }
 }
 
-// Sync variant used inside renderMarkdownToHtml. The first call kicks off
-// the dynamic import; until it resolves the raw text is returned. After the
-// import lands every subsequent call hits the cached parser, so user-visible
-// renders catch up on re-render.
-let parser: TwemojiParse | null = null
-loadTwemoji().then((fn) => {
-  parser = fn
-})
-
+// Sync variant used inside renderMarkdownToHtml. It never starts the dynamic
+// import: EmojiText owns the lazy-load boundary and re-renders when ready.
 export function emojifySync(htmlOrText) {
   if (!htmlOrText) return ''
   if (!parser) return htmlOrText
