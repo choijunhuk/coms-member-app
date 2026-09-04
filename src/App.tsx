@@ -58,7 +58,7 @@ import { registerPushTokenWithRetry } from './utils/pushRegistration'
 import { INSTALLATION_DEVICE_ID_KEY, getInstallationDeviceId } from './utils/installationDeviceId'
 import { pushStatusFromPermission } from './utils/pushPermissionStatus'
 import { DEFAULT_IDLE_LOCK_THRESHOLD_MS, SLOW_SYNC_NOTICE_DELAY_MS } from './config/appTiming'
-import { useAppState } from './hooks/useAppState'
+import { sponsorsBackTarget, useAppState } from './hooks/useAppState'
 import {
   COMMUNITY_POST_QUEUE_KEY,
   enqueuePendingCommunityPost,
@@ -181,6 +181,8 @@ export default function App() {
     setShowSettings,
     showSponsors,
     setShowSponsors,
+    sponsorsOrigin,
+    setSponsorsOrigin,
     selectedNotice,
     setSelectedNotice,
     noticeLoading,
@@ -686,14 +688,20 @@ export default function App() {
     }
   }, [openRoute, user])
 
+  // Sponsors can be opened from Home or from Settings; back (hardware or in-screen)
+  // must return to wherever it was opened from, not always Settings.
+  const closeSponsors = useCallback(() => {
+    setShowSponsors(false)
+    if (sponsorsBackTarget(sponsorsOrigin) === 'settings') setShowSettings(true)
+  }, [setShowSettings, setShowSponsors, sponsorsOrigin])
+
   useEffect(() => {
     if (!user) return undefined
     let cleanup = () => {}
     let mounted = true
     setupBackButtonListener(() => {
       if (showSponsors) {
-        setShowSponsors(false)
-        setShowSettings(true)
+        closeSponsors()
         return true
       }
       if (showSettings) {
@@ -728,7 +736,7 @@ export default function App() {
       mounted = false
       cleanup()
     }
-  }, [activeTab, selectedNotice, selectedPost, setActiveTab, setComments, setSelectedNotice, setSelectedPost, setShowPrivacy, setShowSettings, setShowSponsors, showPrivacy, showSettings, showSponsors, user])
+  }, [activeTab, closeSponsors, selectedNotice, selectedPost, setActiveTab, setComments, setSelectedNotice, setSelectedPost, setShowPrivacy, setShowSettings, showPrivacy, showSettings, showSponsors, user])
 
   const createPostMutation = useMutation({
     mutationFn: async ({ payload, images, videos, files, extras }: { payload: any; images?: unknown[]; videos?: unknown[]; files?: unknown[]; extras?: any }) => {
@@ -1108,7 +1116,7 @@ export default function App() {
   if (showSponsors && user) {
     return (
       <Suspense fallback={<LoadingScreen label="후원자 화면을 준비 중입니다." />}>
-        <SponsorsScreen onBack={() => { setShowSponsors(false); setShowSettings(true) }} />
+        <SponsorsScreen onBack={closeSponsors} />
       </Suspense>
     )
   }
@@ -1117,7 +1125,7 @@ export default function App() {
       <SettingsScreen
         themePreference={themePreference}
         onChangeTheme={applyTheme}
-        onShowSponsors={() => { setShowSettings(false); setShowSponsors(true) }}
+        onShowSponsors={() => { setShowSettings(false); setSponsorsOrigin('settings'); setShowSponsors(true) }}
         onShowPrivacy={() => { setShowSettings(false); setShowPrivacy(true) }}
         onWipeDevice={async () => { await handleWipeDevice(); setShowSettings(false) }}
         onWithdraw={async () => { await handleWithdraw(); setShowSettings(false) }}
@@ -1159,7 +1167,7 @@ export default function App() {
           onDismiss={dismissOnboarding}
         />
       )}
-      <HomeTab notices={notices} posts={posts} files={files} clubActivities={clubActivities} unreadCount={unreadCount} openNotice={openNotice} openPost={openPost} setActiveTab={changeTab} onShowSponsors={() => setShowSponsors(true)} />
+      <HomeTab notices={notices} posts={posts} files={files} clubActivities={clubActivities} unreadCount={unreadCount} openNotice={openNotice} openPost={openPost} setActiveTab={changeTab} onShowSponsors={() => { setSponsorsOrigin('home'); setShowSponsors(true) }} />
     </div>
   )
   else if (activeTab === 'activity') content = <ActivityTab clubActivities={clubActivities} apps={apps} appLinks={appConfig.links} />
