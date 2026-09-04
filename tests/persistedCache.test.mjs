@@ -101,6 +101,16 @@ configureQueryPersister({ throttleTime: 0 })
 // main.tsx owns the production tuning while reusing the exported predicate.
 const mainSource = readFileSync('src/main.tsx', 'utf8')
 assert.match(mainSource, /configureQueryPersister\(\{ throttleTime: 2_000 \}\)/)
-assert.match(mainSource, /shouldDehydrateQuery: shouldPersistQuery/)
+assert.match(mainSource, /shouldDehydrateQuery: \(query\) => query\.state\.status === 'success' && shouldPersistQuery\(query\)/)
+
+// shouldPersistQuery alone doesn't know about query status, so main.tsx's
+// shouldDehydrateQuery must also restore TanStack's default gate: only a
+// 'success' query is safe to persist — a pending or errored one has no data
+// worth writing to disk (and an errored query may carry a stale/partial shape).
+const productionShouldDehydrateQuery = (query) => query.state.status === 'success' && shouldPersistQuery(query)
+const siteSettingsKey = ['member-app', 'site-settings']
+assert.equal(productionShouldDehydrateQuery({ queryKey: siteSettingsKey, state: { status: 'success' } }), true)
+assert.equal(productionShouldDehydrateQuery({ queryKey: siteSettingsKey, state: { status: 'pending' } }), false)
+assert.equal(productionShouldDehydrateQuery({ queryKey: siteSettingsKey, state: { status: 'error' } }), false)
 
 console.log('persisted cache contract passed')

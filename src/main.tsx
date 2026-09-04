@@ -22,7 +22,12 @@ if (queryPersister) {
         persistOptions={{
           persister: queryPersister,
           maxAge: 24 * 60 * 60 * 1000,
-          dehydrateOptions: { shouldDehydrateQuery: shouldPersistQuery },
+          dehydrateOptions: {
+            // shouldDehydrateQuery replaces (not extends) TanStack's default, which only
+            // persists queries in status 'success' — without this, pending/errored queries
+            // (an empty or stale-error shape) get written to disk too.
+            shouldDehydrateQuery: (query) => query.state.status === 'success' && shouldPersistQuery(query),
+          },
         }}
       >
         <App />
