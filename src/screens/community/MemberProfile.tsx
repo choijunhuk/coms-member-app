@@ -61,7 +61,7 @@ export default function MemberProfile({ studentId, initialName, onBack, openPost
               <div className="metric-grid">
                 <Metric icon={FileText} label="작성글" value={Number(breakdown.posts || 0).toLocaleString('ko-KR')} />
                 <Metric icon={MessageSquare} label="댓글" value={Number(breakdown.comments || 0).toLocaleString('ko-KR')} />
-                <Metric icon={ThumbsUp} label="받은 개추" value={Number(breakdown.upvotes || 0).toLocaleString('ko-KR')} />
+                <Metric icon={ThumbsUp} label="받은 추천" value={Number(breakdown.upvotes || 0).toLocaleString('ko-KR')} />
               </div>
             </div>
           )}
