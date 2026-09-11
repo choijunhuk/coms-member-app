@@ -4,9 +4,8 @@ import type { DynamicRowHeight, RowComponentProps } from 'react-window'
 import { AlertTriangle, Bookmark, BookmarkCheck, CornerDownRight, Eye, Pin, PinOff, Plus, Search, Send, Share2, ThumbsDown, ThumbsUp, Trash2, Pencil, Check, UserPen, UserRound, X } from 'lucide-react'
 import { confirmDialog } from '../components/ConfirmDialog'
 import { asArray, formatDate } from '../utils/format'
-import { canModerateCommunity, categoryLabels, communitySortOptions, isAdminUser, postImage, sortCommunityPosts } from '../utils/helpers'
-import { postPreviewText, isTextOnlyPost, postBodyText } from '../utils/postBlocks'
-import { buildComposerContent, createEmptyPollDraft } from '../utils/pollDraft'
+import { canEditCommunityPost, canModerateCommunity, categoryLabels, communitySortOptions, isAdminUser, postImage, sortCommunityPosts } from '../utils/helpers'
+import { postBlocks, postPreviewText, postBodyText, replaceContentTextPreservingBlocks } from '../utils/postBlocks'
 import { sharePost } from '../services/nativeShare'
 import { hapticLight, hapticSuccess } from '../services/haptics'
 import { Detail, Empty, ListItem, LoadingScreen, Section } from '../components/ui'
@@ -16,6 +15,7 @@ import Composer from './community/Composer'
 import MemberProfile from './community/MemberProfile'
 import PostContent from './community/PostContent'
 import ReportDialog from './community/ReportDialog'
+import AuthorEditPanel from '../components/AuthorEditPanel'
 import { reportCommunityPost } from '../services/communityApi'
 import type { CommunityPost, CurrentUser } from '../contract/types'
 
@@ -139,37 +139,42 @@ export default function CommunityTab({ posts, selected, comments, loading, openP
   const [editingPost, setEditingPost] = useState(false)
   const [editTitle, setEditTitle] = useState('')
   const [editContent, setEditContent] = useState('')
+  const [editContentSeed, setEditContentSeed] = useState('')
+  const [editOriginalContent, setEditOriginalContent] = useState('')
   const [savingEdit, setSavingEdit] = useState(false)
-  // 회장 전용 작성자 변경 — 학번을 넣으면 계정 재지정, 비우고 이름만 넣으면 표시
-  // 이름만 바뀝니다 (백엔드가 두 필드를 배타적으로 읽음). 그래서 한 줄 prompt가
-  // 아니라 두 칸짜리 폼입니다.
+  // 회장 전용 작성자 변경 — 직접 이름은 표시만 바꾸고, 회원 선택은 실제
+  // 소유권을 이전합니다. 회원 목록은 패널이 열릴 때만 불러옵니다.
   const [authorEditing, setAuthorEditing] = useState(false)
-  const [authorStudentId, setAuthorStudentId] = useState('')
-  const [authorName, setAuthorName] = useState('')
-  const [savingAuthor, setSavingAuthor] = useState(false)
-  const [authorError, setAuthorError] = useState('')
   const isAnonymousDetail = String(selected?.category) === 'ANONYMOUS'
   const ownsSelected = Boolean(selected && currentUser && (
     (selected.authorStudentId && currentUser.studentId && String(selected.authorStudentId) === String(currentUser.studentId)) ||
     (selected.authorId && currentUser.id && String(selected.authorId) === String(currentUser.id))
   ))
-  const canEditSelected = ownsSelected && isTextOnlyPost(selected) && Boolean(editPost)
+  const canEditSelected = canEditCommunityPost(currentUser, selected) && Boolean(editPost)
+  const hasPreservedBlocks = postBlocks(selected).some((block) => block?.type && block.type !== 'text')
+  const hasPreservedMedia = hasPreservedBlocks || Boolean(selected?.imageUrl) || (Array.isArray(selected?.imageInfos) && selected.imageInfos.length > 0) || (Array.isArray(selected?.imageUrls) && selected.imageUrls.length > 0)
 
   function startEditPost() {
     if (!selected) return
+    const originalContent = String(selected.content || '')
+    const contentSeed = postBodyText(selected)
     setEditTitle(selected.title || '')
-    setEditContent(postBodyText(selected))
+    setEditContent(contentSeed)
+    setEditContentSeed(contentSeed)
+    setEditOriginalContent(originalContent)
     setEditingPost(true)
   }
 
   async function submitEditPost(event) {
     event.preventDefault()
-    if (!selected || !editTitle.trim() || !editContent.trim()) return
+    if (!selected || !editTitle.trim() || (!editContent.trim() && !hasPreservedMedia)) return
     setSavingEdit(true)
     try {
       await editPost?.(selected.id, {
         title: editTitle.trim(),
-        content: String(buildComposerContent({ text: editContent, poll: createEmptyPollDraft() })),
+        content: editContent.trim() === editContentSeed
+          ? editOriginalContent
+          : replaceContentTextPreservingBlocks(editOriginalContent, editContent),
         category: String(selected.category || 'GENERAL'),
         anonymousName: String(selected.anonymousName || ''),
       })
@@ -181,30 +186,7 @@ export default function CommunityTab({ posts, selected, comments, loading, openP
 
   function startAuthorEdit() {
     if (!selected) return
-    setAuthorStudentId('')
-    setAuthorName(String(selected.authorDisplayName || selected.authorName || ''))
-    setAuthorError('')
     setAuthorEditing(true)
-  }
-
-  async function submitAuthorEdit(event) {
-    event.preventDefault()
-    const studentId = authorStudentId.trim()
-    const name = authorName.trim()
-    if (!studentId && !name) {
-      setAuthorError('학번 또는 표시 이름 중 하나는 입력해야 합니다.')
-      return
-    }
-    setSavingAuthor(true)
-    setAuthorError('')
-    try {
-      await updatePostAuthor?.(studentId ? { studentId } : { name })
-      setAuthorEditing(false)
-    } catch (error) {
-      setAuthorError(error?.message || '작성자 변경에 실패했습니다.')
-    } finally {
-      setSavingAuthor(false)
-    }
   }
 
   async function submitReport(reason, detail) {
@@ -327,9 +309,10 @@ export default function CommunityTab({ posts, selected, comments, loading, openP
               <form className="form panel" onSubmit={submitEditPost}>
                 <label>제목<input value={editTitle} onChange={(event) => setEditTitle(event.target.value)} maxLength={80} /></label>
                 <label>내용 (**굵게**, _기울임_, [링크](https://...) 지원)<textarea value={editContent} onChange={(event) => setEditContent(event.target.value)} rows={6} maxLength={5000} /></label>
+                {hasPreservedBlocks && <p className="muted">첨부, 이미지, 영상, 투표, 임베드는 이 화면에서 직접 편집하지 않고 그대로 유지됩니다.</p>}
                 <div className="button-row">
                   <button type="button" className="button secondary" onClick={() => setEditingPost(false)}>취소</button>
-                  <button type="submit" className="button primary" disabled={savingEdit || !editTitle.trim() || !editContent.trim()}>{savingEdit ? '저장 중...' : '수정 저장'}</button>
+                  <button type="submit" className="button primary" disabled={savingEdit || !editTitle.trim() || (!editContent.trim() && !hasPreservedMedia)}>{savingEdit ? '저장 중...' : '수정 저장'}</button>
                 </div>
               </form>
             ) : (
@@ -362,15 +345,16 @@ export default function CommunityTab({ posts, selected, comments, loading, openP
             </div>
             )}
             {authorEditing && (
-              <form className="form panel" onSubmit={submitAuthorEdit}>
-                <label>학번 (입력 시 해당 회원으로 재지정)<input value={authorStudentId} onChange={(event) => setAuthorStudentId(event.target.value)} maxLength={20} placeholder="예: 2023123456" /></label>
-                <label>표시 이름 (학번을 비웠을 때만 사용)<input value={authorName} onChange={(event) => setAuthorName(event.target.value)} maxLength={60} /></label>
-                {authorError && <p className="form-error">{authorError}</p>}
-                <div className="button-row">
-                  <button type="button" className="button secondary" onClick={() => setAuthorEditing(false)}>취소</button>
-                  <button type="submit" className="button primary" disabled={savingAuthor}>{savingAuthor ? '변경 중...' : '작성자 변경'}</button>
-                </div>
-              </form>
+              <AuthorEditPanel
+                currentUser={currentUser}
+                currentName={String(selected.authorDisplayName || selected.authorName || '')}
+                directNameKey="name"
+                onCancel={() => setAuthorEditing(false)}
+                onSubmit={async (payload) => {
+                  await updatePostAuthor?.(payload)
+                  setAuthorEditing(false)
+                }}
+              />
             )}
             {reporting && <ReportDialog onClose={() => setReporting(false)} onSubmit={submitReport} />}
             <Section title={`댓글 ${asArray(comments).length}`}>

@@ -6,8 +6,17 @@ export async function listFiles() {
   return parseApiResponse(FileListSchema, data, '자료 목록')
 }
 
-export function downloadUrl(id) {
-  return apiUrl(`/api/files/${id}/download`)
+export function downloadUrl(id, file = null) {
+  return apiUrl(withContentVersion(`/api/files/${id}/download`, file))
+}
+
+export function inlineUrl(id, file) {
+  return apiUrl(withContentVersion(`/api/files/${id}/inline`, file))
+}
+
+function withContentVersion(path, file) {
+  const version = file?.contentVersion
+  return version === undefined || version === null || version === '' ? path : `${path}?v=${encodeURIComponent(version)}`
 }
 
 export async function voteFile(id, value) {
@@ -18,11 +27,24 @@ export async function voteFile(id, value) {
   return parseApiResponse(FileSchema, data, '자료 투표')
 }
 
-// 부회장 이상 (web roleAccess.canManageArchive) — 자료에 표시할 업로더 이름만 바꿉니다.
-export function updateArchiveAuthor(id, uploaderName) {
+export function updateArchiveFile(id, { title, description, category, file }) {
+  const form = new FormData()
+  form.append('title', title)
+  form.append('description', description || '')
+  form.append('category', category || 'GENERAL')
+  if (file) form.append('file', file)
+  return request(`/api/files/${id}`, {
+    method: 'PUT',
+    body: form,
+  })
+}
+
+// 실제 업로더 재지정은 회장 전용; 표시 이름 변경은 기존 자료실 관리 권한 유지.
+export function updateArchiveAuthor(id, payload) {
+  const body = typeof payload === 'string' ? { uploaderName: payload } : payload
   return request(`/api/files/${id}/author`, {
     method: 'PATCH',
-    body: JSON.stringify({ uploaderName }),
+    body: JSON.stringify(body?.studentId ? { studentId: body.studentId } : { uploaderName: body?.uploaderName || '' }),
   })
 }
 

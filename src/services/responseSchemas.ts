@@ -118,6 +118,9 @@ export const FileSchema = z.looseObject({
   originalName: z.nullish(z.string()),
   description: z.nullish(z.string()),
   uploadedAt: z.nullish(z.string()),
+  uploadedBy: idValue,
+  uploaderName: z.nullish(z.string()),
+  contentVersion: numericValue,
   viewCount: numericValue,
   myVote: numericValue,
   upvotes: numericValue,
@@ -158,6 +161,8 @@ export const NoticeSchema = z.looseObject({
   pinned: z.nullish(z.boolean()),
   category: z.nullish(z.string()),
   createdAt: z.nullish(z.string()),
+  authorStudentId: idValue,
+  authorId: idValue,
   viewCount: numericValue,
   upvotes: numericValue,
 })

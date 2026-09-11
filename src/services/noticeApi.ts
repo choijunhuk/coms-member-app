@@ -33,11 +33,12 @@ export function pinNotice(id, pinned) {
   })
 }
 
-// 회장 전용 — 공지에 표시할 작성자 이름만 바꿉니다 (계정 재지정 아님).
-export function updateNoticeAuthor(id, name) {
+// 회장 전용 — studentId면 실제 작성자 재지정, name이면 표시 이름만 변경.
+export function updateNoticeAuthor(id, payload) {
+  const body = typeof payload === 'string' ? { name: payload } : payload
   return request(`/api/notices/${id}/author`, {
     method: 'PATCH',
-    body: JSON.stringify({ name }),
+    body: JSON.stringify(body?.studentId ? { studentId: body.studentId } : { name: body?.name || '' }),
   })
 }
 

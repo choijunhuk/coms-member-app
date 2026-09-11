@@ -113,6 +113,30 @@ export function isAdminUser(user) {
   return user?.role === 'ADMIN'
 }
 
+export function isOwnedByUser(user, item, keys: { studentKey?: string; idKey?: string } = {}) {
+  if (!user || !item) return false
+  const studentKey = keys.studentKey || 'authorStudentId'
+  const idKey = keys.idKey || 'authorId'
+  const itemStudentId = item?.[studentKey]
+  const itemId = item?.[idKey]
+  if (itemStudentId && user.studentId) return String(itemStudentId) === String(user.studentId)
+  if (itemId && user.id) return String(itemId) === String(user.id)
+  return false
+}
+
+export function canEditCommunityPost(user, post) {
+  if (typeof post?.editable === 'boolean') return post.editable
+  return isAdminUser(user) || isOwnedByUser(user, post)
+}
+
+export function canEditArchiveFile(user, file) {
+  return isAdminUser(user) || isOwnedByUser(user, file, { studentKey: 'uploadedBy', idKey: 'uploaderId' })
+}
+
+export function canEditNotice(user, notice) {
+  return isAdminUser(user) || isOwnedByUser(user, notice, { studentKey: 'authorStudentId', idKey: 'authorId' })
+}
+
 // 임원 이상: 공지/활동/일정 작성 (backend hasAnyRole ADMIN,OFFICER routes).
 export function canManageContent(user) {
   return roleAtLeast(user, 'OFFICER')

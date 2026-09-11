@@ -1,14 +1,15 @@
 import { useMemo, useState } from 'react'
-import { Download, Eye, Paperclip, Plus, Search, ThumbsUp, Trash2, Upload, UserPen, X } from 'lucide-react'
+import { Download, Eye, Paperclip, Pencil, Plus, Search, ThumbsUp, Trash2, Upload, UserPen, X } from 'lucide-react'
 import { useTwemoji } from '../hooks/useTwemoji'
-import { createArchivePosts, deleteFile, downloadUrl, updateArchiveAuthor, voteFile } from '../services/archiveApi'
-import { confirmDialog, promptDialog } from '../components/ConfirmDialog'
+import { createArchivePosts, deleteFile, downloadUrl, inlineUrl, updateArchiveAuthor, updateArchiveFile, voteFile } from '../services/archiveApi'
+import { confirmDialog } from '../components/ConfirmDialog'
 import { ArchiveCategory } from '../contract/enums'
 import { asArray, formatDate } from '../utils/format'
-import { canModerateCommunity, fileCategoryLabels, latest } from '../utils/helpers'
+import { canEditArchiveFile, canModerateCommunity, fileCategoryLabels, latest } from '../utils/helpers'
 import { looksLikeHtml, renderMarkdownToHtml, renderSafeHtml } from '../utils/markdown'
-import { postBodyText, postPreviewText } from '../utils/postBlocks'
+import { postBodyText, postPreviewText, replaceContentTextPreservingBlocks } from '../utils/postBlocks'
 import { readRecentResourceIds, rememberResource } from '../utils/resourceHistory'
+import AuthorEditPanel from '../components/AuthorEditPanel'
 import { Detail, Empty, ListItem, Section } from '../components/ui'
 import type { ArchiveFile, CurrentUser } from '../contract/types'
 
@@ -115,6 +116,14 @@ export default function ResourcesTab({ files, currentUser, onChanged }: Resource
   const canManageArchive = canModerateCommunity(currentUser)
   const [archiveBusy, setArchiveBusy] = useState('')
   const [archiveError, setArchiveError] = useState('')
+  const [editingArchive, setEditingArchive] = useState(false)
+  const [editTitle, setEditTitle] = useState('')
+  const [editDescription, setEditDescription] = useState('')
+  const [editDescriptionSeed, setEditDescriptionSeed] = useState('')
+  const [editOriginalDescription, setEditOriginalDescription] = useState('')
+  const [editCategory, setEditCategory] = useState('GENERAL')
+  const [editFile, setEditFile] = useState<File | null>(null)
+  const [authorEditing, setAuthorEditing] = useState(false)
   const [voteState, setVoteState] = useState<Record<string, ArchiveFile>>({})
   const [recentIds, setRecentIds] = useState<string[]>(() => readRecentResourceIds())
   const categories = useMemo(() => ['ALL', ...new Set(asArray(files).map((file) => file.category || 'GENERAL'))], [files])
@@ -137,20 +146,50 @@ export default function ResourcesTab({ files, currentUser, onChanged }: Resource
   const downloadFile = (file) => {
     rememberResource(file.id)
     setRecentIds(readRecentResourceIds())
-    window.open(downloadUrl(file.id), '_blank', 'noopener,noreferrer')
+    window.open(downloadUrl(file.id, file), '_blank', 'noopener,noreferrer')
   }
   const statsFor = (file) => voteState[file.id] || file
-  async function changeArchiveAuthor(file) {
-    const name = await promptDialog({
-      message: '자료실에 표시할 작성자 이름을 입력하세요.',
-      prompt: { defaultValue: String(file.uploaderName || ''), placeholder: '작성자 이름', maxLength: 60 },
-      confirmText: '변경',
-    })
-    if (!name) return
+  function startArchiveEdit(file) {
+    const originalDescription = String(file.description || '')
+    const descriptionSeed = postBodyText({ content: originalDescription })
+    setEditTitle(String(file.title || ''))
+    setEditDescription(descriptionSeed)
+    setEditDescriptionSeed(descriptionSeed)
+    setEditOriginalDescription(originalDescription)
+    setEditCategory(String(file.category || 'GENERAL'))
+    setEditFile(null)
+    setArchiveError('')
+    setEditingArchive(true)
+  }
+  async function submitArchiveEdit(event) {
+    event.preventDefault()
+    if (!selected || !editTitle.trim()) return
+    setArchiveBusy('edit')
+    setArchiveError('')
+    try {
+      await updateArchiveFile(selected.id, {
+        title: editTitle.trim(),
+        description: editDescription.trim() === editDescriptionSeed
+          ? editOriginalDescription
+          : replaceContentTextPreservingBlocks(editOriginalDescription, editDescription),
+        category: editCategory,
+        file: editFile,
+      })
+      setEditingArchive(false)
+      setEditFile(null)
+      onChanged?.()
+    } catch (error) {
+      setArchiveError(error?.message || '자료 수정에 실패했습니다.')
+    } finally {
+      setArchiveBusy('')
+    }
+  }
+  async function changeArchiveAuthor(file, payload) {
     setArchiveBusy('author')
     setArchiveError('')
     try {
-      await updateArchiveAuthor(file.id, name)
+      await updateArchiveAuthor(file.id, payload)
+      setAuthorEditing(false)
       onChanged?.()
     } catch (error) {
       setArchiveError(error?.message || '작성자 변경에 실패했습니다.')
@@ -186,6 +225,8 @@ export default function ResourcesTab({ files, currentUser, onChanged }: Resource
   if (selected) {
     const stats = statsFor(selected)
     const bodyHtml = descriptionBodyHtml(selected)
+    const canEditSelected = canEditArchiveFile(currentUser, selected)
+    const canChangeAuthor = canManageArchive
     return (
       <div className="stack">
         <Detail
@@ -193,24 +234,58 @@ export default function ResourcesTab({ files, currentUser, onChanged }: Resource
           meta={`${fileCategoryLabels[selected.category] || '일반'} · ${formatDate(selected.uploadedAt)}`}
           onBack={() => setSelected(null)}
         >
-          {bodyHtml
-            ? <div className="body-text web-post" dangerouslySetInnerHTML={{ __html: bodyHtml }} />
-            : <p className="muted">설명이 없습니다.</p>}
+          {editingArchive ? (
+            <form className="form panel" onSubmit={submitArchiveEdit}>
+              <label>제목<input value={editTitle} onChange={(event) => setEditTitle(event.target.value)} maxLength={80} /></label>
+              <label>분류<select value={editCategory} onChange={(event) => setEditCategory(event.target.value)}>{UPLOAD_CATEGORY_OPTIONS.map((value) => <option key={value} value={value}>{fileCategoryLabels[value] || value}</option>)}</select></label>
+              <label>설명 (선택)<textarea value={editDescription} onChange={(event) => setEditDescription(event.target.value)} rows={4} maxLength={2000} /></label>
+              <label className="image-picker">
+                <Paperclip size={15} aria-hidden="true" /> {editFile ? editFile.name : '파일 교체 (선택)'}
+                <input type="file" onChange={(event) => setEditFile(event.target.files?.[0] || null)} hidden />
+              </label>
+              {editFile && <p className="muted">새 파일로 교체됩니다. 선택하지 않으면 기존 파일을 유지합니다.</p>}
+              <div className="button-row">
+                <button type="button" className="button secondary" onClick={() => setEditingArchive(false)}>취소</button>
+                <button type="submit" className="button primary" disabled={archiveBusy === 'edit' || !editTitle.trim()}>{archiveBusy === 'edit' ? '저장 중...' : '수정 저장'}</button>
+              </div>
+            </form>
+          ) : (
+            bodyHtml
+              ? <div className="body-text web-post" dangerouslySetInnerHTML={{ __html: bodyHtml }} />
+              : <p className="muted">설명이 없습니다.</p>
+          )}
           <div className="button-row">
             <button type="button" className="button primary compact" onClick={() => downloadFile(selected)}>
               <Download size={15} aria-hidden="true" /> {selected.originalName || '파일 다운로드'}
             </button>
+            <button type="button" className="button secondary compact" onClick={() => window.open(inlineUrl(selected.id, selected), '_blank', 'noopener,noreferrer')}>
+              <Eye size={15} aria-hidden="true" /> 바로 보기
+            </button>
+            {canEditSelected && !editingArchive && (
+              <button type="button" className="button secondary compact" onClick={() => startArchiveEdit(selected)} disabled={Boolean(archiveBusy)}>
+                <Pencil size={15} aria-hidden="true" /> 수정
+              </button>
+            )}
+            {canChangeAuthor && (
+              <button type="button" className="button secondary compact" onClick={() => setAuthorEditing((value) => !value)} disabled={Boolean(archiveBusy)}>
+                <UserPen size={15} aria-hidden="true" /> 작성자 변경
+              </button>
+            )}
             {canManageArchive && (
-              <>
-                <button type="button" className="button secondary compact" onClick={() => changeArchiveAuthor(selected)} disabled={Boolean(archiveBusy)}>
-                  <UserPen size={15} aria-hidden="true" /> 작성자 변경
-                </button>
-                <button type="button" className="button danger compact" onClick={() => removeArchiveFile(selected)} disabled={Boolean(archiveBusy)}>
-                  <Trash2 size={15} aria-hidden="true" /> 삭제
-                </button>
-              </>
+              <button type="button" className="button danger compact" onClick={() => removeArchiveFile(selected)} disabled={Boolean(archiveBusy)}>
+                <Trash2 size={15} aria-hidden="true" /> 삭제
+              </button>
             )}
           </div>
+          {authorEditing && (
+            <AuthorEditPanel
+              currentUser={currentUser}
+              currentName={String(selected.uploaderName || selected.uploadedBy || '')}
+              directNameKey="uploaderName"
+              onCancel={() => setAuthorEditing(false)}
+              onSubmit={(payload) => changeArchiveAuthor(selected, payload)}
+            />
+          )}
           {archiveError && <p className="form-error">{archiveError}</p>}
           <div className="stats">
             <span><Eye size={14} />{stats.viewCount || 0}</span>

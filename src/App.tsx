@@ -39,7 +39,7 @@ import {
 } from './services/mobileApi'
 import { nativePlatform, openNotificationSettings, readAppVersion, readPushPermissionState, requestPushRegistration, resetPushRegistration, setupAppStateListener, setupBackButtonListener, setupDeepLinkListener } from './services/nativeBridge'
 import { isBiometricAvailable } from './services/biometric'
-import { deleteNotice, getNotice, listNotices, pinNotice, updateNoticeAuthor, voteNotice } from './services/noticeApi'
+import { deleteNotice, getNotice, listNotices, pinNotice, updateNotice, updateNoticeAuthor, voteNotice } from './services/noticeApi'
 import { getNotificationSummary, listNotifications, markAllNotificationsRead, markNotificationRead } from './services/notificationApi'
 import { asArray } from './utils/format'
 import { canManageContent, normalizeAppConfig } from './utils/helpers'
@@ -927,6 +927,13 @@ export default function App() {
     await reloadSelectedNotice(noticeId)
   }
 
+  async function editSelectedNotice(payload) {
+    const noticeId = selectedNotice?.id
+    if (!noticeId) return
+    await updateNotice(noticeId, payload)
+    await reloadSelectedNotice(noticeId)
+  }
+
   // 회장 전용 커뮤니티 작성자 변경: studentId면 계정 재지정, name이면 표시 이름만.
   async function changeSelectedPostAuthor(payload) {
     if (!selectedPost?.id) return
@@ -1171,7 +1178,7 @@ export default function App() {
     </div>
   )
   else if (activeTab === 'activity') content = <ActivityTab clubActivities={clubActivities} apps={apps} appLinks={appConfig.links} />
-  else if (activeTab === 'notices') content = <NoticesTab notices={notices} selected={selectedNotice} loading={noticeLoading} openNotice={openNotice} closeNotice={() => { detailSeqRef.current += 1; setSelectedNotice(null) }} voteNotice={voteOnNotice} currentUser={user} pinNotice={pinSelectedNotice} deleteNotice={removeSelectedNotice} updateNoticeAuthor={changeSelectedNoticeAuthor} />
+  else if (activeTab === 'notices') content = <NoticesTab notices={notices} selected={selectedNotice} loading={noticeLoading} openNotice={openNotice} closeNotice={() => { detailSeqRef.current += 1; setSelectedNotice(null) }} voteNotice={voteOnNotice} currentUser={user} pinNotice={pinSelectedNotice} deleteNotice={removeSelectedNotice} updateNoticeAuthor={changeSelectedNoticeAuthor} editNotice={editSelectedNotice} />
   else if (activeTab === 'community') content = <CommunityTab posts={posts} selected={selectedPost} comments={comments} loading={postLoading} openPost={openPost} closePost={() => { detailSeqRef.current += 1; setSelectedPost(null); setComments([]) }} createPost={createPost} editPost={editPostForId} createCommentForPost={createCommentForPost} editComment={editCommentForPost} removeComment={removeCommentForPost} vote={vote} pollVote={pollVote} closePoll={closePoll} pinPost={pinPost} updatePostAuthor={changeSelectedPostAuthor} toggleBookmark={toggleBookmark} currentUser={user} pendingPosts={pendingCommunityPosts} retryPendingPosts={flushPendingCommunityPosts} />
   else if (activeTab === 'resources') content = <ResourcesTab files={files} currentUser={user} onChanged={refreshDashboard} />
   else if (activeTab === 'notifications') content = <NotificationsTab notifications={notifications} unreadCount={unreadCount} pushStatus={pushStatus} pushPermission={pushPermission} refreshPushPermission={refreshPushPermission} appConfig={appConfig} enablePush={enablePush} onOpenPushSettings={openPushSettings} markRead={markRead} markAllRead={markAllRead} openRoute={openRoute} />

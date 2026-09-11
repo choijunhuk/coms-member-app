@@ -133,4 +133,66 @@ describe('CommunityTab', () => {
     expect(screen.getByText('표류 글')).toBeTruthy()
     expect(document.querySelector('.role-tag')).toBeNull()
   })
+
+  test('lets ADMIN edit mixed-block post text without dropping attachments', async () => {
+    const editPost = vi.fn().mockResolvedValue(undefined)
+    const originalContent = JSON.stringify([
+      { type: 'text', content: '<p>기존 본문</p>' },
+      { type: 'file', fileId: 12, name: '첨부.pdf' },
+    ])
+    renderCommunity({
+      selected: {
+        id: 51,
+        title: '첨부 글',
+        category: 'GENERAL',
+        content: originalContent,
+      },
+      currentUser: { id: 9, studentId: '2024999999', role: 'ADMIN' },
+      editPost,
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: '수정' }))
+    expect(screen.getByDisplayValue('기존 본문')).toBeTruthy()
+    expect(screen.queryByDisplayValue(originalContent)).toBeNull()
+    expect(screen.getByText(/그대로 유지됩니다/)).toBeTruthy()
+
+    fireEvent.change(screen.getByLabelText(/내용/), { target: { value: '새 본문' } })
+    fireEvent.click(screen.getByRole('button', { name: '수정 저장' }))
+
+    await waitFor(() => expect(editPost).toHaveBeenCalledOnce())
+    const payload = editPost.mock.calls[0][1]
+    expect(JSON.parse(payload.content)).toEqual([
+      { type: 'text', content: '새 본문' },
+      { type: 'file', fileId: 12, name: '첨부.pdf' },
+    ])
+  })
+
+  test('lets ADMIN save title-only edits for image-only posts', async () => {
+    const editPost = vi.fn().mockResolvedValue(undefined)
+    renderCommunity({
+      selected: {
+        id: 52,
+        title: '이미지 글',
+        category: 'GENERAL',
+        content: '',
+        imageUrl: '/api/community/posts/52/image',
+      },
+      currentUser: { id: 9, studentId: '2024999999', role: 'ADMIN' },
+      editPost,
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: '수정' }))
+    fireEvent.change(screen.getByLabelText('제목'), { target: { value: '수정된 이미지 글' } })
+
+    const save = screen.getByRole('button', { name: '수정 저장' })
+    expect(save.disabled).toBe(false)
+    fireEvent.click(save)
+
+    await waitFor(() => expect(editPost).toHaveBeenCalledOnce())
+    expect(editPost).toHaveBeenCalledWith(52, expect.objectContaining({
+      title: '수정된 이미지 글',
+      content: '',
+      category: 'GENERAL',
+    }))
+  })
 })
