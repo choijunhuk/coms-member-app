@@ -264,6 +264,19 @@ export function postBodyText(post) {
   return harvestText(postBlocks(post)) || harvestText(post?.content) || ''
 }
 
+// Used by simple mobile editors for existing structured content: one editable
+// text block is rewritten while media/poll/embed blocks remain intact. If the
+// original content was plain text, keep the plain-text shape.
+export function replaceContentTextPreservingBlocks(originalContent, nextText) {
+  const normalizedText = String(nextText || '').trim()
+  const blocks = parseContentBlocks(originalContent)
+  if (!blocks) return normalizedText
+  return JSON.stringify([
+    { type: 'text', content: normalizedText },
+    ...blocks.filter((block) => block?.type && block.type !== 'text'),
+  ])
+}
+
 // Preview for any block-JSON content (e.g. a notice's `content`), which may be a
 // JSON block array rather than plain text. Harvests the author text so we never
 // render raw `[{"type":"text",...}]` in a list. Falls back to a media hint.
