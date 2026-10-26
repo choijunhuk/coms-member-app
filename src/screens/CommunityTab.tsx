@@ -16,7 +16,9 @@ import MemberProfile from './community/MemberProfile'
 import PostContent from './community/PostContent'
 import ReportDialog from './community/ReportDialog'
 import AuthorEditPanel from '../components/AuthorEditPanel'
-import { reportCommunityPost } from '../services/communityApi'
+import { getCommunityShareLink, reportCommunityPost } from '../services/communityApi'
+import { PUBLIC_BASE_URL } from '../config/appLinks'
+import { communityShareUrl } from '../utils/shareLink'
 import type { CommunityPost, CurrentUser } from '../contract/types'
 
 // Estimated height for a community list item (title + meta + body).
@@ -29,7 +31,6 @@ const MAX_THREAD_DEPTH = 3
 
 type PostRowExtra = { observeRow: DynamicRowHeight['observeRowElements'] }
 
-const ORIGIN = (typeof window !== 'undefined' && window.location?.origin) || 'https://coms.kw.ac.kr'
 
 function matchesQuery(post, query) {
   if (!query) return true
@@ -226,7 +227,13 @@ export default function CommunityTab({ posts, selected, comments, loading, openP
 
   async function shareSelected() {
     void hapticLight()
-    const shareUrl = `${ORIGIN.replace(/\/$/, '')}/community/${selected.id}`
+    let signedUrl = ''
+    try {
+      signedUrl = (await getCommunityShareLink(selected.id))?.url || ''
+    } catch {
+      // Anonymous-board post or an older server: share the plain link (generic preview).
+    }
+    const shareUrl = communityShareUrl(selected.id, signedUrl, PUBLIC_BASE_URL)
     await sharePost({ title: selected.title || 'COM\'s 커뮤니티', text: '여기를 눌러 내용을 확인하세요.', url: shareUrl })
   }
 

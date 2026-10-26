@@ -46,6 +46,14 @@ export async function getCommunityPost(id) {
   return parseApiResponse(CommunityPostSchema, data, '커뮤니티 글')
 }
 
+/**
+ * `{ url, signature }` — a link whose chat preview may show the post's title and image.
+ * 404 for anonymous-board posts (they never get a preview) and on servers that predate it.
+ */
+export async function getCommunityShareLink(id): Promise<{ url?: string; signature?: string }> {
+  return request(`/api/community/posts/${id}/share-link`)
+}
+
 export function createCommunityPost(payload) {
   return request('/api/community/posts', {
     method: 'POST',
