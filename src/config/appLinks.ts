@@ -25,6 +25,9 @@ const publicBaseUrl = normalizeRootUrl(
   'https://coms.kw.ac.kr',
 )
 
+/** The public website, for links that leave the app (share sheet, browser). */
+export const PUBLIC_BASE_URL = publicBaseUrl
+
 function publicPath(path) {
   return `${publicBaseUrl}${path}`
 }
